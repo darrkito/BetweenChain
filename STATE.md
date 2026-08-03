@@ -6,6 +6,66 @@ delete history (superseded entries stay for context, just note what replaced the
 
 ---
 
+## 2026-08-03e — First real production deployment: GitHub + Vercel + hosted Supabase, two live bugs found and fixed
+
+The app went live for the first time this session — `github.com/darrkito/BetweenChain` →
+`betweenchain.vercel.app`, backed by a real hosted Supabase project (all 12 migrations
+applied) instead of the local Docker instance. Full checklist: initial git commit (this
+repo had **zero commits ever** before this — confirmed via `git log`), GitHub push,
+Vercel project creation (via the dashboard, user-driven — account creation and OAuth
+consent can't be automated), all 20 production env vars set via Vercel's API (mapped to
+the exact names the app code reads, not blindly copied — the new hosted Supabase project
+uses newer `sb_publishable_`/`sb_secret_` format keys plus a still-available legacy
+JWT-format anon/service_role pair; pulled the real `jwt_secret` via the Management API's
+`/postgrest` config endpoint since this app mints its own JWTs against a shared secret,
+not Supabase's own auth system).
+
+**Real bug #1, found live via user report**: the Connect Wallet button rendered unstyled
+and wallet lists (Solana/EVM/Sui) never populated in production. Root cause: the
+dark-mode pre-hydration script (`app/layout.tsx`'s `THEME_INIT_SCRIPT`, added earlier
+this session) sets `data-theme` on `<html>` before React hydrates — intentional, that's
+how it prevents a flash of the wrong theme — but server-rendered HTML has no such
+attribute, so React saw a mismatch on `<html>` itself and gave up hydrating the whole
+tree. Fixed with `suppressHydrationWarning` on `<html>`, the standard documented pattern
+for this exact technique. This bug was invisible to every check made earlier in the
+session (curl-based HTTP/HTML checks can't detect a client-side hydration failure) —
+only surfaced once the user actually opened it in a real browser with the console open.
+
+**Real bug #2, found live via user report right after fixing #1**: header buttons
+appeared "stacked on top of each other," NFTs nav link seemed to not show. Root cause:
+nav/wordmark text had no `whitespace-nowrap` — on a squeezed row, flexbox shrinks a
+flex item's width but never stops its own text from wrapping unless told to, so multiple
+now-multi-line children of differing heights next to each other (all with
+`items-center`) reads as overlapping/stacked buttons. Fixed with `whitespace-nowrap`
+throughout `AppHeader.tsx`, `flex-wrap`+`gap-y-2` on the header itself as a genuine
+overflow safety net, and shortened "Token Swap"→"Swap" below `sm`, matching the
+wordmark/wallet-button shortening already next to it.
+
+**Infrastructure discovery**: Vercel's dashboard-driven project import auto-created a
+**separate, disconnected private GitHub repo** (`darrkito/between_chain`, repoId
+1321897971) rather than linking to the real `darrkito/BetweenChain` repo (repoId
+1321894527) code actually lives in and gets pushed to — confirmed via mismatched repo
+IDs and a stale deployed commit sha that never advanced despite real pushes. Vercel's
+REST API has no documented way to re-link a project's git connection (dashboard-only).
+Worked around it two ways: (1) manual `vercel deploy --prod --token=...` from local
+files for the two live-bug hotfixes above (bypasses git entirely), and (2) added
+`.github/workflows/deploy.yml` — a GitHub Actions workflow that runs the same CLI
+command on every push to `main`, fully replicating "push → auto-deploy" without
+depending on Vercel's own GitHub App integration. Needed one manual step from the user
+(adding `VERCEL_TOKEN` as a GitHub Actions secret — same class of unavoidable
+account/credential step as everything else this session). `.vercel/project.json`
+(org/project IDs only, no secrets) is deliberately committed — normally gitignored, but
+CI needs it to know which Vercel project to deploy to without an interactive
+`vercel link`.
+
+**Also discovered**: the Vercel personal access token used throughout this setup is
+team-scoped, not user-scoped — it works fine for every project/env/deployment REST API
+call, but 404s (`"User not found"`) against `/v2/user` and the Vercel CLI's own
+`whoami`/`link` commands, which specifically need a user-identity token. Worked around
+by hand-writing `.vercel/project.json` directly instead of running `vercel link`.
+
+---
+
 ## 2026-08-03d — Upstash Redis provisioned; rate-limiting now genuinely shared/persistent (Phase 1.1 closed)
 
 The one Phase 1 item that needed the user's own action (a free Upstash account/DB —
