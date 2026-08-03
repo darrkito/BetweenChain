@@ -6,6 +6,31 @@ delete history (superseded entries stay for context, just note what replaced the
 
 ---
 
+## 2026-08-03i — Magic Eden 429 on collection open: auth header + one retry added to all reads
+
+User-reported live bug: "Magic Eden collection lookup failed (429)" when opening a collection page.
+Root cause: `getMagicEdenCollection`/`getMagicEdenListings` call ME's documented-keyless read
+endpoints with no `Authorization` header and no retry — any request landing inside another burst's
+120 QPM/2 QPS window (docs.magiceden.io/reference/solana-api-keys) hard-fails immediately, no
+recovery attempt. Confirmed live: even our real, active `MAGICEDEN_API_KEY` didn't clear an
+already-saturated window from this session's own heavy testing today (self-inflicted, from the
+buy_now/stats/collections verification passes earlier the same day) — the window is per-minute, not
+instantly reset, so a key alone doesn't fix an in-progress 429 storm.
+
+Fix, `lib/nft/magiceden.ts`:
+- New `magicEdenHeaders()` — sends `Authorization: Bearer` on every ME call when the key is present
+  (previously only `getMagicEdenBuyInstructions` did). Docs don't confirm keyed reads get a
+  separate/higher quota, but it can only help, never hurt, and is the account-authenticated path
+  now that the key is confirmed active (2026-08-03g/h).
+- New `fetchMagicEden()` — wraps every ME fetch (collections, stats, listings, top-collections,
+  buy_now) with a single 800ms-backoff retry specifically on 429. ME's window is per-minute, so a
+  request landing at the tail end of someone else's burst has a real chance of clearing on retry;
+  only retries once, so a genuinely saturated window still surfaces as a real error rather than
+  masking a sustained outage.
+- Confirmed `lib/cache.ts`'s `cached()` never caches a thrown error (only success results reach
+  `store.set`) — a 429 always gets a fresh attempt on the next request, no stale-error caching bug
+  to fix there.
+
 ## 2026-08-03h — Solana NFT main page now shows ranked top collections (floor + volume), matching Sui/Ethereum
 
 **The gap**: `app/nft/page.tsx` renders the same `NftCollectionsGrid` for every chain family, and that

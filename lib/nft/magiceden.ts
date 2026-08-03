@@ -10,10 +10,36 @@ const MAGICEDEN_API = "https://api-mainnet.magiceden.dev/v2";
 const MAGICEDEN_STATS_API = "https://stats-mainnet.magiceden.io";
 const COLLECTIONS_TTL_MS = 5 * 60_000;
 
-// Only needed for the buy-instruction endpoints (see getMagicEdenBuyInstructions
-// below) — collection browse/listings/stats reads are public, confirmed live
-// 2026-07-20 (no key required, ~120 req/min rate limit applies regardless).
+// Only strictly required for the buy-instruction endpoints (see
+// getMagicEdenBuyInstructions below) — collection browse/listings/stats
+// reads are documented as public/keyless, confirmed live 2026-07-20. But ME's
+// docs (docs.magiceden.io/reference/solana-api-keys, checked 2026-08-03)
+// state the default keyless limit is a hard 120 QPM/2 QPS with no mention of
+// whether authenticated requests get a separate/higher bucket — sent on
+// every call below anyway (when present) since it can only help, never hurt,
+// and it's the account-authenticated path going forward now that the key is
+// confirmed active (see 2026-08-03g/h in STATE.md).
 const MAGICEDEN_API_KEY = process.env.MAGICEDEN_API_KEY;
+
+function magicEdenHeaders(): HeadersInit | undefined {
+  return MAGICEDEN_API_KEY ? { Authorization: `Bearer ${MAGICEDEN_API_KEY}` } : undefined;
+}
+
+/**
+ * ME's public rate limit (120 QPM/2 QPS, see above) resets on a rolling
+ * per-minute window — a request that lands right at the edge of someone
+ * else's burst has a good chance of succeeding a moment later, so a single
+ * short-backoff retry meaningfully cuts user-visible 429s without masking a
+ * sustained outage (only ever retries once; a second 429 still surfaces as a
+ * real error). Real bug found live 2026-08-03: opening a collection page
+ * would hard-fail on a transient 429 with no retry at all.
+ */
+async function fetchMagicEden(url: string | URL, retryDelayMs = 800): Promise<Response> {
+  const res = await fetch(url, { headers: magicEdenHeaders(), cache: "no-store" });
+  if (res.status !== 429) return res;
+  await new Promise((resolve) => setTimeout(resolve, retryDelayMs));
+  return fetch(url, { headers: magicEdenHeaders(), cache: "no-store" });
+}
 
 interface RawMagicEdenCollection {
   symbol: string;
@@ -114,7 +140,7 @@ export async function browseMagicEdenCollections(limit = 20): Promise<NftCollect
     url.searchParams.set("limit", String(limit));
     url.searchParams.set("sort", "volume");
     url.searchParams.set("direction", "desc");
-    const res = await fetch(url, { cache: "no-store" });
+    const res = await fetchMagicEden(url);
     if (!res.ok) throw new Error(`Magic Eden top collections failed (${res.status})`);
     const rows = (await res.json()) as RawMagicEdenTopCollection[];
     return rows.map(toNftCollectionFromStats);
@@ -124,8 +150,8 @@ export async function browseMagicEdenCollections(limit = 20): Promise<NftCollect
 export async function getMagicEdenCollection(symbol: string): Promise<NftCollection | undefined> {
   return cached(`magiceden:collection:${symbol}`, COLLECTIONS_TTL_MS, async () => {
     const [collectionRes, statsRes] = await Promise.all([
-      fetch(`${MAGICEDEN_API}/collections/${encodeURIComponent(symbol)}`, { cache: "no-store" }),
-      fetch(`${MAGICEDEN_API}/collections/${encodeURIComponent(symbol)}/stats`, { cache: "no-store" }),
+      fetchMagicEden(`${MAGICEDEN_API}/collections/${encodeURIComponent(symbol)}`),
+      fetchMagicEden(`${MAGICEDEN_API}/collections/${encodeURIComponent(symbol)}/stats`),
     ]);
     // Only a real 404 means "no such collection" — any other non-ok status
     // (e.g. 429 from ME's aggressive ~120 req/min keyless rate limit,
@@ -141,9 +167,7 @@ export async function getMagicEdenCollection(symbol: string): Promise<NftCollect
 }
 
 export async function getMagicEdenListings(symbol: string, offset = 0, limit = 20): Promise<NftListing[]> {
-  const res = await fetch(`${MAGICEDEN_API}/collections/${encodeURIComponent(symbol)}/listings?offset=${offset}&limit=${limit}`, {
-    cache: "no-store",
-  });
+  const res = await fetchMagicEden(`${MAGICEDEN_API}/collections/${encodeURIComponent(symbol)}/listings?offset=${offset}&limit=${limit}`);
   if (!res.ok) throw new Error(`Magic Eden listings failed (${res.status})`);
   const listings = (await res.json()) as RawMagicEdenListing[];
 
@@ -207,10 +231,7 @@ export async function getMagicEdenBuyInstructions(params: {
   url.searchParams.set("price", raw.price.toString());
   url.searchParams.set("pdaAddress", raw.pdaAddress);
 
-  const res = await fetch(url, {
-    headers: { Authorization: `Bearer ${MAGICEDEN_API_KEY}` },
-    cache: "no-store",
-  });
+  const res = await fetchMagicEden(url);
   if (!res.ok) throw new Error(`Magic Eden buy instructions failed (${res.status}): ${await res.text()}`);
   return res.json();
 }
