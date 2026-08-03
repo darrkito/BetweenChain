@@ -93,6 +93,15 @@ export async function GET(req: Request) {
 
     return NextResponse.json({ listings: [] });
   } catch (err) {
-    return NextResponse.json({ error: (err as Error).message }, { status: 502 });
+    // Same upstream-rate-limit mapping as app/api/nft/collection/route.ts —
+    // keep the two in sync if this grows a shared helper later.
+    const message = (err as Error).message;
+    if (message.includes("429")) {
+      return NextResponse.json(
+        { error: "This marketplace is temporarily busy — please try again in a moment." },
+        { status: 503 },
+      );
+    }
+    return NextResponse.json({ error: message }, { status: 502 });
   }
 }

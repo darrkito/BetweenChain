@@ -44,6 +44,18 @@ export async function GET(req: Request) {
     if (!collection) return NextResponse.json({ error: "Collection not found" }, { status: 404 });
     return NextResponse.json({ collection });
   } catch (err) {
-    return NextResponse.json({ error: (err as Error).message }, { status: 502 });
+    // Upstream vendor rate-limit (e.g. Magic Eden's 120 QPM/2 QPS public
+    // cap, see lib/nft/magiceden.ts's fetchMagicEden) surfaces here as a
+    // generic thrown Error with the status embedded in the message — no
+    // structured error type exists for this yet. Map it to a real 503 with
+    // copy the UI can show as "try again", not a raw vendor error string.
+    const message = (err as Error).message;
+    if (message.includes("429")) {
+      return NextResponse.json(
+        { error: "This marketplace is temporarily busy — please try again in a moment." },
+        { status: 503 },
+      );
+    }
+    return NextResponse.json({ error: message }, { status: 502 });
   }
 }
