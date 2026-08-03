@@ -6,6 +6,34 @@ delete history (superseded entries stay for context, just note what replaced the
 
 ---
 
+## 2026-08-03g — Magic Eden buy-instructions key confirmed active; real code bug found and fixed; eslint noise cleared
+
+**Magic Eden key status, re-verified live against `instructions/buy_now`:**
+- No auth → `401`. Garbage key → `401`. Real key (unchanged since 2026-08-03) → `400
+  "invalid auction house"`. That's a clearly distinguishable, real auth pass — the
+  earlier "still 401, identical to garbage key" conclusion (logged 2026-08-03) is now
+  stale; the key activated at some point between then and now (Magic Eden gave no
+  activation notification, so exact timing unknown).
+- The residual `400` was **not** an auth/approval problem — it was a real code bug.
+  `getMagicEdenBuyInstructions` (`lib/nft/magiceden.ts`) never sent `auctionHouseAddress`,
+  a required param the endpoint silently needs. Added `auctionHouse` to
+  `RawMagicEdenListing` (was already present on every listing response, just unused) and
+  wired it into the request. Confirmed live with a real `okay_bears` listing: `200 OK`
+  with a real signed Solana tx buffer back.
+- `MAGICEDEN_API_KEY` was already present on Vercel (production + preview) from the
+  2026-08-03 env-vars pass — no new deploy config needed, just the code fix shipping
+  through the normal pipeline.
+- Buy flow is now unblocked end-to-end for Magic Eden/Solana at the instruction-building
+  level. Still not signed with a real wallet+funds yet (Phase 3.2 in `PLAN.md`'s
+  improvement plan) — that remains the actual "done" bar.
+
+**Lint cleanup**: `npm run lint` was reporting 154 errors/32 warnings, 100% of them on a
+single minified line inside `supabase/.temp/start-secrets/.../main/index.ts` — a
+generated/vendored file from the local Supabase CLI's Edge Runtime scratch dir, gitignored
+but not eslint-ignored. Added `supabase/.temp/**` and `supabase/.branches/**` to
+`eslint.config.mjs`'s ignores. `npm run lint` now exits clean (zero output) against real
+project source, which had zero actual lint issues.
+
 ## 2026-08-03f — Real OpenSea account key replaces the expiring agent-tier one
 
 User obtained a real account-tier OpenSea key. Live-verified before wiring anywhere:

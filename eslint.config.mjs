@@ -12,6 +12,10 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Local Supabase CLI runtime scratch dir — generated/vendored, not
+    // project source (gitignored, but eslint needs its own ignore too).
+    "supabase/.temp/**",
+    "supabase/.branches/**",
   ]),
 ]);
 

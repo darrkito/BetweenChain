@@ -25,6 +25,7 @@ interface RawMagicEdenStats {
 
 interface RawMagicEdenListing {
   pdaAddress: string;
+  auctionHouse: string;
   tokenAddress: string;
   tokenMint: string;
   seller: string;
@@ -128,15 +129,16 @@ export interface MagicEdenBuyInstructions {
 /**
  * Builds the unsigned Solana buy_now instructions for a specific listing.
  * REQUIRES MAGICEDEN_API_KEY (Bearer) — confirmed live 2026-07-20 that this
- * endpoint 401s without one, unlike collection/listing reads. A real key was
- * added to .env.local 2026-08-03, but it still 401s (same as no key / a
- * garbage key — the endpoint gives no distinguishing error). Re-tested again
- * after the 24-48h activation window ME quoted the user had fully passed —
- * still 401, identical to a garbage key, no change. That rules out "just
- * needs more time"; the Airtable approval form
- * (linked from docs.magiceden.io/reference/solana-api-keys — US:
- * airtable.com/appe8frCT8yj415Us/pagDL0gFwzsrLUxIB/form, non-US:
- * .../pagqgEFcpBlbm2DAF/form) is the actual next step now, not another wait.
+ * endpoint 401s without one, unlike collection/listing reads.
+ *
+ * 2026-08-03: key re-verified live and IS active (401→400 with real auth,
+ * vs 401 for a garbage/missing key — clearly distinguishable now). The
+ * earlier "still 401" conclusion was stale. Root cause of the persistent
+ * 400 turned out to be a real code bug, not the key/approval status: this
+ * endpoint requires `auctionHouseAddress` and we were never sending it.
+ * Added `auctionHouse` to RawMagicEdenListing and wired it through below —
+ * confirmed live with a real okay_bears listing: 200 OK with a real signed
+ * tx buffer.
  * `listing.raw` must be the exact object from getMagicEdenListings — same
  * "replay, don't rebuild" rule as every other quote/listing in this codebase.
  */
@@ -153,6 +155,7 @@ export async function getMagicEdenBuyInstructions(params: {
   const url = new URL(`${MAGICEDEN_API}/instructions/buy_now`);
   url.searchParams.set("buyer", params.buyer);
   url.searchParams.set("seller", raw.seller);
+  url.searchParams.set("auctionHouseAddress", raw.auctionHouse);
   url.searchParams.set("tokenMint", raw.tokenMint);
   url.searchParams.set("tokenATA", raw.tokenAddress);
   url.searchParams.set("price", raw.price.toString());
