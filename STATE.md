@@ -6,6 +6,40 @@ delete history (superseded entries stay for context, just note what replaced the
 
 ---
 
+## 2026-08-03h — Solana NFT main page now shows ranked top collections (floor + volume), matching Sui/Ethereum
+
+**The gap**: `app/nft/page.tsx` renders the same `NftCollectionsGrid` for every chain family, and that
+component already sorts/displays floor+volume generically — the bug was purely in the Solana data
+source. `browseMagicEdenCollections` called the documented `${MAGICEDEN_API}/collections` endpoint,
+which (confirmed live) has **no sort/rank parameter at all** — plain pagination in ME's internal storage
+order, so the page showed junk/test entries ("The Bullpen TEST") ahead of real collections, with every
+Floor/Volume cell blank (that endpoint returns no stats fields either). OpenSea's browse already sorts
+`order_by=seven_day_volume` + per-collection `/stats` enrichment, and Tradeport's already
+`order_by:{volume:desc}` — Solana was the only chain family without either.
+
+**Fix**: switched `browseMagicEdenCollections` (`lib/nft/magiceden.ts`) to
+`https://stats-mainnet.magiceden.io/collection_stats/search/solana?window=1d&sort=volume&direction=desc`
+— confirmed live 2026-08-03, no API key required, returns floor price + 24h volume + listed/total supply
+already in native SOL units (not lamports). This is undocumented but is the exact endpoint
+magiceden.io's own site uses for its home page "Popular collections" table — same category of
+"real site behavior over stale docs" pattern this codebase has hit before with ME (see 2026-08-03g).
+`collectionSymbol` from this endpoint is the same `symbol` used everywhere else (getMagicEdenCollection,
+getMagicEdenListings, buy_now) — verified live against a real result (`claynosaurz`) that
+listings/collection-detail routing still resolves correctly.
+
+**Docs cross-check** (per user request, `docs.magiceden.io/reference/solana-overview` +
+`/recipes`): found the *officially documented* ranking endpoint,
+`GET /v2/marketplace/popular_collections?timeRange=1d` (no key required per docs) — tested live
+with and without a real API key, **always returns `[]`** regardless of `timeRange`. Confirms this
+endpoint is dead/deprecated on Magic Eden's backend despite being documented, which is why the
+undocumented stats-mainnet host was used instead (it actually returns real data). Also verified
+`GET /instructions/buy_now`'s documented params against the 2026-08-03g fix: docs list
+`auctionHouseAddress` as *optional* ("defaults if omitted") and `sellerExpiry` as *required* — live
+behavior contradicts both: omitting `auctionHouseAddress` reliably 400s ("invalid auction house",
+the exact bug fixed in 2026-08-03g), and the endpoint returns `200 OK` with a real signed tx even
+without `sellerExpiry`. Treat ME's docs as directionally useful but not authoritative — verify
+against live behavior before trusting a documented default/requirement.
+
 ## 2026-08-03g — Magic Eden buy-instructions key confirmed active; real code bug found and fixed; eslint noise cleared
 
 **Magic Eden key status, re-verified live against `instructions/buy_now`:**

@@ -3,6 +3,11 @@ import { cached } from "@/lib/cache";
 import type { NftCollection, NftListing } from "@/lib/nft/types";
 
 const MAGICEDEN_API = "https://api-mainnet.magiceden.dev/v2";
+// Undocumented but public (no API key needed, confirmed live 2026-08-03) —
+// this is what magiceden.io's own site calls to render its home page
+// "Popular collections" ranking. See browseMagicEdenCollections below for
+// why the documented v2 /collections endpoint can't be used for this.
+const MAGICEDEN_STATS_API = "https://stats-mainnet.magiceden.io";
 const COLLECTIONS_TTL_MS = 5 * 60_000;
 
 // Only needed for the buy-instruction endpoints (see getMagicEdenBuyInstructions
@@ -21,6 +26,39 @@ interface RawMagicEdenStats {
   symbol: string;
   floorPrice?: number; // lamports
   listedCount?: number;
+}
+
+// Shape of stats-mainnet.magiceden.io's collection_stats/search response —
+// distinct from RawMagicEdenCollection/RawMagicEdenStats above (those come
+// from the documented api-mainnet.magiceden.dev/v2 host). fp/vol are already
+// in native SOL units, not lamports, confirmed live 2026-08-03.
+interface RawMagicEdenTopCollection {
+  name: string;
+  collectionSymbol: string;
+  image?: string;
+  fp?: number;
+  fpListingCurrency?: string;
+  vol?: number;
+  currency?: string;
+  totalSupply?: number;
+  listedCount?: number;
+}
+
+function toNftCollectionFromStats(c: RawMagicEdenTopCollection): NftCollection {
+  return {
+    vendor: "magiceden",
+    chainFamily: "solana",
+    slug: c.collectionSymbol,
+    name: c.name,
+    description: "",
+    imageUrl: c.image ?? "",
+    floorPrice: c.fp != null ? c.fp.toString() : undefined,
+    floorPriceCurrency: c.fpListingCurrency,
+    listedCount: c.listedCount,
+    totalSupply: c.totalSupply,
+    volume24hr: c.vol != null ? c.vol.toString() : undefined,
+    volume24hrCurrency: c.currency,
+  };
 }
 
 interface RawMagicEdenListing {
@@ -54,24 +92,32 @@ function toNftCollection(c: RawMagicEdenCollection, stats?: RawMagicEdenStats): 
 }
 
 /**
- * Magic Eden has no full-text collection search endpoint in its public API
- * (confirmed live 2026-07-20 — /v2/collections only paginates, no `term`/`q`
- * param). Browse-only for now; exact-symbol lookup via getMagicEdenCollection
- * covers the "user pastes/knows a collection" case.
+ * Ranked top collections by 24h volume, floor price included — matches how
+ * browseOpenSeaCollections (order_by=seven_day_volume) and
+ * browseTradeportCollections (order_by:{volume:desc}) already rank the
+ * EVM/Move browse pages, so all three chain families show a genuinely
+ * ranked "top collections" list with floor+volume, not an arbitrary one.
+ *
+ * The documented `${MAGICEDEN_API}/collections` endpoint (previously used
+ * here) can't do this: confirmed live it has no sort/rank param at all —
+ * plain pagination in whatever internal order ME stores them, dominated by
+ * spam/test entries ("The Bullpen TEST" ranked ahead of real collections)
+ * — and it returns no floor/volume data per collection either, so every
+ * card would show "—" for both. Switched 2026-08-03 to the same internal
+ * stats API magiceden.io's own home page renders its "Popular collections"
+ * table from (undocumented, but public — no API key required).
  */
-export async function browseMagicEdenCollections(offset = 0, limit = 20): Promise<NftCollection[]> {
-  // ME's public API rejects offset/limit combinations that aren't clean
-  // multiples of each other (confirmed live: a limit=2 request 400'd with
-  // "offset and limit must be a multiple of 20, offset must be a multiple of
-  // the limit") — always request in pages of 20.
-  const pageLimit = 20;
-  return cached(`magiceden:collections:${offset}:${pageLimit}`, COLLECTIONS_TTL_MS, async () => {
-    const res = await fetch(`${MAGICEDEN_API}/collections?offset=${offset}&limit=${pageLimit}`, {
-      cache: "no-store",
-    });
-    if (!res.ok) throw new Error(`Magic Eden collections list failed (${res.status})`);
-    const collections = (await res.json()) as RawMagicEdenCollection[];
-    return collections.slice(0, limit).map((c) => toNftCollection(c));
+export async function browseMagicEdenCollections(limit = 20): Promise<NftCollection[]> {
+  return cached(`magiceden:top-collections:${limit}`, COLLECTIONS_TTL_MS, async () => {
+    const url = new URL(`${MAGICEDEN_STATS_API}/collection_stats/search/solana`);
+    url.searchParams.set("window", "1d");
+    url.searchParams.set("limit", String(limit));
+    url.searchParams.set("sort", "volume");
+    url.searchParams.set("direction", "desc");
+    const res = await fetch(url, { cache: "no-store" });
+    if (!res.ok) throw new Error(`Magic Eden top collections failed (${res.status})`);
+    const rows = (await res.json()) as RawMagicEdenTopCollection[];
+    return rows.map(toNftCollectionFromStats);
   });
 }
 
