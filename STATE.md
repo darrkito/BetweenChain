@@ -6,6 +6,22 @@ delete history (superseded entries stay for context, just note what replaced the
 
 ---
 
+## 2026-08-03k — Magic Eden cross-chain buy: added Base and Arbitrum as EVM origins
+
+Extended the Magic Eden buy flow's cross-chain path (2026-08-03j) beyond Ethereum-only.
+`NftBuyModalMagicEden.tsx` now shows a chain picker (Ethereum/Base/Arbitrum) when "Pay with
+ETH" is selected, pulled from the existing `EVM_CHAINS` registry (`lib/nft/evmChains.ts`) —
+no new chain data, all three are already-verified entries used elsewhere for the OpenSea buy
+flow. `app/api/nft/purchase/magiceden/quote/route.ts` now accepts a client-supplied
+`originChainId`, validated against an explicit allowlist (`MAGICEDEN_EVM_ORIGIN_CHAIN_IDS`)
+rather than trusted freely — Relay's `getRelayCallQuote` already accepts arbitrary EVM origin
+chain ids, so the allowlist exists purely to keep this feature's scope to the three chains
+actually offered in the UI, not because an arbitrary chain id would be unsafe to pass through.
+All three chains are natively ETH-denominated, so `originCurrencySymbol` stays "ETH"
+regardless of which is picked — only the display label and `ensureChain`/deposit-signing
+target change. No execute/confirm-deposit route changes needed — `buildRelayExecutionSteps`
+already works generically off `quote.relay_quote` without needing to know the chain id.
+
 ## 2026-08-03j — Magic Eden buy flow built end-to-end (same-chain SOL + cross-chain ETH)
 
 User-reported gap: every Magic Eden listing showed "Buy not wired up for this vendor yet" —

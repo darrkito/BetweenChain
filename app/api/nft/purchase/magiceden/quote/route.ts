@@ -6,14 +6,20 @@ import { getMagicEdenBuyInstructions } from "@/lib/nft/magiceden";
 import { getRelayCallQuote, SOLANA_CHAIN_ID, RELAY_NATIVE_SOL_SENTINEL, RELAY_NATIVE_EVM_SENTINEL } from "@/lib/chains/relay";
 import { getSolUsdPrice } from "@/lib/pricing";
 import { isPlausibleEvmAddress } from "@/lib/validation";
+import { EVM_CHAINS } from "@/lib/nft/evmChains";
 import { rateLimit, clientKey } from "@/lib/rate-limit";
 import type { NftListing } from "@/lib/nft/types";
 
 const QUOTE_TTL_MS = 60_000; // same as every other NFT purchase quote — see app/api/nft/purchase/quote/route.ts
 
-// Ethereum only for now, same scope-limiting choice as NftBuyModalSui.tsx's
-// ETH_ORIGIN_CHAIN_ID — one EVM origin, not a full chain picker.
-const ETH_ORIGIN_CHAIN_ID = 1;
+// EVM origins offered for the cross-chain path — Ethereum, Base, Arbitrum
+// (2026-08-03 addition, was Ethereum-only). Must match
+// NftBuyModalMagicEden.tsx's MAGICEDEN_EVM_ORIGIN_SLUGS exactly. Pulled from
+// the shared EVM_CHAINS registry rather than a second hardcoded list — see
+// lib/nft/evmChains.ts's file comment.
+const MAGICEDEN_EVM_ORIGIN_CHAIN_IDS = new Set(
+  EVM_CHAINS.filter((c) => ["ethereum", "base", "arbitrum"].includes(c.slug)).map((c) => c.chainId),
+);
 
 const bodySchema = z.object({
   collectionSlug: z.string().min(1),
@@ -24,6 +30,7 @@ const bodySchema = z.object({
   tokenATA: z.string().min(1),
   listingPriceSol: z.string().min(1),
   payWith: z.enum(["sol", "eth"]),
+  originChainId: z.number().int().optional(), // EVM origin chain id for the "eth" path — see MAGICEDEN_EVM_ORIGIN_CHAIN_IDS
   sourceAddress: z.string().min(1).optional(), // EVM signer for the "eth" origin deposit
   // The buyer's own Solana wallet — pays directly (same-chain) or receives
   // the bridged SOL AND signs the Magic Eden buy_now tx itself (cross-chain,
@@ -64,6 +71,9 @@ export async function POST(req: Request) {
   }
   if (!isSameChain && (!input.sourceAddress || !isPlausibleEvmAddress(input.sourceAddress))) {
     return NextResponse.json({ error: "Invalid or missing EVM source address" }, { status: 400 });
+  }
+  if (!isSameChain && (!input.originChainId || !MAGICEDEN_EVM_ORIGIN_CHAIN_IDS.has(input.originChainId))) {
+    return NextResponse.json({ error: "Unsupported EVM origin chain" }, { status: 400 });
   }
 
   const listingRaw = {
@@ -106,7 +116,7 @@ export async function POST(req: Request) {
       originAddress = null;
     } else {
       const quote = await getRelayCallQuote({
-        originChainId: ETH_ORIGIN_CHAIN_ID,
+        originChainId: input.originChainId!,
         originCurrency: RELAY_NATIVE_EVM_SENTINEL,
         userOriginAddress: input.sourceAddress!,
         destChainId: SOLANA_CHAIN_ID,
@@ -117,8 +127,10 @@ export async function POST(req: Request) {
       relayQuote = quote.quote;
       originAmountFormatted = quote.originAmountFormatted;
       originAmountUsd = quote.originAmountUsd;
+      // All three supported EVM origins (Ethereum, Base, Arbitrum) are
+      // natively ETH-denominated — no per-chain symbol lookup needed.
       originCurrencySymbol = "ETH";
-      originChainId = ETH_ORIGIN_CHAIN_ID;
+      originChainId = input.originChainId!;
       originAddress = input.sourceAddress!;
     }
 

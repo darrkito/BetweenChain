@@ -10,6 +10,7 @@ import { roundUpTo2Decimals } from "@/lib/client/amount";
 import { NftImage } from "@/app/components/NftImage";
 import { EvmWalletButton } from "@/app/components/EvmWalletButton";
 import { EvmConnectPicker } from "@/app/components/EvmConnectPicker";
+import { EVM_CHAINS, type EvmChainOption } from "@/lib/nft/evmChains";
 import type { NftListing } from "@/lib/nft/types";
 
 const WalletMultiButton = dynamic(
@@ -43,9 +44,16 @@ function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-// Ethereum only for now — same scope-limiting choice as
-// app/api/nft/purchase/magiceden/quote/route.ts's ETH_ORIGIN_CHAIN_ID.
-const ETH_ORIGIN_CHAIN_ID = 1;
+// EVM origins offered for the cross-chain "pay with ETH" path — Ethereum,
+// Base, Arbitrum (2026-08-03 addition). Pulled from the same EVM_CHAINS
+// registry the NFT browse picker and OpenSea buy flow already use (single
+// shared source of truth, see lib/nft/evmChains.ts's file comment) rather
+// than a second hardcoded list — all three chains are ETH-denominated
+// natively, so `originCurrencySymbol` stays "ETH" regardless of which one
+// is picked. Must match app/api/nft/purchase/magiceden/quote/route.ts's
+// MAGICEDEN_EVM_ORIGIN_CHAIN_IDS allowlist exactly.
+const MAGICEDEN_EVM_ORIGIN_SLUGS = ["ethereum", "base", "arbitrum"];
+const MAGICEDEN_EVM_ORIGIN_CHAINS: EvmChainOption[] = EVM_CHAINS.filter((c) => MAGICEDEN_EVM_ORIGIN_SLUGS.includes(c.slug));
 
 export function NftBuyModalMagicEden({ listing, onClose }: { listing: NftListing; onClose: () => void }) {
   const { publicKey, signTransaction } = useWallet();
@@ -56,6 +64,7 @@ export function NftBuyModalMagicEden({ listing, onClose }: { listing: NftListing
   const [step, setStep] = useState<Step>("idle");
   const [message, setMessage] = useState<string | null>(null);
   const [payWith, setPayWith] = useState<PayWith>("sol");
+  const [evmOriginChain, setEvmOriginChain] = useState<EvmChainOption>(MAGICEDEN_EVM_ORIGIN_CHAINS[0]);
   const [quote, setQuote] = useState<{
     quoteId: string;
     originAmountFormatted: string;
@@ -89,6 +98,7 @@ export function NftBuyModalMagicEden({ listing, onClose }: { listing: NftListing
           tokenATA: raw.tokenAddress,
           listingPriceSol: listing.price,
           payWith,
+          originChainId: payWith === "eth" ? evmOriginChain.chainId : undefined,
           sourceAddress: payWith === "eth" ? evmWallet.address : undefined,
           destAddress: publicKey.toBase58(),
         }),
@@ -110,7 +120,7 @@ export function NftBuyModalMagicEden({ listing, onClose }: { listing: NftListing
       return;
     }
     setStep("depositing");
-    setMessage("Confirm the deposit in your Ethereum wallet…");
+    setMessage(`Confirm the deposit in your ${evmOriginChain.label} wallet…`);
     try {
       const execRes = await fetch("/api/nft/purchase/magiceden/execute", {
         method: "POST",
@@ -120,7 +130,7 @@ export function NftBuyModalMagicEden({ listing, onClose }: { listing: NftListing
       const execBody = await execRes.json();
       if (!execRes.ok) throw new Error(execBody.error ?? "Failed to build deposit");
 
-      await evmWallet.ensureChain(ETH_ORIGIN_CHAIN_ID);
+      await evmWallet.ensureChain(evmOriginChain.chainId);
       for (let i = 0; i < execBody.steps.length; i++) {
         const item = execBody.steps[i]?.items?.[0];
         if (!item?.data) throw new Error(`Deposit step "${execBody.steps[i]?.id}" did not include transaction data`);
@@ -283,6 +293,22 @@ export function NftBuyModalMagicEden({ listing, onClose }: { listing: NftListing
           </div>
         )}
 
+        {step === "idle" && payWith === "eth" && (
+          <div className="flex gap-1 rounded-xl border border-hairline bg-surface-hover p-1 text-xs font-medium">
+            {MAGICEDEN_EVM_ORIGIN_CHAINS.map((chain) => (
+              <button
+                key={chain.slug}
+                onClick={() => setEvmOriginChain(chain)}
+                className={`flex-1 rounded-lg py-1.5 transition-colors ${
+                  evmOriginChain.slug === chain.slug ? "bg-accent text-accent-ink" : "text-ink-muted"
+                }`}
+              >
+                {chain.label}
+              </button>
+            ))}
+          </div>
+        )}
+
         {!readyToQuote && payWith === "sol" && (
           <div className="flex flex-col gap-2 rounded-xl border border-hairline bg-surface-hover p-3">
             <p className="text-xs text-ink-muted">Paying directly in SOL on Solana — connect a Solana wallet and sign in to continue.</p>
@@ -311,10 +337,10 @@ export function NftBuyModalMagicEden({ listing, onClose }: { listing: NftListing
         {!readyToQuote && payWith === "eth" && (
           <div className="flex flex-col gap-2 rounded-xl border border-hairline bg-surface-hover p-3">
             <p className="text-xs text-ink-muted">
-              Paying in ETH on Ethereum, buying a Solana NFT — connect and sign in with both wallets to continue.
+              Paying in ETH on {evmOriginChain.label}, buying a Solana NFT — connect and sign in with both wallets to continue.
             </p>
             <div className="flex flex-col gap-1">
-              <span className="text-xs text-ink-faint">Ethereum (pays)</span>
+              <span className="text-xs text-ink-faint">{evmOriginChain.label} (pays)</span>
               {evmWallet.address ? (
                 auth.evmVerifiedAddress === evmWallet.address ? (
                   <p className="text-[11px] text-success">Signed in.</p>
@@ -367,7 +393,7 @@ export function NftBuyModalMagicEden({ listing, onClose }: { listing: NftListing
         {step === "quoted" && quote && (
           <div className="flex flex-col gap-2">
             <div className="flex items-center justify-between rounded-xl border border-hairline bg-surface-hover px-3 py-2">
-              <span className="text-xs text-ink-muted">You pay</span>
+              <span className="text-xs text-ink-muted">You pay{!quote.sameChain && ` (on ${evmOriginChain.label})`}</span>
               <span className="num text-sm font-semibold text-ink">
                 {roundUpTo2Decimals(Number(quote.originAmountFormatted))} {quote.originCurrencySymbol}{" "}
                 <span className="text-ink-faint">(${Number(quote.originAmountUsd).toFixed(2)})</span>
