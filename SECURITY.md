@@ -174,18 +174,32 @@ quote request, do not add a manual "enter your address" field for this value.
 4. **Zero custom security headers anywhere** — confirmed via `curl -I` against production:
    only Vercel's own default `strict-transport-security` was present, no
    `Content-Security-Policy`, `X-Frame-Options`, `X-Content-Type-Options`, or
-   `Referrer-Policy` at all. Added a deliberately conservative set in `next.config.ts`:
-   `X-Frame-Options: DENY` + `Content-Security-Policy: frame-ancestors 'none'` (closes
-   clickjacking — a real, known attack pattern against crypto dApps specifically: embed
-   the whole app in an invisible iframe and trick a user into approving a transaction they
-   think is something else), `object-src 'none'`, `base-uri 'self'`,
-   `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`,
-   `Permissions-Policy: camera=(), microphone=(), geolocation=()`. **Deliberately did NOT**
-   add a `script-src`/`connect-src` CSP — this app talks to many wallet extensions
-   (Phantom/Slush/MetaMask inject their own scripts) and RPC/relay endpoints across
-   several chains; tightening those without live browser testing against every one of
-   them (no browser tooling was available in this session) risks silently breaking real
-   wallet-signing flows. If browser testing ever becomes available, revisit this.
+   `Referrer-Policy` at all. Added a set in `next.config.ts`: `X-Frame-Options: DENY`
+   (clickjacking protection — a real, known attack pattern against crypto dApps
+   specifically: embed the whole app in an invisible iframe and trick a user into
+   approving a transaction they think is something else), `X-Content-Type-Options:
+   nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy:
+   camera=(), microphone=(), geolocation=()`.
+   **CORRECTION (2026-08-04, real live bug, user-reported)**: this originally also
+   included `Content-Security-Policy: frame-ancestors 'none'; object-src 'none'; base-uri
+   'self'` — deliberately without a `script-src` restriction, based on the (wrong, in
+   this framework) assumption that an unspecified directive stays unrestricted. Confirmed
+   live via the user's actual browser console: Next.js App Router auto-augments any
+   user-supplied CSP header with its own `script-src`/nonce handling once a CSP is
+   present at all, rather than leaving unspecified directives alone — this ended up
+   blocking `eval()`, which wallet-adapter/viem's dependency chain uses internally
+   (common in elliptic-curve crypto libraries). Result: wallet initialization crashed
+   early enough in the provider tree to take the connect-wallet buttons AND the header
+   nav buttons down with it — the exact "one crash near the root, whole app looks
+   broken" pattern already seen once before in this codebase (the `data-theme` hydration
+   bug in `app/layout.tsx`). Removed the CSP header entirely rather than special-casing
+   `unsafe-eval` back in — the other four headers don't touch script execution at all and
+   are confirmed unaffected. **Lesson**: this is exactly the failure mode the original
+   entry warned about ("can't be safely tightened without live browser testing") — it
+   still shipped anyway without that testing, and broke production. Don't re-add a CSP
+   here without either (a) real browser testing against every wallet extension this app
+   supports, or (b) at minimum a staging deploy checked by a human before going to
+   production.
 5. **~~Rate limiting was in-memory, single-instance~~ — fixed.** `lib/rate-limit.ts`
    now uses `@upstash/ratelimit` + `@upstash/redis` (sliding-window, Redis-backed) when
    `UPSTASH_REDIS_REST_URL`/`UPSTASH_REDIS_REST_TOKEN` are set — shared across

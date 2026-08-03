@@ -6,6 +6,36 @@ delete history (superseded entries stay for context, just note what replaced the
 
 ---
 
+## 2026-08-04 — Real production outage: yesterday's new CSP header broke wallet buttons entirely
+
+User-reported live bug: connect-wallet buttons and header nav buttons both invisible on
+production. Root-caused from the user's real browser console (curl-only diagnosis hit a
+hard wall — the broken buttons are all client-rendered, `ssr: false`, so nothing showed up
+in raw HTML either way): Chrome's own CSP enforcement was blocking `eval()` under a
+`script-src` directive this app never explicitly set. Next.js App Router auto-augments any
+user-supplied `Content-Security-Policy` header with its own script-src/nonce handling once
+a CSP is present at all — the minimal CSP added in 2026-08-03m's security review
+(`frame-ancestors 'none'; object-src 'none'; base-uri 'self'`, deliberately without a
+script-src, based on the assumption an unspecified directive stays unrestricted) ended up
+blocking `eval()` anyway. Wallet-adapter/viem's dependency chain uses `eval`/`Function()`
+internally — blocking it crashed wallet init early enough in the provider tree to cascade
+into the header nav buttons never rendering too, same "one crash near the root breaks
+everything downstream" pattern as the `data-theme` hydration bug earlier in this app's
+history.
+
+Fixed: removed the `Content-Security-Policy` header entirely from `next.config.ts` (kept
+`X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy` — none
+of those touch script execution and are confirmed unaffected). Full writeup in
+`SECURITY.md`'s corrected RESOLVED-gaps entry #4.
+
+**Process lesson**: the original CSP addition explicitly said in its own comment that it
+"can't be safely tightened without live browser testing... no browser tooling available in
+this environment" — and shipped to production anyway without that testing. It broke
+production for real users. Don't repeat this: a header/config change with a known,
+self-acknowledged untested risk should either wait for real browser verification or ship
+behind something reversible-on-report, not go straight to production and hope.
+
+
 ## 2026-08-03m — Full security review: one CRITICAL data leak found live + fixed, plus 3 more real issues
 
 User-requested full security audit ("we dont want anyone to just use a GET and receive info

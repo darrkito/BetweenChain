@@ -9,21 +9,30 @@ const nextConfig: NextConfig = {
   // websocket for any non-localhost origin ("Blocked cross-origin request to
   // Next.js dev resource /_next/webpack-hmr", confirmed live 2026-07-20).
   allowedDevOrigins: ["192.168.100.200"],
-  // Added 2026-08-03 (live security review) — the app had ZERO custom
-  // security headers before this (confirmed via `curl -I` against
-  // production: only Vercel's own default HSTS was present). Deliberately
-  // conservative: this is a wallet-connecting dApp that talks to many wallet
-  // extensions (Phantom/Slush/MetaMask, which inject their own scripts) and
-  // RPC/relay endpoints (Solana/Sui/EVM RPCs, WalletConnect relays, Relay.link,
-  // Jupiter, OpenSea, Magic Eden, Tradeport, ChangeNOW) — a strict script-src/
-  // connect-src CSP risks silently breaking real wallet-signing flows and
-  // can't be safely tightened without live browser testing against every one
-  // of those (no browser tooling available in this environment — see
-  // STATE.md). These specific headers were chosen because they protect
-  // against real, well-understood attack classes (clickjacking against
-  // wallet-approve buttons, MIME-sniffing, referrer leakage) with ZERO
-  // functional risk — none of them touch which scripts/origins the page can
-  // talk to.
+  // Added 2026-08-03 (live security review), Content-Security-Policy REMOVED
+  // 2026-08-04 (real live bug found) — the app had ZERO custom security
+  // headers before this pass (confirmed via `curl -I` against production:
+  // only Vercel's own default HSTS was present). A `Content-Security-Policy:
+  // frame-ancestors 'none'; object-src 'none'; base-uri 'self'` header was
+  // added alongside the headers below, deliberately WITHOUT a script-src/
+  // connect-src restriction — but even that minimal policy broke the app
+  // live: confirmed via the user's real browser console, Chrome's own CSP
+  // enforcement blocked `eval()` under a `script-src` directive this app
+  // never even specified (Next.js App Router auto-augments a
+  // user-supplied CSP with its own script-src/nonce handling once ANY CSP
+  // header is present, rather than leaving unspecified directives
+  // unrestricted the way a plain CSP normally would). Wallet-adapter/viem's
+  // dependency chain uses `eval`/`Function()` internally (common in
+  // elliptic-curve crypto libraries) — blocking it crashed wallet
+  // initialization early enough in the provider tree to cascade into the
+  // header/connect-wallet buttons never rendering, the same "one crash
+  // near the root, whole app looks broken" pattern already documented once
+  // in this file's own history (the data-theme hydration bug). Removed
+  // entirely rather than trying to special-case `unsafe-eval` — this
+  // exact failure mode is why the original comment here said a CSP
+  // "can't be safely tightened without live browser testing" up front; now
+  // confirmed the hard way. The remaining headers below don't touch script
+  // execution or CSP at all and are unaffected — kept.
   async headers() {
     return [
       {
@@ -34,11 +43,10 @@ const nextConfig: NextConfig = {
           // invisible iframe on an attacker's page and used to trick a
           // user into approving a transaction they think is something
           // else — a real, known attack pattern against crypto dApps
-          // specifically. `frame-ancestors 'none'` is the CSP-native form
-          // of the same protection (X-Frame-Options is a legacy fallback
-          // for browsers that don't honor the CSP directive).
+          // specifically. Plain X-Frame-Options only (not also a CSP
+          // frame-ancestors directive) — see the CSP note above for why
+          // any Content-Security-Policy header is avoided here now.
           { key: "X-Frame-Options", value: "DENY" },
-          { key: "Content-Security-Policy", value: "frame-ancestors 'none'; object-src 'none'; base-uri 'self'" },
           // Stops a browser from executing/rendering a response as a
           // different content-type than what the server declared (e.g.
           // treating a user-uploaded/fetched file as HTML/JS).
