@@ -1,0 +1,132 @@
+import { TRADEPORT_FEE_SAFETY_MARGIN } from "@/lib/nft/tradeportFee";
+import { roundUpTo2Decimals } from "@/lib/client/amount";
+import type { NftCollection } from "@/lib/nft/types";
+
+function Stat({ label, value, title, emphasize }: { label: string; value: string; title?: string; emphasize?: boolean }) {
+  return (
+    <div
+      className={`flex min-w-[92px] flex-1 flex-col gap-0.5 rounded-xl px-3 py-2 sm:flex-none ${emphasize ? "bg-accent-soft" : ""}`}
+      title={title}
+    >
+      <span className="text-[11px] uppercase tracking-wide text-ink-faint">{label}</span>
+      <span className={`num text-[15px] font-semibold ${emphasize ? "text-accent" : "text-ink"}`}>{value}</span>
+    </div>
+  );
+}
+
+export interface ListedCountInfo {
+  count: number;
+  approximate: boolean;
+  loading: boolean;
+  floorPrice?: string;
+  floorPriceCurrency?: string;
+}
+
+export interface TotalSupplyInfo {
+  value: number | null; // null = looked up but genuinely unavailable (e.g. no listings to resolve a sample mint from)
+  loading: boolean;
+}
+
+/**
+ * Renders whatever the vendor actually gives us — fields are NOT symmetric
+ * across vendors (confirmed live 2026-07-20): Magic Eden's public API gives
+ * listedCount but no totalSupply; OpenSea gives totalSupply + floor + 24hr
+ * volume but no cheap listedCount. Every value here is real vendor data or
+ * "—", never computed/guessed to fill a gap — see lib/nft/types.ts's
+ * NftCollection comment for the full breakdown of what's available where.
+ * 24hr floor-price-change isn't exposed by any researched vendor, so that
+ * column is permanently "—" until one adds it, not silently dropped.
+ *
+ * `listedCountInfo` overrides `collection.listedCount` when present — used
+ * for OpenSea, where the count isn't free (see lib/nft/opensea.ts's
+ * countOpenSeaListedItems) and is fetched separately/lazily by the caller
+ * rather than baked into the collection object itself. `totalSupplyInfo` is
+ * the Magic Eden equivalent in the other direction — ME gives listedCount
+ * for free but no total supply; resolved via Helius DAS (lib/chains/
+ * heliusDas.ts, needs a sample mint from an active listing to find the
+ * on-chain collection address at all — a collection with zero listings has
+ * no cheap way to resolve it, surfaced as `value: null`, not silently "—"
+ * with no explanation).
+ */
+export function NftCollectionStats({
+  collection,
+  listedCountInfo,
+  totalSupplyInfo,
+}: {
+  collection: NftCollection;
+  listedCountInfo?: ListedCountInfo;
+  totalSupplyInfo?: TotalSupplyInfo;
+}) {
+  const totalSupply = totalSupplyInfo?.value ?? collection.totalSupply;
+  const listedCount = listedCountInfo?.count ?? collection.listedCount;
+  const hasListedRatio = listedCount != null && totalSupply != null;
+  const listedPct = hasListedRatio ? `${((listedCount! / totalSupply!) * 100).toFixed(1)}%` : "—";
+  const approximatePrefix = listedCountInfo?.approximate ? "≈" : "";
+
+  // Explains WHY it's missing, not just that it is — this genuinely differs
+  // by vendor (see the file-top comment) rather than being a bug, and a bare
+  // "—" reads as broken without the reason.
+  const listedGapTitle =
+    collection.vendor === "magiceden" && totalSupply == null
+      ? "Couldn't determine this collection's total supply — it may have no active listings to resolve it from"
+      : undefined;
+
+  const totalSupplyValue = totalSupplyInfo?.loading ? "…" : totalSupply != null ? totalSupply.toLocaleString() : "—";
+
+  const listedValue = listedCountInfo?.loading || totalSupplyInfo?.loading
+    ? "counting…"
+    : listedCount != null
+      ? `${approximatePrefix}${listedCount.toLocaleString()} / ${totalSupply?.toLocaleString() ?? "—"}`
+      : "—";
+
+  // Prefer the floor computed live from actual listings (see
+  // lib/nft/opensea.ts's countOpenSeaListedItems) over collection.floorPrice
+  // (OpenSea's /stats field) — confirmed live 2026-07-20 the two can
+  // genuinely disagree (stats reported a stale/lower floor than any listing
+  // OpenSea's own listings endpoint actually returns). Magic Eden's
+  // collection.floorPrice has no such discrepancy — untouched here.
+  const floorPrice = listedCountInfo?.floorPrice ?? collection.floorPrice;
+  const floorPriceCurrency = listedCountInfo?.floorPriceCurrency ?? collection.floorPriceCurrency;
+  // Real bug found live 2026-07-22: Tradeport's raw floor field is accurate
+  // against its own listings table (confirmed directly — matches the
+  // cheapest active listing exactly for every collection checked), but the
+  // listing GRID cards were changed to show a fee-inclusive price (×1.10,
+  // see app/nft/[vendor]/[slug]/page.tsx's displayedListingPrice) while
+  // this stat kept showing the raw, un-marked-up number — the two no
+  // longer agreed on "the price of the cheapest asset," reading as a wrong
+  // floor. Apply the same margin here, Tradeport-only (other vendors
+  // already include their own fees in the displayed price).
+  const floorPriceDisplay =
+    floorPrice != null && collection.vendor === "tradeport"
+      ? roundUpTo2Decimals(Number(floorPrice) * (1 + TRADEPORT_FEE_SAFETY_MARGIN))
+      : floorPrice != null
+        ? Number(floorPrice).toFixed(2)
+        : null;
+
+  return (
+    <div className="flex flex-wrap gap-1.5 overflow-x-auto rounded-2xl border border-hairline bg-surface p-2 shadow-sm sm:flex-nowrap">
+      <Stat
+        label="Floor Price"
+        value={floorPriceDisplay != null ? `${floorPriceDisplay} ${floorPriceCurrency ?? ""}` : "—"}
+        title={listedCountInfo?.floorPrice != null ? "Computed from the cheapest currently-listed item, not OpenSea's stats endpoint (the two can disagree)" : undefined}
+        emphasize
+      />
+      <Stat
+        label="24hr Volume"
+        value={collection.volume24hr != null ? `${Number(collection.volume24hr).toFixed(2)} ${collection.volume24hrCurrency ?? ""}` : "—"}
+      />
+      <Stat
+        label="Listed / Total"
+        value={listedValue}
+        title={listedCountInfo?.approximate ? "Counted the first 2,000 active listings — this collection has more than that" : listedGapTitle}
+      />
+      <Stat
+        label="Listed %"
+        value={listedCountInfo?.loading ? "…" : listedPct}
+        title={hasListedRatio ? undefined : listedGapTitle}
+      />
+      <Stat label="Total Assets" value={totalSupplyValue} />
+      <Stat label="24hr Change" value="—" title="Not exposed by this collection's data source yet" />
+    </div>
+  );
+}

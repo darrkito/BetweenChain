@@ -1,0 +1,196 @@
+@import "tailwindcss";
+
+/*
+  Design system for SwapperBetweenChains — "trading terminal calm."
+  One confident accent (electric indigo-violet), hairline-bordered surfaces on
+  a softly tinted canvas, Geist Mono reserved for anything numeric (prices,
+  amounts, addresses) — a deliberate nod to how wallets/explorers already
+  present that data, not a generic mono-everywhere choice.
+
+  Tokens are defined once here and mapped into Tailwind via @theme inline, so
+  components use plain utilities (bg-canvas, text-ink, border-hairline, ...)
+  that stay correct in both themes automatically.
+*/
+
+:root {
+  --canvas: #f5f3fc;
+  --surface: #ffffff;
+  --surface-hover: #faf9ff;
+  --ink: #15131f;
+  --ink-muted: #6e6b85;
+  --ink-faint: #a5a2bb;
+  --accent: #5b4fe8;
+  --accent-ink: #ffffff;
+  --accent-soft: #ecebfc;
+  --hairline: #e6e3f5;
+  --success: #12875f;
+  --success-soft: #e3f6ee;
+  --danger: #d1453d;
+  --danger-soft: #fbe9e8;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --canvas: #0b0a13;
+    --surface: #16141f;
+    --surface-hover: #1b1929;
+    --ink: #eeedf7;
+    --ink-muted: #9c98b5;
+    --ink-faint: #605c78;
+    --accent: #8b7fff;
+    --accent-ink: #0b0a13;
+    --accent-soft: #221f3a;
+    --hairline: #262336;
+    --success: #34d399;
+    --success-soft: #113126;
+    --danger: #f87171;
+    --danger-soft: #3a1a1a;
+  }
+}
+
+/*
+  Manual light/dark override — added 2026-08-03 alongside AppHeader's theme
+  toggle. Dark mode was previously OS-driven only (the media query above).
+  An attribute selector on :root has higher specificity than a bare `:root`
+  inside `@media`, so these two blocks always win over the media query once
+  `data-theme` is set by the toggle (lib/client/ThemeToggle.tsx) or the
+  inline pre-hydration script in app/layout.tsx — regardless of which way
+  the OS preference happens to point. No `data-theme` attribute at all (the
+  default, "system" mode) falls through to the media query above unchanged.
+*/
+:root[data-theme="dark"] {
+  --canvas: #0b0a13;
+  --surface: #16141f;
+  --surface-hover: #1b1929;
+  --ink: #eeedf7;
+  --ink-muted: #9c98b5;
+  --ink-faint: #605c78;
+  --accent: #8b7fff;
+  --accent-ink: #0b0a13;
+  --accent-soft: #221f3a;
+  --hairline: #262336;
+  --success: #34d399;
+  --success-soft: #113126;
+  --danger: #f87171;
+  --danger-soft: #3a1a1a;
+}
+
+:root[data-theme="light"] {
+  --canvas: #f5f3fc;
+  --surface: #ffffff;
+  --surface-hover: #faf9ff;
+  --ink: #15131f;
+  --ink-muted: #6e6b85;
+  --ink-faint: #a5a2bb;
+  --accent: #5b4fe8;
+  --accent-ink: #ffffff;
+  --accent-soft: #ecebfc;
+  --hairline: #e6e3f5;
+  --success: #12875f;
+  --success-soft: #e3f6ee;
+  --danger: #d1453d;
+  --danger-soft: #fbe9e8;
+}
+
+@theme inline {
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-surface-hover: var(--surface-hover);
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-ink-faint: var(--ink-faint);
+  --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-accent-soft: var(--accent-soft);
+  --color-hairline: var(--hairline);
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+}
+
+* {
+  border-color: var(--hairline);
+}
+
+body {
+  background: var(--canvas);
+  color: var(--ink);
+  font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+}
+
+h1,
+h2,
+h3 {
+  text-wrap: balance;
+}
+
+/* Anything numeric (prices, amounts, token counts) lines up on tabular
+   figures so columns of digits don't jitter — set globally via .num rather
+   than per-callsite. */
+.num {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Theme the Solana wallet-adapter's default button (ships its own purple,
+   #512da8) to match the app's accent instead — the library exposes no theme
+   prop, only these class names. */
+.wallet-adapter-button-trigger {
+  background-color: var(--accent) !important;
+  color: var(--accent-ink) !important;
+  font-family: var(--font-sans) !important;
+  border-radius: 9999px !important;
+  height: 38px !important;
+  font-size: 14px !important;
+}
+.wallet-adapter-button:not([disabled]):hover {
+  background-color: var(--accent) !important;
+  opacity: 0.9;
+}
+
+/* Magic-Eden-style browse surfaces (collection grid, collection hero, item
+   grid) reuse these two keyframes for loading shimmer and staggered
+   card/grid entrance — defined once here rather than per-component so every
+   surface animates in sync. */
+@keyframes shimmer {
+  from {
+    background-position: 150% 0;
+  }
+  to {
+    background-position: -50% 0;
+  }
+}
+
+.skeleton {
+  background: linear-gradient(100deg, var(--accent-soft) 30%, var(--surface-hover) 50%, var(--accent-soft) 70%);
+  background-size: 200% 100%;
+  animation: shimmer 1.6s ease-in-out infinite;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

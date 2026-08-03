@@ -1,0 +1,483 @@
+# Plan
+
+Forward-looking scope/research doc — not a build log (that's `STATE.md`) and not a
+threat model (that's `SECURITY.md`). Update as items resolve; don't delete resolved
+items, mark them done so the history of *why* a decision was made stays visible.
+
+---
+
+## In progress: Multichain NFT section (added 2026-07-20)
+
+### Build order (decided 2026-07-20)
+**Phase 1 (building now): Magic Eden (Solana) + OpenSea (EVM) + Tradeport (Sui/Aptos/
+Move).** These three cover Solana, the entire EVM chain list, and the Move ecosystem —
+the large majority of real NFT trading volume.
+
+**Deferred, not dropped — pending (see "Pending / deferred" below): TON (GetGems) and
+Bitcoin Ordinals/Runes (UniSat).** Explicit user decision 2026-07-20: leave these two
+aside for now, revisit after Phase 1 ships. Tensor (Solana fallback) also comes after
+Phase 1 — apply for its gated access in parallel since that's a waiting-on-a-form item,
+not blocking work.
+
+### Goal
+Let a user browse NFT collections across chains (Solana + EVM), click into a
+collection, and buy a specific listed NFT while paying with a **different chain's
+token** than the NFT's native chain — e.g. pay in ETH on Ethereum, receive a Solana
+NFT at a wallet address they specify. Same underlying idea as the existing token
+swap feature (`app/api/quote`, `app/api/bridge`) but the destination "asset" is a
+specific NFT instead of a fungible token amount.
+
+### Why this is architecturally bigger than the token-swap feature
+Token swaps have a continuous output amount — Relay/Jupiter just need a destination
+mint and an amount. An NFT purchase is atomic and priced by a *seller's specific
+listing*, which can be delisted or repriced between quote and execution. The
+likely shape:
+1. User picks an NFT priced in the destination chain's native/quote currency
+   (e.g. a Solana NFT listed in SOL).
+2. Origin-chain payment (e.g. ETH) gets swapped to the destination chain's quote
+   currency via the **existing Relay integration** (`lib/chains/relay.ts`) — no new
+   bridging code needed, this part is already built and live-verified.
+3. Once the swapped funds land on the destination chain, execute the actual NFT
+   buy transaction against whichever marketplace API sourced the listing, with the
+   NFT delivered to a user-specified receive address (not necessarily the payer's
+   own wallet on that chain, mirroring how destination-token delivery already works
+   for the fungible-token swap).
+4. Listing can go stale between step 1 and step 3 (someone else buys it, or the
+   price changes) — needs a re-quote/re-check-listing step immediately before
+   execution, and a clear failure/refund path if the listing is gone. This is new
+   risk surface the fungible-token swap doesn't have (a token amount can't be
+   "sniped" the way a specific NFT listing can).
+
+### Marketplace APIs to search (research task, in priority order)
+- [ ] **OpenSea API** (docs.opensea.io) — EVM-only. Check API v2 Listings/Offers/
+  Fulfillment endpoints and Seaport protocol integration for programmatic buys
+  (not just web checkout redirects). Auth model, rate limits, pricing.
+- [ ] **Magic Eden API** (docs.magiceden.io) — covers both Solana and EVM now.
+  Check whether it's one unified API or separate Solana/EVM APIs, and whether it
+  has an instant-buy/execute-buy endpoint that returns a signable transaction.
+- [ ] **Tensor** (tensor.so / Tensor Trade) — Solana-only, aggregates listings
+  across Solana marketplaces including Magic Eden. Check for a public API with
+  buy-instruction-building endpoints (similar shape to how Jupiter returns a
+  signable swap tx in this project already).
+- [ ] **Tradeport** (tradeport.xyz) — multichain NFT infra (Aptos, Solana, others).
+  Check for a public developer API, cross-marketplace aggregated listings, and
+  buy execution support, and which chains specifically.
+- [ ] **Reservoir Protocol** (reservoir.tools) — the standard EVM NFT-aggregation
+  API used by many marketplaces/wallets under the hood. Check if it has any
+  Solana support, or if an equivalent aggregator exists that spans both Solana
+  and EVM in a single API — would simplify the architecture a lot if so.
+- [ ] **Relay.link** — already integrated for token swaps. Check their docs for
+  any NFT-specific bridging/purchase primitives that might already solve part of
+  this (some cross-chain bridges are adding NFT primitives).
+
+### Per-marketplace, need to establish
+- Public REST/GraphQL API vs SDK-only; auth model; free tier vs paid; rate limits.
+- Chain coverage (Solana / EVM / both).
+- Can it: browse collections, get active listings for a collection, get floor
+  price, fetch a single NFT's current listing, and — critically — **execute or
+  return a signable transaction to buy a specific listed NFT programmatically**
+  (server-side, like Jupiter's swap-transaction response) vs. only a web checkout
+  redirect (which would be a dead end for this feature).
+- What currency the buyer must pay in on that marketplace (native token only vs
+  accepts stablecoins/other tokens directly, which could remove a swap leg).
+- Whether the API supports specifying an arbitrary receive address that differs
+  from the paying wallet (needed for the ETH-pays/Solana-wallet-receives flow).
+
+### Open architecture questions once research comes back
+- Does any single aggregator already span both Solana and EVM, or will this
+  need two separate marketplace integrations (one Solana-side, one EVM-side)
+  behind a shared internal interface — likely mirroring the existing
+  `lib/chains/jupiter.ts` / `lib/chains/relay.ts` split.
+- How to handle listing staleness/race between quote and execution (re-check
+  before executing; user-facing "this NFT was just sold" failure state).
+- Fee model: does the platform fee (0.25%, see `lib/fees.ts`) apply the same way
+  on an NFT purchase, or does marketplace royalty/fee stacking make that
+  impractical?
+- Whether NFT purchases need their own state machine/table (mirroring
+  `swap_transactions`) or can reuse the existing two-leg swap machinery with the
+  "leg 2" being a marketplace buy instead of a Relay-executed transfer.
+
+### Research findings (2026-07-20)
+
+**Critical finding: Reservoir Protocol — the standard EVM NFT-aggregation API — shut
+down Oct 15, 2025.** New account creation was already disabled before shutdown;
+existing customers migrated to Alchemy/Sequence. `reservoir.tools` now redirects to
+Relay — **the Reservoir team pivoted directly into Relay Protocol** ("focus on Relay
+Protocol to promote cross-chain token and NFT trading"). Practical consequence:
+Reservoir's aggregation tech lives on through **Magic Eden's EVM API, which is
+"Reservoir-powered v4."** Do not build on Reservoir directly — it no longer exists.
+
+#### ⚠️ CORRECTION (2026-07-20, later research pass) — Magic Eden is now Solana-only
+
+**The verdict table below (first research pass) is stale on one critical point: Magic
+Eden shut down ALL of its EVM and Bitcoin NFT marketplaces on 2026-03-09** (multi-chain
+wallet fully wound down by 2026-05-01), pivoting fully to Solana + token
+trading/entertainment. **Magic Eden is no longer "the only vendor spanning Solana+EVM"
+— it now covers Solana only.** Its Solana API is unaffected and still the right primary
+Solana vendor (free reads, signed-tx buy instructions). Every EVM/Bitcoin chain the
+first pass assumed Magic Eden covered has been re-homed below, mostly to OpenSea, which
+independently expanded to a very large EVM chain list. See the corrected recommendation
+and consolidated coverage table further down — **use those, not the table immediately
+below, for chain-to-vendor decisions.**
+
+#### Verdict per marketplace (original pass — chain column for Magic Eden is now WRONG, see correction above)
+
+| API | Chains | Access | Buy = signable tx? | Verdict |
+|-----|--------|--------|---------------------|---------|
+| **Magic Eden** | ~~Solana + 8 EVM chains + BTC~~ **Solana only as of 2026-03-09** | Free key (reads free, buy instructions need Bearer key) | ✅ Solana | **Solana primary — EVM/BTC coverage is dead, do not rely on it** |
+| **OpenSea v2** | EVM only, no Solana — now a very large chain list (see below) | Free API key (apply) | ✅ Seaport fulfillment | **Primary multi-chain EVM vendor** (promoted from "complement") |
+| **Tensor** | Solana only (aggregates ME + its own book) | **Approval-gated (Airtable form), self-described alpha** | ✅ returns `VersionedTransaction` | **Now strategically important** — the only Solana fallback, since ME is itself Solana-only |
+| **Tradeport** | Sui/Aptos/Movement/NEAR/Stacks | Key | ✅ confirmed Aptos/Sui; NEAR/Stacks buy-depth unverified | The Move-ecosystem layer — kept, not off-target |
+| **Reservoir** | EVM (formerly 30+) | — | — | **Dead. Do not use.** |
+| **Relay** (already integrated) | 85+ incl. Solana, EVM, BTC | Existing integration | N/A — not a catalog, it's the payment/execution glue | **The cross-chain composition layer for this whole feature** |
+
+#### Key architectural unlock: Relay's `call` action
+Relay's `Quote`/`Execute` API (already used here for token swaps) supports three
+destination actions: bridge, swap, or **`call` — arbitrary destination-chain contract
+execution**. Relay explicitly markets NFT mints/purchases as a supported use case and
+can batch "deposit → bridge → call destination contract" into **one intent**. This
+means the "pay in ETH, buy a Solana NFT" flow likely does **not** need to be hand-rolled
+as two separate signed steps (swap, then buy) — Relay's `call` action may be able to
+wrap a marketplace-built buy transaction (from Magic Eden/Tensor/OpenSea) as the
+destination call in a single cross-chain intent, delivering the NFT to a specified
+address. **This needs a spike to confirm before committing to an architecture**: test
+Relay's `call` targeting (a) a Solana Magic Eden/Tensor buy tx and (b) an EVM OpenSea
+Seaport fulfillment tx.
+
+#### Feasibility confirmed
+No marketplace natively supports "pay in token X on chain A, receive NFT on chain B" —
+all price/sell strictly in the NFT's native chain token (SOL on Solana, ETH/native on
+EVM). The cross-token/cross-chain payment must be composed via Relay, same pattern as
+the existing fungible-token swap. Both Magic Eden (`/instructions/buy_now`, Solana) and
+Tensor (`TswapBuySingleListingTx`) build the buy tx **server-side** and return signable
+instructions/`VersionedTransaction` for the wallet to sign — same "backend builds,
+wallet signs" shape already used for the Jupiter swap-transaction flow in this project.
+OpenSea's fulfillment endpoint returns a signed Seaport order the same way for EVM.
+
+#### Recommendation (revised 2026-07-20, second pass — max-coverage aggregator strategy, corrected for ME's Solana-only pivot)
+User direction: don't drop any aggregator — the goal is the **broadest possible chain
+coverage** ("we need to have all the chains in one same market"), using every
+aggregator as a layer with fallbacks for what the primary ones don't list, mirroring
+how the existing token-swap side already stacks Jupiter + Relay for maximum coverage.
+
+1. **Magic Eden = Solana primary** (demoted from "Solana+EVM primary" after its 2026-03
+   EVM/BTC shutdown, see correction above) — free self-serve key, signed-tx buy
+   instructions, still the right first stop for Solana.
+2. **Tensor = Solana fallback** — now more important than the first pass suggested,
+   since Magic Eden itself no longer has EVM as a fallback surface; Tensor is the *only*
+   other Solana aggregator researched. Access is approval-gated (Airtable form) +
+   self-described alpha — **apply for access now** (a form-wait, not a technical
+   blocker), integrate as try-ME-first, fall-back-to-Tensor-if-empty once approved.
+3. **OpenSea v2 = promoted to primary multi-chain EVM vendor** (was "complement," now
+   the main one, since Magic Eden's EVM route is dead). OpenSea's chain list turned out
+   to be far larger than initially checked — see consolidated table below — and single-
+   handedly covers Ethereum, Polygon, Base, Arbitrum, ApeChain, Berachain, Blast,
+   Abstract, Sei, Monad, HyperEVM, and ~15 more EVM chains via one Seaport-based
+   fulfillment API. **Note: OpenSea supports Solana for token *swaps* only, not NFTs** —
+   it does not help Solana NFT coverage at all.
+4. **Tradeport = the Sui/Aptos/Move/NEAR/Stacks layer** — kept, not off-target. Buy
+   execution confirmed on Aptos/Sui; NEAR/Stacks buy-execution depth still unverified,
+   flagged as an open item, not yet a blocker since those are lower-priority chains.
+5. **Two new vendors added this pass, filling real gaps opened by Magic Eden's exit and
+   by chains OpenSea/Tradeport don't reach:**
+   - **GetGems (getgems.io)** — TON primary. Public REST/GraphQL API, free public tier +
+     API key for extended access. Buy-now builds a **signable TON transfer transaction**
+     to the marketplace contract (non-custodial). TON is a real, active NFT ecosystem
+     (Telegram Gifts/usernames/collectibles) with no other vendor covering it.
+   - **UniSat (unisat.io/open-api)** — Bitcoin Ordinals/Runes primary, filling the gap
+     Magic Eden's Bitcoin shutdown opened (OpenSea has no Bitcoin support at all). 220+
+     REST endpoints, API-key auth, **PSBT-based signable buy transactions** (BIP-174,
+     non-custodial) — the Bitcoin-native equivalent of a signable tx. 0.5% marketplace
+     fee. **Fallback: Gamma.io or OKX NFT**, both also PSBT-based, if UniSat access is a
+     problem.
+6. **Relay's `call` action as the payment-abstraction layer for EVM destinations** —
+   spiked 2026-07-20, docs-confirmed EVM-only (see spike result below). **TON and
+   Bitcoin purchases are non-EVM and non-Solana, so they need the same two-signed-step
+   pattern as Solana** (Relay delivers funds to a TON/Bitcoin address, then a separate
+   GetGems/UniSat buy tx is signed) — not a Relay `call`-composable single intent.
+7. **Confirmed NOT new-vendor gaps** (researched, folded into existing vendors):
+   Hyperliquid NFTs (native marketplace Drip.Trade shut down 2026-06-15; Hypurr/Hypers
+   collections live on OpenSea via HyperEVM — route through OpenSea), Robinhood (no NFT
+   product exists at all — Robinhood Chain, launched 2026-07-01, is a tokenized-
+   equities L2 with no NFT ecosystem; it's already on OpenSea's chain list if that ever
+   changes, nothing to build now), ApeChain (OpenSea covers it, ME's route is dead),
+   Polygon (OpenSea covers it, ME's route is dead).
+
+#### Consolidated chain → primary → fallback vendor table (2026-07-20)
+
+| Chain | Family | Primary vendor | Fallback vendor | Notes |
+|---|---|---|---|---|
+| Solana | Solana | **Magic Eden** | **Tensor** (gated) | OpenSea does NOT cover Solana NFTs (swap-only) |
+| Ethereum, Polygon, Base, Arbitrum, ApeChain, Berachain, Blast, Abstract, Sei, Monad, HyperEVM, Optimism, Avalanche, Zora, Ronin, Flow, Unichain, Soneium, Shape, Ink, B3, GUNZ, Somnia, MegaETH, AnimeChain, Robinhood Chain | EVM | **OpenSea** | — | Single Seaport fulfillment API covers all; Robinhood Chain has no NFTs to trade yet |
+| Sui, Aptos | Move | **Tradeport** | — | Buy execution confirmed |
+| Movement | Move | **Tradeport** | — | Per initial research, unverified buy depth |
+| NEAR, Stacks | NEAR / Bitcoin-L2 | **Tradeport** (claimed) | Gamma (Stacks Ordinals) | ⚠️ buy-execution depth unverified — open item |
+| TON | TON | **GetGems** (new) | OKX NFT | Signable TON buy tx; non-EVM, 2-step Relay funding |
+| Bitcoin (Ordinals/Runes) | Bitcoin | **UniSat** (new) | Gamma / OKX | PSBT signable buy tx; non-EVM, 2-step Relay funding |
+
+**No coverage found for**: any non-Solana/non-EVM/non-Move/non-TON/non-Bitcoin chain
+(e.g. Cardano, Tezos, ICP) — not pursued, no demand signal surfaced in research, flagged
+here rather than silently dropped.
+
+#### Open architecture questions, now informed by research
+- ~~Does any single aggregator span both Solana and EVM~~ — **No.** (Corrected
+  2026-07-20: Magic Eden used to, but shut down its EVM/BTC marketplaces 2026-03-09 and
+  is Solana-only now.) No single vendor spans multiple chain families — this app's NFT
+  layer will always be a per-family vendor stack (Solana: ME/Tensor; EVM: OpenSea;
+  Move: Tradeport; TON: GetGems; Bitcoin: UniSat), same shape as the existing
+  Jupiter(Solana)+Relay(everything) split on the token-swap side.
+- Spike needed: does Relay's `call` action actually accept a third-party-built NFT-buy
+  transaction (Magic Eden/OpenSea/Tensor) as its destination call, or does the flow need
+  to be built as two explicit signed steps (Relay swap → then a separate marketplace buy
+  tx signed by the user once funds land)? This determines whether NFT purchases can
+  reuse the existing swap state machine almost as-is, or need a new one.
+- Listing staleness/race between quote and execution — still open, no marketplace
+  researched offers a "hold" mechanism; needs a re-check-listing-immediately-before-
+  execute step and a defined failure/refund UX regardless of which path above is chosen.
+- Fee model (`lib/fees.ts`'s 0.25%) stacking against marketplace royalties — still open,
+  needs per-marketplace royalty-fee-structure research once an API is chosen.
+- Whether NFT purchases need their own DB table/state machine or can extend
+  `swap_transactions` — depends on the Relay `call` spike outcome above.
+
+### Relay `call` spike — RESULT (2026-07-20, docs-level, not yet a live API test)
+
+Pulled Relay's docs directly (`use-cases/calling.md`, `api_guides/calling-integration-
+guide.md`, `references/api/get-quote-v2.md`). Findings:
+
+- The primitive is `POST /quote/v2` with a **`txs` array** in the same request body as
+  the normal bridge/swap params (`originChainId`, `destinationChainId`, `amount`,
+  `tradeType`, etc.) — NOT a separate endpoint. Each entry: `{to, value, data}` —
+  arbitrary ABI-encoded calldata, executed sequentially on the destination chain. ERC20
+  spends require a leading `approve` tx in the same array. Response is the same
+  `steps`/`requestId` shape already consumed by `buildRelayExecutionSteps()` in
+  `lib/chains/relay.ts` — no new response-parsing code needed on that side.
+- Recipient is encoded either inside `txs[].data` (as a call parameter) or via
+  `protocol.v2.orderData.output.payments[].recipient` — separate from `user` (the
+  address that signs the origin deposit). This matches the "payer ≠ receiver" shape this
+  feature needs.
+- **`txs`/calling is EVM-only.** The docs explicitly scope gas-topup and calling
+  behavior to EVM chains; Solana's section of the same schema uses an entirely different
+  set of parameters (`depositFeePayer`, `maxRouteLength`, `useSharedAccounts`,
+  `includeComputeUnitLimit`) with no `txs`-equivalent — confirming Solana destinations
+  use the existing raw-instruction-replay model already in this codebase
+  (`buildRelayExecutionSteps` → Solana instructions), not arbitrary contract calls.
+
+**Conclusion — this changes the architecture split:**
+- **EVM-destination NFT buys** (buy an Ethereum/Polygon/etc. NFT, pay from any chain):
+  likely **one Relay intent** — pass an OpenSea Seaport fulfillment tx (or Magic Eden EVM
+  buy tx) as `txs`, Relay delivers funds + executes the buy in the same flow the user
+  already signs once. Needs a live `/quote/v2` call with a real `txs` payload to confirm
+  end-to-end (not yet done — this was a docs read, not a live API test).
+- **Solana-destination NFT buys** (pay ETH, buy a Solana NFT): **cannot** be one intent.
+  Relay has no destination-call primitive for Solana. Must stay **two signed steps**:
+  (1) existing Relay swap delivers SOL to the user's Solana address — already built and
+  live-verified in this project; (2) once SOL lands, a *second*, separately-signed Magic
+  Eden/Tensor `buy_now` instruction actually purchases the NFT. This is a materially
+  different UX from the EVM path (two wallet approvals instead of one) and needs its own
+  state machine step (track "funds delivered, purchase not yet executed" as a distinct
+  status) rather than reusing `swap_transactions` as-is.
+
+**Next step:** live-test `POST /quote/v2` with a real `txs` payload wrapping an OpenSea
+fulfillment call, to confirm the docs-level read above against actual behavior, before
+committing to the EVM one-step architecture. Not done yet — requires a real OpenSea API
+key (not yet obtained) to generate a real fulfillment tx to wrap.
+
+---
+
+## Done
+
+### NFT buy flow: backend + UI wired end-to-end, two-signature architecture (2026-07-20o/p)
+Full detail in `STATE.md`. The OpenSea buy flow is live and quote/build-verified
+(never yet signed with a real wallet): `app/components/NftBuyModal.tsx` + 4 new API
+routes (`/api/nft/purchase/{quote,execute,confirm-deposit,confirm-buy}`) + DB migrations
+0003-0006. Architecture corrected mid-build from one signature (Relay executing the
+OpenSea buy directly via its `call` primitive) to two, after research confirmed the
+one-signature version would very likely have stranded purchased NFTs in Relay's own
+contract (Seaport can only deliver to `msg.sender`, which is Relay's Multicaller during
+a relayed call, not the buyer). Two more real bugs (gas-buffer omission, OpenSea error
+misclassification) caught and fixed live before ship — see STATE.md 2026-07-20p.
+Remaining: never tested with a real wallet signature; origin is Solana-SOL-only (no
+chain/token picker yet).
+
+### First NFT UI: browse grid + collection/listings page (2026-07-20d)
+`app/nft/page.tsx` (browse, chain-family tabs), `app/nft/[vendor]/[slug]/page.tsx`
+(collection detail + listings grid), `app/components/NftImage.tsx`, plus
+`app/api/nft/collection/route.ts` and `app/api/nft/listings/route.ts`. Full detail
+including two real bugs found and fixed in `STATE.md` 2026-07-20d:
+1. OpenSea listing schema was wrong (assumed fields that don't exist — `maker.address`,
+   used `order_hash` as tokenId) — crashed every listings call, fixed.
+2. Magic Eden 429s were silently reported as "collection not found" — fixed to only
+   treat a real 404 as not-found, everything else now surfaces the real error.
+
+Live-verified against the running dev server with real data (Magic Eden Solana
+collections, OpenSea EVM listings with real prices). **Buy is a disabled placeholder
+button everywhere — no buy-execution code exists yet.** No real-browser visual QA done
+(no browser automation available this session) — only curl + server-log verified, worth
+an actual eyeballed pass before calling this polished.
+
+### NFT Phase 1 data layer: Magic Eden + OpenSea + Tradeport clients (2026-07-20)
+`lib/nft/types.ts`, `lib/nft/magiceden.ts`, `lib/nft/opensea.ts`, `lib/nft/tradeport.ts`,
+`app/api/nft/collections/route.ts`. Full detail in `STATE.md` 2026-07-20b. Summary:
+- **Magic Eden (Solana)**: collection browse/detail/listings live-verified keyless.
+  Buy-instruction endpoint needs `MAGICEDEN_API_KEY` (confirmed live, stubbed with a
+  clear error).
+- **OpenSea (EVM)**: only single-collection lookup is actually keyless (confirmed on
+  retest — an initial "browse works keyless" read from research turned out not to be
+  reproducible, see STATE.md's bug note). Browse/listings/buy all need
+  `OPENSEA_API_KEY`.
+- **Tradeport (Sui/Aptos/Movement)**: everything needs `TRADEPORT_API_KEY`, including
+  browse — confirmed live (denies even GraphQL introspection without one). Query shapes
+  in the code are an unverified best-guess pending real schema access.
+- No UI wired up yet — this is the data-layer foundation, not a working buy flow.
+
+### OpenSea API key obtained + browse live end-to-end (2026-07-20c)
+OpenSea has an **instant, anonymous key endpoint** (`POST /api/v2/auth/keys`, no
+signup) built for exactly this use case — obtained a real key live, added to
+`.env.local`, confirmed `GET /api/nft/collections?chainFamily=evm` returns real
+collection data through the actual running app. Full detail in `STATE.md` 2026-07-20c.
+**This key is the low-limit/30-day agent tier — get a real account-based key
+(opensea.io/settings/developer) before production traffic.**
+
+**Magic Eden and Tradeport have no equivalent anonymous mechanism** (confirmed live —
+Magic Eden's `/v2/auth/keys` 404s, docs confirm dashboard-login-only; Tradeport is
+exclusively the Asana form). **Blocked on the user** — both require creating an account
+tied to a real identity/email, which shouldn't be done without the user's own
+credentials/consent:
+- **Magic Eden**: sign in at the developer dashboard (docs.magiceden.io) →
+  `MAGICEDEN_API_KEY`. Only gates buy-instructions; browse/listings already fully work.
+- **Tradeport**: submit the Asana form (linked in `lib/nft/tradeport.ts`) →
+  `TRADEPORT_API_KEY`. Gates everything on that vendor, including browse.
+
+**Next once those land**: live-test Relay's `call`/`txs` primitive (still only
+docs-verified), then buy-execution code.
+
+### Rate limiting migrated to Upstash Redis (2026-07-20)
+See `STATE.md` 2026-07-20 entry and `SECURITY.md` "RESOLVED gaps" #1 for full detail.
+`lib/rate-limit.ts` now uses `@upstash/ratelimit` + `@upstash/redis`, falls back to
+the old in-memory limiter when `UPSTASH_REDIS_REST_URL`/`_TOKEN` are unset. Code done
+and live-verified against the dev server; **still needs a real Upstash database
+created and its credentials filled into `.env.local`/production env** before this is
+actually active outside local dev.
+
+## Pending / deferred (explicit decisions, not forgotten)
+
+- **NFT: TON support via GetGems** — deferred 2026-07-20 by explicit user decision
+  ("leave BTC and TON away at the moment"). Real gap identified in research (no other
+  vendor covers TON), API fitness already confirmed (signable TON transfer buy tx, free
+  public tier). Revisit after Phase 1 (ME+OpenSea+Tradeport) ships.
+- **NFT: Bitcoin Ordinals/Runes support via UniSat** — deferred 2026-07-20, same
+  decision. Real gap identified (Magic Eden's Bitcoin marketplace shut down, OpenSea has
+  no Bitcoin support), API fitness already confirmed (PSBT-based signable buy tx,
+  fallback Gamma/OKX if UniSat access is a problem). Revisit after Phase 1.
+- **NFT: Tensor (Solana fallback)** — not urgent-blocking, but apply for its
+  approval-gated access now in parallel with Phase 1 build work, since approval is a
+  form-wait, not something that can be accelerated by more engineering time.
+  **Real API application URL** (2026-07-20, from their own docs, not guessed):
+  https://airtable.com/apppFpk6Ul9yiI6sw/pagCBazYyAewboZnT/form — approval-gated,
+  scoped to "traders and market-makers," no self-serve option. Submitted by the
+  user directly (not by Claude — same reasoning as Magic Eden/Tradeport: needs real
+  contact/business info).
+  **Open-source SDK finding (2026-07-20)**: Tensor pointed us at two npm packages
+  while waiting on approval — `@tensor-oss/tensorswap-sdk` (legacy marketplace,
+  pool-based buy/sell) and `@tensor-oss/tcomp-sdk` (compressed NFTs). Both are
+  Anchor/JS SDKs for building/signing Solana transactions **directly against
+  Tensor's on-chain programs — confirmed no API key needed for that part**
+  (`buyNft`/`sellNft`/`computeTakerPrice`, per their README). **Does NOT solve the
+  current gap** — neither SDK fetches marketplace data (listings/prices); that
+  still needs the gated REST/GraphQL API, or per their README, their Discord for
+  supplementary data (collection UUIDs, merkle proofs). Relevant later for
+  buy-execution (skip the API key entirely for signing, once a listing is known
+  from somewhere), not for today's browse/discovery gap.
+
+- **Build-our-own-Solana-NFT-API feasibility (researched 2026-07-20, decision: no)**.
+  Both Magic Eden's on-chain program ("M2", Apache-2.0, github.com/magicoss/m2) and
+  Tensor's (TensorSwap/TCOMP, github.com/tensor-foundation) are public/open-source, so
+  the blocker to self-indexing was never secrecy — it's the ongoing cost: a persistent
+  background indexer (not serverless routes), a DB reconciling state continuously,
+  separate parsers per marketplace (ME's fixed-price listings vs. Tensor's bonding-curve
+  pools — different math), and silent, permanent breakage risk every time either team
+  ships a new program version. Weeks-to-months to build, indefinite to maintain, and it
+  doesn't even help buy-execution (still need their real instruction formats regardless
+  of where listing data comes from). **Decision: don't build it** — the actual pain
+  points are narrower and mostly solvable cheaply instead:
+  - **Missing total supply (the exact gap hit in 2026-07-20i)**: solvable via **Helius
+    DAS's `getAssetsByGroup`**, which returns a real `total` field per collection — we
+    already pay for Helius RPC, likely zero new cost. **Not yet implemented** — real,
+    low-effort next step for `lib/nft/magiceden.ts`'s collection stats gap.
+  - **Magic Eden's rate limit**: apply for their free API key (raises the 120/min
+    keyless cap) + add server-side caching (partially already done via `lib/cache.ts`).
+  - **Tensor gated access**: still needs the approval form above, but **Shyft**
+    (docs.shyft.to) already aggregates Magic Eden + Tensor + Sniper listings without
+    needing Tensor's own approval — a real fallback while waiting. Note: SimpleHash, a
+    similar productized option, is being wound down after a Phantom acquisition — don't
+    build on it.
+
+## Not yet scheduled
+
+- **NFT vendor API-dependency review (queued 2026-07-20, not started)** — bundles
+  several related follow-ups, don't tackle piecemeal without checking this list:
+  - **DONE (2026-07-21)**: ~~Helius DAS `getAssetsByGroup` for Magic Eden collection
+    total supply~~ — built and live-verified, see `STATE.md` 2026-07-21. One
+    correction along the way: the plain `total` field is bounded by `limit`, not the
+    real collection size (contradicts what the original research summary implied) —
+    needed `options.showGrandTotal: true` + the separate `grand_total` field instead,
+    confirmed against Okay Bears' known ~10k supply. Magic Eden's Listed% now actually
+    computes instead of permanently "—".
+  - **Shyft as the Tensor fallback** — evaluate concretely (get a real quote for their
+    listings/GraphQL product specifically, per the research's caveat that their public
+    pricing page doesn't clearly cover it) as a way to get Tensor-covered Solana
+    listings NOW, without waiting on Tensor's own approval-gated access.
+  - General principle from the same research: don't build our own indexer for ME/
+    OpenSea/Tensor — re-check that conclusion still holds before any future "let's
+    just index it ourselves" impulse (see `STATE.md`'s indexer-feasibility entry for
+    the full reasoning: both are technically public/parseable but the ongoing
+    multi-marketplace parser-maintenance burden isn't worth it for narrow gaps).
+- **NFT buy flow: same-chain purchase support + fee model review (queue item #2, DONE
+  2026-07-21)** — see `STATE.md` 2026-07-21b for the full implementation writeup.
+  - Same-chain (buyer already holds native ETH on the NFT's own chain) is now a real
+    one-signature path: `NftBuyModal.tsx` has a "Pay with SOL"/"Pay with ETH" toggle,
+    `quote`/`execute` routes branch on whether a Relay leg exists at all
+    (`relay_quote === null`), `confirm-deposit` is skipped entirely, `confirm-buy`
+    needed no changes.
+  - **Fee decision made**: same-chain purchases carry NO platform fee (buyer pays
+    exactly listing price + gas) — there's no cross-chain conversion/bridging service
+    being provided on that path to justify the 0.25% fee that cross-chain purchases
+    pay. Below stays for context on WHY no fee-sharing alternative was available.
+  - **RESOLVED (researched 2026-07-20): no usable affiliate/referral fee program on
+    any of the three.** None offers a Jupiter-Referral-Program-style "pass a
+    parameter, earn a cut of their existing fee" mechanism:
+    - **OpenSea**: no API affiliate parameter on `/v2/listings/fulfillment_data` or
+      `/v2/offers/fulfillment_data`. Their old referral program was consumer-facing
+      (share a listing link); the newer rewards/Waves program ended 2026-03-30. The
+      one real option is **protocol-level, not an OpenSea program**: Seaport supports
+      "tipping" — a fulfiller can append its OWN additional consideration/fee
+      recipient when building the fulfillment tx. This would be OUR OWN extra fee on
+      top, not a cut of OpenSea's 1% — and it's **unverified whether it survives
+      OpenSea's restricted-order/zone validation** on orders sourced from their API.
+      Needs real on-chain testing before relying on it, not just docs research.
+    - **Magic Eden**: `/instructions/buy_now` accepts `buyerReferral`/
+      `sellerReferral` wallet params, but no public docs define a commission/terms
+      for third-party integrators — no signup flow, no stated cut. Worth a direct
+      email to their BD/partnerships team to ask, not something to build against
+      from docs alone.
+    - **Tensor**: their referral program pays 5% of fees from users referred to sign
+      up on Tensor's OWN site — tied to onboarding, not to API-executed trades.
+      Doesn't apply to an aggregator like this app at all.
+    - **Practical conclusion**: we cannot currently earn a cut of any of these
+      marketplaces' own fees. The same-chain fee gap above still needs a decision —
+      our options are (a) no fee on same-chain purchases, (b) our own fee via some
+      non-Relay mechanism, or (c) the unverified Seaport-tipping route once tested.
+- **NFT buy flow: first real signed transaction** — everything built in 2026-07-20o/p
+  is quote/build-verified only, never exercised with a real wallet signature or real
+  funds. Do a small/cheap real purchase before trusting this for arbitrary amounts.
+- **NFT buy flow: origin chain/token picker** — V1 only supports paying in native SOL
+  from Solana (`NftBuyModal.tsx`'s deliberate scope cut). A real Sell-side-style picker
+  (mirroring `SwapPanel.tsx`) is the natural follow-up once the SOL-only path is proven
+  live.
+- `lib/cache.ts` has the same in-memory/single-instance limitation `rate-limit.ts`
+  had — lower priority (cache miss, not a security gap), noted in `SECURITY.md`
+  "Known open gaps" #1.
+- No 2FA (SECURITY.md gap #2).
+- EVM address validation is format-only, not EIP-55 checksum (SECURITY.md gap #3).
+- EVM-origin cross-chain swap path (built 2026-07-18i) still needs live verification
+  with a real browser + real EVM wallet + real funds (STATE.md 2026-07-18i).

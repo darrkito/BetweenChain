@@ -1,0 +1,218 @@
+okay so my idea would be
+to have uh dicks uh this entire exchange to be able to
+swap tokens between blockchains
+focused on meme coins okay so I think my plan is to
+let me make an example we want to change
+a Solana meme coin into and swap it to Ethereum
+I think the best approach is okay
+if we notice that
+they're changing a token like any token
+from Solana
+um the first thing we need to do is to
+request a quote
+from the token to native Solana token
+and then
+that this this old Sonata trades can be done
+with Jupiter
+API OK with the Jupiter
+descentralized exchange with Jupiter API
+and then after we have
+the quote from the token um to Solana Coin
+we can check if rely uh
+rely dot link relay like R E L a y dot link
+have an API a public API in order for us to also make
+um trades
+cause relay is very very very good on this kind of
+multichain trade so let me break down
+again the swap I want to swap a meme coin from Solana
+and I want to put it um and I want to get Ethereum so
+the like will be
+the the Solana token will be exchanged for Solana
+like the the meme coin token
+will be exchanged for Solana via Jupiter API and then
+we're going to use a rely
+API in order to exchange the Solana
+token to Ethereum token um or yeah like any token
+that the user
+check
+from another chain or even in the same chain
+but that would be great it would be a nice idea
+also let's check please check me if
+if uniswap have API public API also for swaps
+because we will need uniswap in order to exchange also
+tokens
+that are in
+layer 2 Ethereum chains
+so yup um I think that's the idea of the project
+for the first test we can
+run it um locally or local tests with the APIs but
+the live application must be
+deployed on the Solana chain
+so my main goal is to have these decks
+deployed on Solana chain so users can be able to trade
+any token from any other chain
+within the Solana Solana deployment okay so
+you can look at at projects like
+relay or even you can search about Pump Fun app
+that you can be you are able to exchange tokens
+it's like using Solana and you can buy tokens from
+uh another change another chain sorry
+um
+you just need to to have the right input from the user
+that they have connected a wallet
+that supports the chain
+like the Solana wallet
+and an EVM wallet also we need also the the
+the user to be able to sign in with their wallet
+um also a good option could be like maybe
+they just want to to connect the Sorana wallet
+and
+they can paste a valid EVM
+address
+so they can send the tokens
+without connecting the other EVM wallet you know so
+the
+the swap of the tokens can be able
+just by connecting one wallet that is the one
+where the funds are going to be
+sending out to the other
+so that's also a thing we we could try to get
+also um it's very important to have a
+system a reward system where
+every user have in their profile
+the matrix of
+swap volume
+that the amount of volume that they have been swapping
+also the referrals
+I I want to have also a refer system where
+if you invite
+a friend you will have
+a 20
+20% points
+um like one point is $1 so 20% of the
+of the volume of the user you have invited
+as as as point for you and also the
+the user you have invite will have a
+a 10% bonus on on the points
+yeah their reward system is is
+is needed just as at this moment as
+as points or uh yeah as as points uh
+like $1 is one point uh
+usually can check the their volume
+and they have the ability to create uh
+invite codes
+and also when an user
+um create the usually like the first time they sign in
+or sign up um they will have the ability to put
+the invitation code
+or well if they have been invited and
+by a custom URL from another user
+the invite code will put automatically
+on on it
+since the very beginning we need to check all the
+all the requirements that are going to be needed
+in order to build
+this
+web 3 app these decks
+because it's going to be deployed on some other
+blockchain
+as a
+web the app
+and also let's
+have a great plan for security
+we do not want we do not want to have security issues
+having the users exposed to
+well to get hacked so every if if we
+store any information like we're going to be have
+storing some information
+um all the information needs to be
+in um
+like securely I don't know if the correct
+word is encoded so only I that I'm loving
+must be able to
+to get the the data also maybe we can block the
+the the that access via 2FA
+and also we need to check like
+users are not going to be able to pull information
+doing um get requests
+you know like if they use a
+if they do a get request
+to our server they
+must not be able to get any information
+since they are not
+valid users to get info you know
+um
+yeah like anyone
+nobody must be able to to get data from our servers
+like
+is just going to be able to look at the data we provide
+but not they the server must be fully secured um
+in order for users
+to do not have security issues
+another thing is
+um since we're using APIs I don't think
+there will be much security issues on
+the transactions but well
+let's make sure every time transactions is
+secured and twins like
+that anybody
+will be able to change at the last time uh
+the wallet where it's going to be sent or
+I think this go by the hand of
+of anyone must be able to anybody need
+like the people not to be able to request or to
+pull or to do any request to the server via
+commands via get via via anybody because that
+also leads cool lead to um transaction frauds
+like maybe a user that want to exchange one
+Solana to Ethereum and
+the hacker intercept the signal in the middle of
+the transaction and change the wallet address
+in order to send the the Ethereum tokens to
+to the hacker wallet instead of to the user wallet
+so we need to
+have
+we need to make sure we have these points covered also
+um let's investigate
+about issues that
+uh exist or have been
+existed uh in the past and let's patch it in
+uh very good it's example on
+on platforms that we can watch their issues um
+I'm not sure I do not
+have a lot of information from
+Solana Dex issues but maybe we can check
+um from Sui like momentum has been
+or Cerus
+also Nemo protocol I know
+their main issues were from liquidity pools
+and we are not since we are not going to be
+managing liquidity pools at this moment
+maybe it's not
+um like a real issue but we do not discard the future
+to manage capital I don't know if
+like I think liquidable for tokens
+will not be but maybe yes another
+tools like maybe um AI agent bots that we are training
+um in order to have a good percentage of uh APR
+return of investment so
+yeah in the future we're we're planning to
+to accept like the users locked money in order to get
+um
+to get uh
+some
+studies on like uh when uh
+people yet to have a APR a return of investment
+in Spanish is still rendimiento from their capital
+from the capital so yep um
+we're not close to the uh that idea to
+have the users to look money into
+our tools for a agents a bots
+that will help them to trade automatically
+automatically and
+generate uh money without doing anything
+so yeah we need also to check that
+like not in the liquidable approach but yes in the
+hacking way of
+of the nuts getting the money away from the
+platform you know yeah
