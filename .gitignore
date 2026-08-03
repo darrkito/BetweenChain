@@ -42,3 +42,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Claude Code — settings.local.json is the standard gitignored spot for
+# personal/secret overrides (e.g. the real OPENSEA_API_KEY value .mcp.json's
+# ${OPENSEA_API_KEY} substitution needs — .mcp.json itself is committed since
+# it only ever references the var name, never the literal secret).
+.claude/settings.local.json
