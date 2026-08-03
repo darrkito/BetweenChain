@@ -187,13 +187,26 @@ export async function getMagicEdenListings(symbol: string, offset = 0, limit = 2
   }));
 }
 
+// Raw shape of a buy_now/instructions/sell response — confirmed live 2026-08-03
+// against docs.magiceden.io/recipes/sol-list-an-nft.md (list and buy_now
+// share the same instruction-response shape): the field to actually use is
+// top-level `txSigned.data` (a byte array — ME's response is ALREADY
+// partially co-signed, e.g. for OCP royalty-enforcement compliance),
+// deserialized client-side as a `VersionedTransaction`, NOT `tx` (unsigned)
+// or the nested `v0.*` variants (legacy-wallet fallback, unused here).
+interface RawMagicEdenBuyResponse {
+  txSigned?: { type: "Buffer"; data: number[] };
+  blockhashData?: { blockhash: string; lastValidBlockHeight: number };
+}
+
 export interface MagicEdenBuyInstructions {
-  // Base64/hex-encoded raw Solana instructions, same shape Relay already
-  // returns for its own Solana steps (lib/chains/relay.ts's SolanaStepData) —
-  // reuse lib/client/relayTransaction.ts's instruction-building code rather
-  // than writing a parallel implementation, once this is wired into the UI.
-  txSigned?: string;
-  tx?: unknown;
+  // Base64-encoded VersionedTransaction bytes — same encoding/deserialize
+  // convention already used for Jupiter's swap transaction (see
+  // app/page.tsx's VersionedTransaction.deserialize(Buffer.from(..., "base64"))),
+  // so the client reuses that exact same pattern rather than a new one.
+  txSignedBase64: string;
+  blockhash: string;
+  lastValidBlockHeight: number;
 }
 
 /**
@@ -233,5 +246,13 @@ export async function getMagicEdenBuyInstructions(params: {
 
   const res = await fetchMagicEden(url);
   if (!res.ok) throw new Error(`Magic Eden buy instructions failed (${res.status}): ${await res.text()}`);
-  return res.json();
+  const body = (await res.json()) as RawMagicEdenBuyResponse;
+  if (!body.txSigned?.data || !body.blockhashData) {
+    throw new Error("Magic Eden buy instructions response was missing txSigned/blockhashData");
+  }
+  return {
+    txSignedBase64: Buffer.from(body.txSigned.data).toString("base64"),
+    blockhash: body.blockhashData.blockhash,
+    lastValidBlockHeight: body.blockhashData.lastValidBlockHeight,
+  };
 }

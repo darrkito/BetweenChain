@@ -1,0 +1,24 @@
+-- Adds Magic Eden/Solana purchase support to nft_purchase_quotes, alongside
+-- the existing OpenSea/EVM (0003/0006) and Tradeport/Sui (0011/0012) paths.
+-- vendor already allowed 'magiceden' and chain_family already allowed
+-- 'solana' since the original 0003 migration — this only adds the columns
+-- actually needed to execute that path.
+--
+-- Same-chain (pay with SOL, buyer already holds it): no bridging leg,
+-- relay_quote/bridge_quote both stay null, mirrors Tradeport-Sui's
+-- same-chain shortcut.
+--
+-- Cross-chain (pay with ETH): unlike Sui (which needed ChangeNOW because
+-- Relay has no Sui support at all), Relay DOES support Solana as a plain
+-- delivery destination — SOLANA_CHAIN_ID already exists in lib/chains/relay.ts
+-- and is used elsewhere in this app for exactly this. So the ETH-origin leg
+-- reuses the EXISTING relay_quote column (getRelayCallQuote, EXACT_OUTPUT,
+-- exact SOL delivered to the buyer's own Solana wallet — same "two
+-- signature, buyer is the real destination signer" pattern established in
+-- migration 0006), not a new bridge_quote/ChangeNOW-style column.
+alter table public.nft_purchase_quotes
+  -- Raw Magic Eden listing snapshot (pdaAddress, auctionHouse, tokenAddress,
+  -- tokenMint, seller, price) — replayed verbatim into
+  -- getMagicEdenBuyInstructions at execute/confirm-deposit time, same
+  -- "replay the quote, don't rebuild it" rule as relay_quote/bridge_quote.
+  add column if not exists magiceden_listing jsonb;

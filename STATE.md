@@ -6,6 +6,52 @@ delete history (superseded entries stay for context, just note what replaced the
 
 ---
 
+## 2026-08-03j — Magic Eden buy flow built end-to-end (same-chain SOL + cross-chain ETH)
+
+User-reported gap: every Magic Eden listing showed "Buy not wired up for this vendor yet" —
+`app/nft/[vendor]/[slug]/page.tsx`'s Buy-button condition never included `vendor === "magiceden"`
+at all, and no purchase pipeline existed for it (only OpenSea/EVM via Relay's `call` primitive and
+Tradeport/Sui existed). This wasn't a UI toggle — Magic Eden's real signable transaction (from
+`getMagicEdenBuyInstructions`, confirmed working 2026-08-03g) is a partially co-signed
+`VersionedTransaction`, structurally different from both existing flows.
+
+**New pipeline, mirroring the Tradeport-Sui same-chain/cross-chain split exactly:**
+- `supabase/migrations/0013_nft_purchase_magiceden.sql` — adds `magiceden_listing jsonb` to
+  `nft_purchase_quotes` (raw listing snapshot, replayed verbatim into the real buy-transaction
+  build — same "replay, don't rebuild" rule as `relay_quote`). `vendor='magiceden'` and
+  `chain_family='solana'` were already allowed by the original 0003 migration.
+- `lib/chains/solana.ts` (new) — `isSolanaTxSuccessful`/`getSolanaBalanceLamports`, mirrors
+  `lib/chains/sui.ts`'s settlement-check role. `isSolanaTxSuccessful` throws on "not found yet"
+  (same convention as `isSuiTxSuccessful`) so confirm-buy's try/catch shape is identical across
+  both vendors.
+- `lib/nft/magiceden.ts` — `getMagicEdenBuyInstructions` now returns a clean
+  `{txSignedBase64, blockhash, lastValidBlockHeight}` instead of the raw vendor response. Verified
+  against `docs.magiceden.io/recipes/sol-list-an-nft.md` (list and buy_now share the same
+  instruction-response shape): the field to actually sign is top-level `txSigned.data`
+  (already partially co-signed, e.g. OCP royalty enforcement), deserialized as a
+  `VersionedTransaction` — NOT `tx` (unsigned) or the nested `v0.*` legacy-wallet variants.
+- `app/api/nft/purchase/magiceden/{quote,execute,confirm-deposit,confirm-buy}/route.ts` (new,
+  4 files) — same-chain (pay with SOL, one signature, real balance check via
+  `getSolanaBalanceLamports`) vs cross-chain (pay with ETH). **Cross-chain reuses the EXISTING
+  Relay/`relay_quote` path already built for OpenSea** (`getRelayCallQuote`, `SOLANA_CHAIN_ID`,
+  `RELAY_NATIVE_SOL_SENTINEL` — all already in `lib/chains/relay.ts`), NOT ChangeNOW — unlike Sui,
+  Relay natively delivers plain SOL to a Solana destination address, so no new bridge integration
+  was needed at all. Same two-signature safety model as migration 0006: Relay delivers exact SOL
+  to the buyer's OWN Solana wallet, that same wallet then separately signs the Magic Eden buy_now
+  transaction itself.
+- `app/components/NftBuyModalMagicEden.tsx` (new) — mirrors `NftBuyModal.tsx`'s structure; final
+  signature uses `VersionedTransaction.deserialize` + wallet-adapter `signTransaction`, same
+  pattern already used for Jupiter's swap transaction in `app/page.tsx`.
+- `app/nft/[vendor]/[slug]/page.tsx` — Buy button now enabled for `vendor === "magiceden"`,
+  routes to the new modal.
+
+**Not yet done**: no real signed purchase with real funds has been executed (same caveat as every
+other buy path in this app per `PLAN.md`'s Phase 3.2 — needs the user's own wallet/funds to
+verify end-to-end). Backend compiles clean (`tsc`), all 71 existing tests still pass, field names
+cross-checked line-by-line between the API routes and the client component, but this is
+**code-reviewed, not live-tested** — flag any real signing failure immediately, don't assume it's
+solid just because it compiles.
+
 ## 2026-08-03i — Magic Eden 429 on collection open: auth header + one retry added to all reads
 
 User-reported live bug: "Magic Eden collection lookup failed (429)" when opening a collection page.

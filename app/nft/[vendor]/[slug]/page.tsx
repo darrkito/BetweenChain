@@ -10,6 +10,7 @@ import { NftImage } from "@/app/components/NftImage";
 import { NftTraitFilters, matchesTraitSelection, type TraitSelection } from "@/app/components/NftTraitFilters";
 import { NftBuyModal } from "@/app/components/NftBuyModal";
 import { NftBuyModalSui } from "@/app/components/NftBuyModalSui";
+import { NftBuyModalMagicEden } from "@/app/components/NftBuyModalMagicEden";
 import { isOnchainPunkListing } from "@/lib/nft/cryptopunksShared";
 import { nftChainFamilyLabel, nftFamilyForVendor } from "@/lib/nft/labels";
 import { TRADEPORT_FEE_SAFETY_MARGIN } from "@/lib/nft/tradeportFee";
@@ -450,7 +451,9 @@ export default function NftCollectionPage({ params }: { params: Promise<{ vendor
                           <span className="num text-[15px] font-semibold text-ink">
                             {displayedListingPrice(l)} <span className="text-ink-muted">{l.priceCurrency}</span>
                           </span>
-                          {(l.vendor === "opensea" && !isOnchainPunkListing(l)) || (l.vendor === "tradeport" && l.chainFamily === "move") ? (
+                          {(l.vendor === "opensea" && !isOnchainPunkListing(l)) ||
+                          (l.vendor === "tradeport" && l.chainFamily === "move") ||
+                          l.vendor === "magiceden" ? (
                             <button
                               onClick={() => setBuyingListing(l)}
                               className="mt-1 rounded-full bg-accent px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-accent-ink transition-all hover:brightness-110"
@@ -495,6 +498,8 @@ export default function NftCollectionPage({ params }: { params: Promise<{ vendor
       {buyingListing &&
         (buyingListing.vendor === "tradeport" ? (
           <NftBuyModalSui listing={buyingListing} onClose={() => setBuyingListing(null)} />
+        ) : buyingListing.vendor === "magiceden" ? (
+          <NftBuyModalMagicEden listing={buyingListing} onClose={() => setBuyingListing(null)} />
         ) : (
           <NftBuyModal listing={buyingListing} onClose={() => setBuyingListing(null)} />
         ))}
