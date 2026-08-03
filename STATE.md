@@ -6,6 +6,25 @@ delete history (superseded entries stay for context, just note what replaced the
 
 ---
 
+## 2026-08-03l — Rebranded to ChainBreak
+
+User-requested rename, "SwapperBetweenChains" → "ChainBreak", across every user-visible and
+code-level reference: header wordmark (`AppHeader.tsx`, full + mobile-initials forms),
+`<title>`/metadata (`app/layout.tsx`), PWA `manifest.json` (name + short_name), the SIWS/SIWE
+sign-in message text (`lib/auth/siws.ts`/`siwe.ts` — safe to change, confirmed no code anywhere
+does a hardcoded string match against this text, it's only ever replayed verbatim between issue
+and verify), the Slush wallet display name (`SuiWalletProvider.tsx`), `package.json`'s `name`
+field (`swapper-between-chains` → `chainbreak`, lockfile regenerated to match), and the
+README/AGENTS.md/globals.css doc headers.
+
+**Deliberately NOT changed** (external/infra, not code-level branding — flagged, not done):
+GitHub repo name (`darrkito/BetweenChain`), Vercel project name/domain (`betweenchain.vercel.app`),
+and the local working directory name (`/home/darrkito/SwapperBetweenChains`) — renaming any of
+these changes URLs other things link to or breaks the git remote/Vercel project linkage, and
+wasn't asked for explicitly. Historical `STATE.md` entries below this one were left as-is
+(accurate history of what the app was named at the time), per this file's own "don't delete
+history" rule at the top.
+
 ## 2026-08-03k — Magic Eden cross-chain buy: added Base and Arbitrum as EVM origins
 
 Extended the Magic Eden buy flow's cross-chain path (2026-08-03j) beyond Ethereum-only.

@@ -1,6 +1,6 @@
 {
-  "name": "SwapperBetweenChains",
-  "short_name": "SwapperBTC",
+  "name": "ChainBreak",
+  "short_name": "ChainBreak",
   "description": "Swap meme coins across chains, starting from Solana.",
   "start_url": "/",
   "display": "standalone",

@@ -1,4 +1,4 @@
-# SwapperBetweenChains
+# ChainBreak
 
 Cross-chain meme coin swap dApp: Solana-first, using **Jupiter** (SPL → SOL) and
 **Relay.link** (SOL → any other chain/token) as the swap/bridge legs. Sign-In with

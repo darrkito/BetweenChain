@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "SwapperBetweenChains",
+  title: "ChainBreak",
   description: "Swap meme coins across chains, starting from Solana.",
   manifest: "/manifest.json",
   // apple-icon.png / icon.svg are picked up automatically from app/ by

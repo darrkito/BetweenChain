@@ -65,10 +65,10 @@ export function AppHeader() {
               see the header-level comment above for the real bug this
               closes (text wrapping mid-word inside a squeezed flex item). */}
           <span className="hidden whitespace-nowrap text-[15px] font-semibold tracking-tight text-ink sm:inline">
-            Swapper<span className="text-accent">Between</span>Chains
+            Chain<span className="text-accent">Break</span>
           </span>
           <span className="whitespace-nowrap text-[15px] font-semibold tracking-tight text-ink sm:hidden">
-            S<span className="text-accent">B</span>C
+            C<span className="text-accent">B</span>
           </span>
         </Link>
         <nav className="flex shrink-0 items-center gap-1">
