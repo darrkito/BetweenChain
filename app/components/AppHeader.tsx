@@ -12,8 +12,8 @@ const ConnectWalletMenu = dynamic(
   { ssr: false },
 );
 
-const NAV = [
-  { href: "/", label: "Token Swap" },
+const NAV: Array<{ href: string; label: string; shortLabel?: string }> = [
+  { href: "/", label: "Token Swap", shortLabel: "Swap" },
   { href: "/nft", label: "NFTs" },
 ];
 
@@ -29,7 +29,17 @@ export function AppHeader() {
   const pathname = usePathname();
 
   return (
-    <header className="flex items-center justify-between gap-2 rounded-2xl border border-hairline bg-surface/90 p-2.5 pl-3 shadow-sm backdrop-blur sm:gap-3">
+    // Real layout bug found live 2026-08-03: nav/wordmark text had no
+    // `whitespace-nowrap`, so on a squeezed width the text itself would wrap
+    // onto a second line INSIDE a single-line flex row (Tailwind/flexbox
+    // shrinks a flex item's width but never stops its own text from
+    // wrapping unless told to) — with `items-center` on every level, several
+    // now-multi-line children of differing heights next to each other reads
+    // as buttons "stacked on top of each other" rather than a clean row.
+    // `flex-wrap` here is the safety net for the case where the row
+    // genuinely can't fit at all (wraps to a clean second row instead of
+    // that collision), `gap-y-2` gives that wrapped state proper spacing.
+    <header className="flex flex-wrap items-center justify-between gap-x-2 gap-y-2 rounded-2xl border border-hairline bg-surface/90 p-2.5 pl-3 shadow-sm backdrop-blur sm:gap-x-3">
       <div className="flex min-w-0 items-center gap-2 sm:gap-5">
         <Link href="/" className="flex shrink-0 items-center gap-2">
           <svg width="26" height="26" viewBox="0 0 26 26" fill="none" aria-hidden="true" className="shrink-0">
@@ -51,26 +61,37 @@ export function AppHeader() {
           {/* Full wordmark on wider screens; below `sm` (real risk: logo +
               nav + "Wallets connected" all crowding a ~360px viewport at
               once) it shrinks to just the initials so the nav links and
-              wallet button always have room. */}
-          <span className="hidden text-[15px] font-semibold tracking-tight text-ink sm:inline">
+              wallet button always have room. `whitespace-nowrap` on both —
+              see the header-level comment above for the real bug this
+              closes (text wrapping mid-word inside a squeezed flex item). */}
+          <span className="hidden whitespace-nowrap text-[15px] font-semibold tracking-tight text-ink sm:inline">
             Swapper<span className="text-accent">Between</span>Chains
           </span>
-          <span className="text-[15px] font-semibold tracking-tight text-ink sm:hidden">
+          <span className="whitespace-nowrap text-[15px] font-semibold tracking-tight text-ink sm:hidden">
             S<span className="text-accent">B</span>C
           </span>
         </Link>
-        <nav className="flex items-center gap-1">
+        <nav className="flex shrink-0 items-center gap-1">
           {NAV.map((item) => {
             const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
             return (
               <Link
                 key={item.href}
                 href={item.href}
-                className={`rounded-full px-2.5 py-1.5 text-sm font-medium transition-colors sm:px-3.5 ${
+                className={`whitespace-nowrap rounded-full px-2.5 py-1.5 text-sm font-medium transition-colors sm:px-3.5 ${
                   active ? "bg-accent text-accent-ink" : "text-ink-muted hover:bg-accent-soft hover:text-ink"
                 }`}
               >
-                {item.label}
+                {/* "Token Swap" shortens to "Swap" below `sm` — same reasoning
+                    as the wordmark/wallet-button shortening right next to it. */}
+                {item.shortLabel ? (
+                  <>
+                    <span className="hidden sm:inline">{item.label}</span>
+                    <span className="sm:hidden">{item.shortLabel}</span>
+                  </>
+                ) : (
+                  item.label
+                )}
               </Link>
             );
           })}
