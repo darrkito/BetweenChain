@@ -6,6 +6,20 @@ delete history (superseded entries stay for context, just note what replaced the
 
 ---
 
+## 2026-08-03f — Real OpenSea account key replaces the expiring agent-tier one
+
+User obtained a real account-tier OpenSea key. Live-verified before wiring anywhere:
+120 reads/min (double the old agent-tier key's 60), and — the part that actually
+matters — real write access to `/listings/fulfillment_data`, the buy-execution
+endpoint the NFT purchase flow depends on (the old key never had this tested; browse/
+listings worked on both keys). No expiry concern with this tier, closing the
+2026-08-19 hard-expiry risk the old key carried. Updated in both places: `.env.local`
+(local dev) and Vercel's production env vars (via API, then a redeploy to actually
+pick it up — env var changes don't retroactively apply to an already-built
+deployment). Confirmed live against production afterward.
+
+---
+
 ## 2026-08-03e — First real production deployment: GitHub + Vercel + hosted Supabase, two live bugs found and fixed
 
 The app went live for the first time this session — `github.com/darrkito/BetweenChain` →
