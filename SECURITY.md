@@ -93,6 +93,17 @@ quote request, do not add a manual "enter your address" field for this value.
   — recent Supabase versions do not auto-expose new tables to `anon`/`authenticated`/
   `service_role` even with RLS policies defined. Forgetting this produces "permission
   denied for table", not an RLS-style rejection — easy to misdiagnose.
+- **As of `0014_revoke_direct_data_api_access.sql` (2026-08-03), `authenticated`/`anon`
+  have ZERO grants on any table/view — the direct Supabase REST API (PostgREST) is fully
+  closed off.** This was a deliberate hardening, not just a leak patch: `supabaseForUser()`
+  (`lib/supabase/server.ts`) and `supabaseBrowser` (`lib/supabase/client.ts`) — the two
+  client constructors that would ever use those grants — are confirmed dead code (grepped,
+  never imported anywhere). Every real read/write in this app goes through an API route
+  using `supabaseAdmin()` with its own explicit `.eq("user_id", session.userId)` filtering.
+  Since there is no legitimate use for direct client-side Supabase access, there is no
+  reason to leave that surface open at all — don't re-add an `authenticated`/`anon` grant
+  to "let the client read this table directly" without re-deriving why this migration
+  removed them first.
 - `/api/tokens/chains`, `/api/tokens/list`, and `/api/quote/preview` are intentionally
   **public/unauthenticated** — pure market data and pricing with no user-specific
   content, no DB writes. Don't "fix" this by adding auth; it would break the stated
@@ -119,7 +130,63 @@ quote request, do not add a manual "enter your address" field for this value.
 
 ## RESOLVED gaps (previously listed here as open)
 
-1. **~~Rate limiting was in-memory, single-instance~~ — fixed.** `lib/rate-limit.ts`
+1. **CRITICAL, live security review 2026-08-03 — `public.user_points_balance` leaked every
+   user's points balance to any signed-in user via direct Supabase REST access.** This is
+   a VIEW over `points_ledger`. Postgres views execute with the privileges of their OWNER
+   by default (the migration-applying role, which bypasses RLS) unless created with
+   `security_invoker = true` — RLS enabled on the underlying `points_ledger` table does
+   NOT protect a view built on top of it. **Confirmed live and exploitable**: a
+   validly-signed `authenticated`-role JWT for a completely fake, non-existent `user_id`
+   (no real account, no session ever issued) successfully retrieved a real user's actual
+   points balance via `GET /rest/v1/user_points_balance?select=*` against the hosted
+   Supabase project directly, fully bypassing this app's own API routes. Every OTHER table
+   with a `select_own` RLS policy was verified NOT to have this problem (correctly
+   returned zero rows for the same fake JWT) — this was isolated to the one view. Fixed in
+   `0014_revoke_direct_data_api_access.sql`: `security_invoker = true` added to the view,
+   AND (see the Row-Level Security section above) `authenticated`/`anon` grants revoked
+   entirely across every table/view, since the direct-access client paths turned out to be
+   completely unused dead code. Re-verified live post-fix: the same forged JWT now gets
+   `403 permission denied` on every table/view, with zero change to the app's own
+   functionality (confirmed `/api/points` and `/api/nft/collections` both still behave
+   identically).
+2. **Points/referral crediting had a real double-credit race condition** (`lib/points.ts`,
+   both `creditSwapPoints` and `creditNftPurchasePoints`) — found in the same 2026-08-03
+   review. The idempotency guard was check-then-act (`SELECT points_credited`, branch in
+   application code, THEN `UPDATE`) — two near-simultaneous calls (trivial for a client to
+   trigger: fire two parallel requests at `/api/swap/confirm` or any `confirm-buy` route
+   with the same id) could both read `points_credited = false` before either write
+   committed, and both would insert `points_ledger` rows, doubling the payout. Fixed by
+   making the claim itself the atomic operation — `UPDATE ... SET points_credited = true
+   WHERE id = $1 AND points_credited = false RETURNING id`; only the caller whose update
+   actually affected a row (Postgres row-level locking serializes concurrent UPDATEs on
+   the same row) proceeds to insert ledger rows. Proven with a real concurrency test
+   (`lib/points.test.ts`'s `CONCURRENCY:` case, `Promise.all` of two simultaneous calls
+   against real local Postgres, not a mock) — `IDEMPOTENCY:` (sequential retries) was
+   already covered and stayed green; concurrent calls were not previously tested at all.
+3. **Next.js was one patch version behind a set of real CVEs** — `16.2.10`, vulnerable
+   range `>=16.0.0 <16.2.11`, included SSRF in rewrites via attacker-controlled destination
+   hostname (HIGH), SSRF in Server Actions on custom servers (HIGH), middleware/proxy
+   bypass (HIGH), cache confusion of response bodies (moderate — directly relevant given
+   this app has several personalized API routes), and unauthenticated disclosure of
+   internal Server Function endpoints (moderate). Upgraded to `16.3.0` (the current
+   stable, non-major bump). `npm audit` confirms Next.js-specific advisories are gone;
+   `tsc`/tests/lint/`next build` all still pass clean.
+4. **Zero custom security headers anywhere** — confirmed via `curl -I` against production:
+   only Vercel's own default `strict-transport-security` was present, no
+   `Content-Security-Policy`, `X-Frame-Options`, `X-Content-Type-Options`, or
+   `Referrer-Policy` at all. Added a deliberately conservative set in `next.config.ts`:
+   `X-Frame-Options: DENY` + `Content-Security-Policy: frame-ancestors 'none'` (closes
+   clickjacking — a real, known attack pattern against crypto dApps specifically: embed
+   the whole app in an invisible iframe and trick a user into approving a transaction they
+   think is something else), `object-src 'none'`, `base-uri 'self'`,
+   `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`,
+   `Permissions-Policy: camera=(), microphone=(), geolocation=()`. **Deliberately did NOT**
+   add a `script-src`/`connect-src` CSP — this app talks to many wallet extensions
+   (Phantom/Slush/MetaMask inject their own scripts) and RPC/relay endpoints across
+   several chains; tightening those without live browser testing against every one of
+   them (no browser tooling was available in this session) risks silently breaking real
+   wallet-signing flows. If browser testing ever becomes available, revisit this.
+5. **~~Rate limiting was in-memory, single-instance~~ — fixed.** `lib/rate-limit.ts`
    now uses `@upstash/ratelimit` + `@upstash/redis` (sliding-window, Redis-backed) when
    `UPSTASH_REDIS_REST_URL`/`UPSTASH_REDIS_REST_TOKEN` are set — shared across
    serverless instances/regions. Falls back to the old in-memory limiter when those env
@@ -131,12 +198,12 @@ quote request, do not add a manual "enter your address" field for this value.
    not yet migrated. **Still needs**: a real Upstash database created and its
    credentials set in `.env.local`/production env before this protection is actually
    active outside of local dev — see `.env.example`.
-2. **~~`app/api/bridge/confirm/route.ts` trusted client-reported `destTxHash`/
+6. **~~`app/api/bridge/confirm/route.ts` trusted client-reported `destTxHash`/
    `destOutAmount`~~ — fixed.** It now independently verifies against Relay's own
    `/intents/status` server-side (`getRelayIntentStatus()` in `lib/chains/relay.ts`)
    before crediting anything or recording a tx hash. A malicious client can no longer
    fabricate a destination outcome.
-3. **~~EVM-side Relay step execution wasn't wired into the UI~~ — built.** Two separate
+7. **~~EVM-side Relay step execution wasn't wired into the UI~~ — built.** Two separate
    corrections were needed along the way, both real bugs, both documented in detail in
    `STATE.md`: (a) the Solana-origin cross-chain "deposit" step was incorrectly assumed
    to need EVM signing when it's actually always a Solana transaction regardless of
@@ -166,6 +233,19 @@ quote request, do not add a manual "enter your address" field for this value.
    `/api/quote` returns 400) — this is deliberate scope, not a bug, but if that guard is
    ever removed, it needs its own verification pass first; Relay's same-chain-non-Solana
    aggregation behavior has never been tested.
+6. **Two dependency CVE groups flagged by `npm audit` (2026-08-03), deliberately NOT
+   force-fixed this pass**: (a) `@solana/web3.js` (moderate, pulled in by every
+   `@solana/wallet-adapter-*` package) — `npm audit` reports `fixAvailable: false`, no
+   patched version exists upstream yet; nothing actionable right now beyond monitoring.
+   (b) `axios`/`analytics-node` (HIGH — a long list of CVEs: SSRF, prototype pollution,
+   CSRF, credential leakage) — transitive via `@tradeport/sui-trading-sdk`, confirmed
+   NOT directly imported/called by any app code (dead-path exposure only, unless the SDK
+   itself makes an outbound call using axios during a real Sui buy). `npm audit`'s
+   suggested fix requires a MAJOR version bump of `@tradeport/sui-trading-sdk` — the live,
+   working Sui NFT purchase pipeline depends on this exact package; downgrading/upgrading
+   it blind, without testing a real purchase against the new version, risks breaking a
+   money-moving flow that currently works. Needs a dedicated pass: bump the SDK, run a
+   real signed Sui purchase against it, confirm nothing broke, before touching this.
 
 ## Explicitly out of scope
 

@@ -115,6 +115,29 @@ describe.skipIf(!hasLocalSupabase)("creditSwapPoints / creditNftPurchasePoints (
     expect(rows.filter((r) => r.reason === "swap_volume")).toHaveLength(1);
   });
 
+  // Real security bug found+fixed live 2026-08-03: the original
+  // idempotency guard was check-then-act (SELECT points_credited, THEN
+  // UPDATE), which let two truly concurrent calls both pass the check
+  // before either write committed — a client can trivially fire two
+  // parallel requests at the confirm route for the same swapId. Fixed by
+  // making the claim itself an atomic UPDATE ... WHERE points_credited =
+  // false. This test proves it under REAL concurrency (Promise.all, not a
+  // sequential await like the idempotency test above), against the real
+  // local Postgres instance — a mock could too easily hide this class of
+  // bug by not modeling row-level locking at all.
+  it("CONCURRENCY: two truly simultaneous calls for the same swap only credit points once", async () => {
+    const userId = await makeUser();
+    const swapId = await makeSwap(userId);
+
+    await Promise.all([
+      creditSwapPoints(db, { swapId, userId, usdVolume: 100 }),
+      creditSwapPoints(db, { swapId, userId, usdVolume: 100 }),
+    ]);
+
+    const rows = await pointsForUser(userId);
+    expect(rows.filter((r) => r.reason === "swap_volume")).toHaveLength(1);
+  });
+
   it("REFERRAL SPLIT: a referred user's swap credits both the referrer (20%) and the referred user's own bonus (10%), on top of their own base points", async () => {
     const referrerId = await makeUser();
     const referredId = await makeUser();

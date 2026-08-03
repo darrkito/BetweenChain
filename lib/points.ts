@@ -8,8 +8,21 @@ const REFERRED_BONUS = 0.1; // 10% bonus, as points, to the referred user themse
 /**
  * Credits points for a swap that has reached its final confirmed state.
  * Called only from the server-side swap/bridge confirmation path — never
- * reachable from a client-supplied value. Idempotent via swap_transactions
- * .points_credited so a retried confirmation webhook can't double-credit.
+ * reachable from a client-supplied value.
+ *
+ * SECURITY FIX (2026-08-03, live review): the idempotency guard used to be
+ * check-then-act (SELECT points_credited, branch in application code, THEN
+ * UPDATE) — a real, exploitable race: two near-simultaneous calls (a client
+ * can trivially fire two parallel requests to the confirm route with the
+ * same swapId) could both read points_credited=false before either UPDATE
+ * committed, and both would credit points, doubling the payout. Fixed by
+ * making the CLAIM atomic: the UPDATE itself is the guard
+ * (`.eq("points_credited", false)`), and only the caller whose update
+ * actually affected a row (Postgres row-level locking serializes concurrent
+ * UPDATEs on the same row) proceeds to insert points_ledger rows. A losing
+ * concurrent caller sees zero affected rows and returns immediately,
+ * crediting nothing — genuinely idempotent under concurrency now, not just
+ * under sequential retries.
  */
 export async function creditSwapPoints(
   db: SupabaseClient,
@@ -18,13 +31,25 @@ export async function creditSwapPoints(
   const { swapId, userId, usdVolume } = params;
   if (usdVolume < MIN_VOLUME_USD_FOR_POINTS) return;
 
-  const { data: swap, error: swapErr } = await db
+  const { data: claimed, error: claimErr } = await db
     .from("swap_transactions")
-    .select("points_credited")
+    .update({ points_credited: true, usd_volume: usdVolume })
     .eq("id", swapId)
-    .single();
-  if (swapErr || !swap) throw new Error(`Swap not found: ${swapId}`);
-  if (swap.points_credited) return; // already credited, don't double-pay
+    .eq("points_credited", false)
+    .select("id");
+  if (claimErr) throw new Error(`Failed to claim swap for points crediting: ${claimErr.message}`);
+  if (!claimed || claimed.length === 0) {
+    // Zero rows affected means either (a) already credited — benign, a
+    // concurrent/retried caller lost the race, return silently — or (b) the
+    // swap id doesn't exist at all, which should still throw loudly rather
+    // than silently swallowing a real bug. This existence check happens
+    // AFTER the atomic claim attempt, purely to pick the right outcome — it
+    // has no bearing on the race itself (the UPDATE above already is the
+    // sole source of truth for "did I win the claim").
+    const { data: exists } = await db.from("swap_transactions").select("id").eq("id", swapId).maybeSingle();
+    if (!exists) throw new Error(`Swap not found: ${swapId}`);
+    return;
+  }
 
   const rows: Array<{ user_id: string; swap_id: string; points: number; reason: string }> = [
     { user_id: userId, swap_id: swapId, points: Math.floor(usdVolume), reason: "swap_volume" },
@@ -53,12 +78,6 @@ export async function creditSwapPoints(
 
   const { error: insertErr } = await db.from("points_ledger").insert(rows);
   if (insertErr) throw new Error(`Failed to credit points: ${insertErr.message}`);
-
-  const { error: updateErr } = await db
-    .from("swap_transactions")
-    .update({ points_credited: true, usd_volume: usdVolume })
-    .eq("id", swapId);
-  if (updateErr) throw new Error(`Failed to mark swap as credited: ${updateErr.message}`);
 }
 
 /**
@@ -77,13 +96,23 @@ export async function creditNftPurchasePoints(
   const { purchaseId, userId, usdVolume } = params;
   if (usdVolume < MIN_VOLUME_USD_FOR_POINTS) return;
 
-  const { data: purchase, error: purchaseErr } = await db
+  // Atomic claim — see creditSwapPoints's doc for why this replaced a
+  // check-then-act SELECT+UPDATE (a real double-credit race under
+  // concurrent confirm-buy calls for the same purchaseId).
+  const { data: claimed, error: claimErr } = await db
     .from("nft_purchases")
-    .select("points_credited")
+    .update({ points_credited: true, usd_volume: usdVolume })
     .eq("id", purchaseId)
-    .single();
-  if (purchaseErr || !purchase) throw new Error(`NFT purchase not found: ${purchaseId}`);
-  if (purchase.points_credited) return; // already credited, don't double-pay
+    .eq("points_credited", false)
+    .select("id");
+  if (claimErr) throw new Error(`Failed to claim NFT purchase for points crediting: ${claimErr.message}`);
+  if (!claimed || claimed.length === 0) {
+    // See creditSwapPoints's identical branch for why this distinguishes
+    // "already credited" (benign) from "doesn't exist" (should throw).
+    const { data: exists } = await db.from("nft_purchases").select("id").eq("id", purchaseId).maybeSingle();
+    if (!exists) throw new Error(`NFT purchase not found: ${purchaseId}`);
+    return;
+  }
 
   const rows: Array<{ user_id: string; nft_purchase_id: string; points: number; reason: string }> = [
     { user_id: userId, nft_purchase_id: purchaseId, points: Math.floor(usdVolume), reason: "nft_purchase_volume" },
@@ -112,10 +141,4 @@ export async function creditNftPurchasePoints(
 
   const { error: insertErr } = await db.from("points_ledger").insert(rows);
   if (insertErr) throw new Error(`Failed to credit points: ${insertErr.message}`);
-
-  const { error: updateErr } = await db
-    .from("nft_purchases")
-    .update({ points_credited: true, usd_volume: usdVolume })
-    .eq("id", purchaseId);
-  if (updateErr) throw new Error(`Failed to mark purchase as credited: ${updateErr.message}`);
 }

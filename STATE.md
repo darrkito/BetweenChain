@@ -6,6 +6,50 @@ delete history (superseded entries stay for context, just note what replaced the
 
 ---
 
+## 2026-08-03m — Full security review: one CRITICAL data leak found live + fixed, plus 3 more real issues
+
+User-requested full security audit ("we dont want anyone to just use a GET and receive info
+from our data, db"). Full findings and fixes logged in `SECURITY.md`'s RESOLVED-gaps section
+(items 1-4) — summary here:
+
+1. **CRITICAL, confirmed live**: `public.user_points_balance` (a view, not a table) leaked
+   EVERY user's points balance via direct Supabase REST API access — a hand-signed JWT for a
+   completely fake, non-existent user retrieved a real user's real balance, fully bypassing
+   this app's own API routes. Root cause: Postgres views run with their owner's privileges by
+   default, so RLS on the underlying table doesn't protect a view built on it. Fixed
+   (`0014_revoke_direct_data_api_access.sql`) + went further: revoked `authenticated`/`anon`
+   grants on EVERY table/view entirely, since the direct-access client code paths
+   (`supabaseForUser`/`supabaseBrowser`) turned out to be completely unused dead code — closes
+   the whole class of "RLS misconfiguration" risk, not just this one instance. Re-verified live
+   post-fix: same forged JWT now gets 403 on everything; app's own routes unaffected.
+2. **Real double-credit race condition** in `lib/points.ts` (both swap and NFT purchase points
+   crediting) — check-then-act idempotency guard, exploitable by firing two parallel requests
+   at any confirm route. Fixed with an atomic conditional UPDATE; proven with a new real
+   concurrency test (`Promise.all` against real local Postgres, not a mock).
+3. Next.js was one patch behind real CVEs (SSRF, cache confusion, more) — `16.2.10` → `16.3.0`.
+4. Zero custom security headers anywhere — added `X-Frame-Options`/CSP `frame-ancestors 'none'`
+   (clickjacking protection — meaningful for a wallet-signing dApp specifically),
+   `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`. Deliberately did NOT add a
+   `script-src`/`connect-src` CSP — too risky to get right for a multi-wallet dApp without live
+   browser testing (unavailable this session).
+
+Also audited and confirmed solid (no changes needed): SIWS/SIWE auth (nonce single-use, exact
+message replay, signature verification), every other table's RLS (`_select_own` policies
+correctly scoped and verified empirically, not just read from migration files), cookie flags
+(httpOnly/secure/sameSite), no secret leakage into `NEXT_PUBLIC_`/client bundle, CORS (no
+`Access-Control-Allow-Origin` on API routes), no `dangerouslySetInnerHTML` XSS surface (the one
+usage is a static hardcoded string, no user input), Upstash Redis genuinely active in
+production (not silently degraded to in-memory).
+
+Two dependency CVE groups flagged but deliberately not force-fixed (see `SECURITY.md` open-gaps
+#6 for full reasoning): `@solana/web3.js` (no upstream fix exists yet) and `axios`/
+`analytics-node` via `@tradeport/sui-trading-sdk` (fix requires a major SDK bump that could
+break the live, working Sui purchase flow — needs its own tested pass, not a blind bump).
+
+All fixes verified: `tsc`/`next build`/lint clean, 72/72 tests pass (was 71 — added the new
+concurrency test), migration applied to both local and hosted Supabase, deployed to production
+and re-verified live.
+
 ## 2026-08-03l — Rebranded to ChainBreak
 
 User-requested rename, "SwapperBetweenChains" → "ChainBreak", across every user-visible and
