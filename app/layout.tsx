@@ -64,6 +64,23 @@ export default function RootLayout({
     <html
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      // Real bug found live 2026-08-03: THEME_INIT_SCRIPT below intentionally
+      // mutates this element's `data-theme` attribute BEFORE React hydrates
+      // (that's the whole point — it prevents a flash of the wrong theme).
+      // But that means the server-rendered HTML (no data-theme attribute,
+      // the server has no idea what's in the visitor's localStorage) and the
+      // real DOM at hydration time (data-theme already set by the script)
+      // never match on this exact element. React correctly flagged that as a
+      // hydration mismatch and gave up patching the tree — which cascaded
+      // into a broken app: wallet lists never populated, the connect button
+      // rendered unstyled, since large parts of the client tree downstream
+      // never finished hydrating. `suppressHydrationWarning` here is the
+      // standard, documented fix for this exact pattern (every dark-mode
+      // pre-hydration-script guide calls this out) — it only suppresses the
+      // warning/mismatch-abort for this one element's own attributes, not
+      // for anything inside it, so a real mismatch elsewhere in the tree
+      // still surfaces normally.
+      suppressHydrationWarning
     >
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
