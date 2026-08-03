@@ -1,0 +1,35 @@
+name: Deploy to Vercel
+
+# Vercel's own GitHub App integration for this project is connected to a
+# different, disconnected repo (a separate "between_chain" repo Vercel
+# auto-created during the dashboard import flow, NOT this one) — confirmed
+# live 2026-08-03: pushes here never triggered a Vercel deployment, and even
+# manually requesting a deploy from this repo's `main` ref kept resolving to
+# a stale commit from that other repo. Re-linking Vercel's git connection to
+# this repo isn't exposed via Vercel's REST API (dashboard-only action), so
+# this workflow bypasses that integration entirely: it deploys straight from
+# this repo's checked-out code via the Vercel CLI on every push to main,
+# fully replicating "push -> auto-deploy" without depending on Vercel's own
+# GitHub App connection at all.
+#
+# Needs a `VERCEL_TOKEN` repository secret (Settings -> Secrets and
+# variables -> Actions -> New repository secret) — a Vercel personal access
+# token (vercel.com/account/settings/tokens), same one used to set up the
+# project's env vars originally.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Deploy to Vercel (production)
+        run: npx vercel deploy --prod --token="$VERCEL_TOKEN" --yes
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}

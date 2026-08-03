@@ -33,8 +33,11 @@ yarn-error.log*
 # env files (can opt-in for committing if needed)
 .env*
 
-# vercel
-.vercel
+# vercel — project.json is committed on purpose (no secrets, just org/project
+# IDs) so .github/workflows/deploy.yml's CI run knows which Vercel project to
+# deploy to without needing an interactive `vercel link` in the runner.
+.vercel/*
+!.vercel/project.json
 
 # typescript
 *.tsbuildinfo
