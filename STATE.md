@@ -6,6 +6,41 @@ delete history (superseded entries stay for context, just note what replaced the
 
 ---
 
+## 2026-08-04f — Missing PFPs investigated: mostly genuinely dead sources, added IPFS gateway retry
+
+User-reported missing collection PFPs: Okay Bears, Market Elites (Solana); Popkins,
+DeSuiLabs, suis, SuiFrens (Sui). Investigated each individually by hitting the real image
+URL directly:
+
+- **Okay Bears / Market Elites**: IPFS content unreachable across the whole public gateway
+  network right now — tried 5 different gateways (ipfs.io, cloudflare-ipfs.com,
+  nftstorage.link, w3s.link, dweb.link), every one either fails directly or redirects to
+  the same failing `dweb.link` backend (504). Genuinely down, not a code bug.
+- **Popkins** (Walrus blob) — 404, confirmed expired/GC'd (already documented once before,
+  re-confirmed still true).
+- **DeSuiLabs** (GenesysGo Shadow Drive) — DNS doesn't resolve at all (already documented
+  once before, re-confirmed still true).
+- **SuiFrens: Capys** — Mysten's own official API (`api-mainnet.suifrens.sui.io`) returns
+  500 — their server error, nothing to fix here.
+- **suis** — BlueMove's own gateway 404s.
+- **SuiFrens: Bullsharks** — Pinata gateway (`byzantion.mypinata.cloud/ipfs/{cid}`) 403s
+  (likely a deprecated/access-restricted dedicated gateway) — but the SAME CID is reachable
+  via `ipfs.io/ipfs/{cid}/` (confirmed live, 200). **This one is actually fixable.**
+
+Fixed `NftImage.tsx`: added an IPFS gateway retry chain (`ipfs.io`, `nftstorage.link`,
+`w3s.link`, `dweb.link`) that recognizes both URL shapes vendors return (subdomain form
+`{cid}.ipfs.{gateway}/path`, path form `{gateway}/ipfs/{cid}/path`) and retries the same
+CID against each gateway in order on load failure, before falling through to the existing
+`fallbackSrc`/placeholder-icon mechanism. Zero extra API calls (pure client-side `<img>`
+retry) — recovers any image that's only broken on ONE specific gateway (confirmed live for
+SuiFrens: Bullsharks), while correctly leaving genuinely-dead sources (Walrus, Shadow
+Drive, vendor-native APIs — none have a CID to retry) to degrade to the placeholder as
+before, unchanged.
+
+**No code fix exists for the other 5** — all confirmed dead at the true origin, verified
+individually rather than assumed. `tsc`/tests/lint/`next build` all clean.
+
+
 ## 2026-08-04e — Confusing "temporarily busy" banner shown above a fully-working collection header
 
 User-reported: opening a Solana collection page showed "This marketplace is temporarily
