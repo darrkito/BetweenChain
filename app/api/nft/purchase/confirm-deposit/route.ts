@@ -87,6 +87,16 @@ export async function POST(req: Request) {
     };
     const call = await getOpenSeaBuyCall({ listing: listingForLookup, fulfillerAddress: quote.dest_address });
 
+    // SECURITY FIX 2026-08-04 — persist the exact to/value this fresh buy
+    // call expects, so confirm-buy (the next step) has something real to
+    // verify the buyer's later-submitted tx against instead of just
+    // trusting any successful tx hash. See lib/chains/evm.ts's
+    // verifyEvmBuyTx doc comment for the full exploit this closes.
+    await db
+      .from("nft_purchases")
+      .update({ expected_buy_to: call.to, expected_buy_value: call.value, updated_at: new Date().toISOString() })
+      .eq("id", purchase.id);
+
     if (purchase.status === "listing_gone") {
       await db.from("nft_purchases").update({ status: "deposit_confirmed", updated_at: new Date().toISOString() }).eq("id", purchase.id);
     }

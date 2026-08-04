@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireSession, SessionError } from "@/lib/auth/session";
 import { supabaseAdmin } from "@/lib/supabase/server";
-import { isEvmTxSuccessful } from "@/lib/chains/evm";
+import { verifyEvmBuyTx } from "@/lib/chains/evm";
 import { evmChainForSlug } from "@/lib/nft/evmChains";
 import { creditNftPurchasePoints } from "@/lib/points";
 import { rateLimit, clientKey } from "@/lib/rate-limit";
@@ -12,9 +12,10 @@ const bodySchema = z.object({ purchaseId: z.string().uuid(), buyTxHash: z.string
 /**
  * Step 2 confirmation — the buyer signed and submitted the Seaport buy
  * transaction directly with their own wallet (see confirm-deposit's doc for
- * why). Verified independently via lib/chains/evm.ts's on-chain receipt
- * check before crediting anything — never trusts the client-reported hash
- * alone, same principle as every other settlement check in this codebase.
+ * why). Verified independently via lib/chains/evm.ts's verifyEvmBuyTx before
+ * crediting anything — never trusts the client-reported hash alone, and
+ * (2026-08-04, real fraud bug fix) verifies the tx's from/to/value actually
+ * match THIS purchase's expected buy call, not just that some tx succeeded.
  */
 export async function POST(req: Request) {
   const session = await requireSession().catch((e: unknown) => {
@@ -52,9 +53,24 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: `Unsupported EVM chain: ${purchase.nft_purchase_quotes.chain_slug}` }, { status: 400 });
   }
 
+  // SECURITY FIX 2026-08-04: expected_buy_to/expected_buy_value are set by
+  // confirm-deposit right before the buyer signs (the fresh, staleness-
+  // checked buy call) — if they're missing, confirm-deposit was never
+  // actually run for this purchase, so there's nothing real to verify
+  // against. See lib/chains/evm.ts's verifyEvmBuyTx doc comment.
+  if (!purchase.expected_buy_to || !purchase.expected_buy_value) {
+    return NextResponse.json({ error: "No pending buy call recorded for this purchase — call confirm-deposit first" }, { status: 400 });
+  }
+
   let succeeded: boolean;
   try {
-    succeeded = await isEvmTxSuccessful(parsed.data.buyTxHash as `0x${string}`, buyChain.chainId);
+    succeeded = await verifyEvmBuyTx({
+      txHash: parsed.data.buyTxHash as `0x${string}`,
+      chainId: buyChain.chainId,
+      expectedFrom: purchase.nft_purchase_quotes.dest_address,
+      expectedTo: purchase.expected_buy_to,
+      expectedValueWei: purchase.expected_buy_value,
+    });
   } catch {
     // Receipt not found yet (still pending/propagating) — not a hard
     // failure, client should keep polling this same endpoint.

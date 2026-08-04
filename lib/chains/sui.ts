@@ -23,9 +23,37 @@ export function getSuiClient(): SuiJsonRpcClient {
   return client;
 }
 
-export async function isSuiTxSuccessful(digest: string): Promise<boolean> {
-  const result = await getSuiClient().getTransactionBlock({ digest, options: { showEffects: true } });
-  return result.effects?.status.status === "success";
+/**
+ * 2026-08-04 — SECURITY FIX (same class of bug as lib/chains/evm.ts's
+ * verifyEvmBuyTx, see that function's doc comment for the full exploit
+ * writeup): this replaced an `isSuiTxSuccessful` helper (removed, this was
+ * its only caller) that only proved SOME transaction succeeded, not that
+ * THIS transaction was the buyer actually paying for THIS listing. Verifies
+ * the tx's sender is the buyer's own wallet and its SUI balance change is a
+ * real, sufficient spend — same `balanceChanges`/`AddressOwner` shape
+ * already proven live in `dryRunSuiTransactionCostMist` below, just read
+ * post-hoc from a completed tx instead of a dry run. Paired with a unique
+ * constraint on nft_purchases.dest_tx_hash (migration 0015) so the same
+ * digest can't be replayed across multiple purchases either.
+ */
+export async function verifySuiBuyTx(params: {
+  digest: string;
+  expectedSigner: string;
+  minMistSpent: bigint;
+}): Promise<boolean> {
+  const result = await getSuiClient().getTransactionBlock({
+    digest: params.digest,
+    options: { showEffects: true, showBalanceChanges: true, showInput: true },
+  });
+  if (result.effects?.status.status !== "success") return false;
+  if (result.transaction?.data?.sender !== params.expectedSigner) return false;
+
+  const suiChange = result.balanceChanges?.find(
+    (c) => c.coinType === SUI_COIN_TYPE && typeof c.owner === "object" && "AddressOwner" in c.owner && c.owner.AddressOwner === params.expectedSigner,
+  );
+  if (!suiChange) return false;
+  const amount = BigInt(suiChange.amount); // negative = spent
+  return -amount >= params.minMistSpent;
 }
 
 export async function getSuiBalanceMist(address: string): Promise<bigint> {

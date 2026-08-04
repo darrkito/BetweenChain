@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireSession, SessionError } from "@/lib/auth/session";
 import { supabaseAdmin } from "@/lib/supabase/server";
-import { isSolanaTxSuccessful } from "@/lib/chains/solana";
+import { verifySolanaBuyTx } from "@/lib/chains/solana";
 import { creditNftPurchasePoints } from "@/lib/points";
 import { rateLimit, clientKey } from "@/lib/rate-limit";
 
@@ -13,7 +13,10 @@ const bodySchema = z.object({ purchaseId: z.string().uuid(), buyTxSignature: z.s
  * Step 2 confirmation — mirrors app/api/nft/purchase/sui/confirm-buy/route.ts
  * exactly, Solana side: never trusts the client-reported signature alone,
  * independently verifies against a real Solana RPC before crediting
- * anything.
+ * anything. (2026-08-04, real fraud bug fix) verifies the buyer's own
+ * wallet signed the tx and its balance actually decreased by the listing
+ * price, not just that some tx succeeded — see lib/chains/solana.ts's
+ * verifySolanaBuyTx.
  */
 export async function POST(req: Request) {
   const session = await requireSession().catch((e: unknown) => {
@@ -43,9 +46,22 @@ export async function POST(req: Request) {
 
   await db.from("nft_purchases").update({ status: "buy_pending", updated_at: new Date().toISOString() }).eq("id", purchase.id);
 
+  // SECURITY FIX 2026-08-04: verify the buyer's own wallet actually signed
+  // this tx and its SOL balance decreased by at least the listing price —
+  // not just that some tx succeeded. See lib/chains/evm.ts's verifyEvmBuyTx
+  // doc comment for the full exploit this class of fix closes (Solana has
+  // no fixed "to" contract to check the way Seaport does, so this verifies
+  // the same intent — the buyer paid the real price — via balance deltas
+  // instead, see lib/chains/solana.ts's verifySolanaBuyTx).
+  const minLamportsSpent = BigInt(Math.floor(Number(purchase.nft_purchase_quotes.listing_price) * 1e9));
+
   let succeeded: boolean;
   try {
-    succeeded = await isSolanaTxSuccessful(parsed.data.buyTxSignature);
+    succeeded = await verifySolanaBuyTx({
+      signature: parsed.data.buyTxSignature,
+      expectedSigner: purchase.nft_purchase_quotes.dest_address,
+      minLamportsSpent,
+    });
   } catch {
     // Not found yet (still propagating) — not a hard failure, client should
     // keep polling this same endpoint.

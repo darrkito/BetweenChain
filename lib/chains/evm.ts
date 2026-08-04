@@ -52,9 +52,41 @@ export function getPublicClient(chainId: number) {
   return client;
 }
 
-export async function isEvmTxSuccessful(txHash: `0x${string}`, chainId: number): Promise<boolean> {
-  const receipt = await getPublicClient(chainId).getTransactionReceipt({ hash: txHash });
-  return receipt.status === "success";
+/**
+ * 2026-08-04 — SECURITY FIX (real fraud bug, found in a security audit, not
+ * live-exploited but confirmed exploitable): confirm-buy routes used to call
+ * an `isEvmTxSuccessful` helper (removed, this replaced its only caller)
+ * that just checked a tx succeeded on-chain — nothing tied it to a SPECIFIC
+ * purchase. An attacker could create unlimited cheap purchase rows via the
+ * normal quote flow, then confirm every one of them with the SAME unrelated
+ * valid tx hash (even a trivial 0-value self-transfer), crediting points
+ * unboundedly. This closes that: verifies the tx was actually SENT BY the
+ * buyer's own wallet, TO the exact Seaport/marketplace contract the fresh
+ * buy call targeted, carrying the exact payment value — all three bound to
+ * one specific purchase at confirm-deposit time (see
+ * app/api/nft/purchase/confirm-deposit/route.ts), not re-derived from
+ * anything client-supplied at confirm-buy time. Paired with a unique
+ * constraint on nft_purchases.dest_tx_hash (migration 0015) so even a tx
+ * that DOES match one purchase's expected to/value can't also be replayed
+ * against a different purchase with the same shape.
+ */
+export async function verifyEvmBuyTx(params: {
+  txHash: `0x${string}`;
+  chainId: number;
+  expectedFrom: string;
+  expectedTo: string;
+  expectedValueWei: string;
+}): Promise<boolean> {
+  const client = getPublicClient(params.chainId);
+  const [receipt, tx] = await Promise.all([
+    client.getTransactionReceipt({ hash: params.txHash }),
+    client.getTransaction({ hash: params.txHash }),
+  ]);
+  if (receipt.status !== "success") return false;
+  if (tx.from.toLowerCase() !== params.expectedFrom.toLowerCase()) return false;
+  if (!tx.to || tx.to.toLowerCase() !== params.expectedTo.toLowerCase()) return false;
+  if (tx.value !== BigInt(params.expectedValueWei)) return false;
+  return true;
 }
 
 // Applied on top of the already-conservative maxFeePerGas estimate — the

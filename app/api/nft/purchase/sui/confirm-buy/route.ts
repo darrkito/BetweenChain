@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireSession, SessionError } from "@/lib/auth/session";
 import { supabaseAdmin } from "@/lib/supabase/server";
-import { isSuiTxSuccessful } from "@/lib/chains/sui";
+import { verifySuiBuyTx } from "@/lib/chains/sui";
 import { creditNftPurchasePoints } from "@/lib/points";
 import { rateLimit, clientKey } from "@/lib/rate-limit";
 
@@ -15,7 +15,10 @@ const bodySchema = z.object({ purchaseId: z.string().uuid(), buyTxDigest: z.stri
  * Step 2 confirmation — mirrors the OpenSea confirm-buy route exactly, Sui
  * side: never trusts the client-reported digest alone, independently
  * verifies against a real Sui RPC (lib/chains/sui.ts) before crediting
- * anything.
+ * anything. (2026-08-04, real fraud bug fix) verifies the buyer's own
+ * wallet signed the tx and its balance actually decreased by the listing
+ * price, not just that some tx succeeded — see lib/chains/sui.ts's
+ * verifySuiBuyTx.
  */
 export async function POST(req: Request) {
   const session = await requireSession().catch((e: unknown) => {
@@ -45,9 +48,22 @@ export async function POST(req: Request) {
 
   await db.from("nft_purchases").update({ status: "buy_pending", updated_at: new Date().toISOString() }).eq("id", purchase.id);
 
+  // SECURITY FIX 2026-08-04: verify the buyer's own wallet actually signed
+  // this tx and its SUI balance decreased by at least the listing price —
+  // not just that some tx succeeded. See lib/chains/evm.ts's verifyEvmBuyTx
+  // doc comment for the full exploit this class of fix closes, and
+  // lib/chains/sui.ts's verifySuiBuyTx for the Sui-specific balance-delta
+  // verification (same balanceChanges shape already proven live in
+  // dryRunSuiTransactionCostMist).
+  const minMistSpent = BigInt(Math.floor(Number(purchase.nft_purchase_quotes.listing_price) * 1e9));
+
   let succeeded: boolean;
   try {
-    succeeded = await isSuiTxSuccessful(parsed.data.buyTxDigest);
+    succeeded = await verifySuiBuyTx({
+      digest: parsed.data.buyTxDigest,
+      expectedSigner: purchase.nft_purchase_quotes.dest_address,
+      minMistSpent,
+    });
   } catch {
     // Not found yet (still propagating) — not a hard failure, client should
     // keep polling this same endpoint.
