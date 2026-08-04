@@ -302,41 +302,33 @@ export default function NftCollectionPage({ params }: { params: Promise<{ vendor
     [vendor, slug, view],
   );
 
-  // Collection header, THEN first page of listings — resets whenever the
-  // collection or view (Listed/All) changes.
+  // 2026-08-05 (real user request) — split into two fully independent
+  // effects (header, and listings) so a header retry ("Try again" on the
+  // error banner) only ever re-fetches the header, never touches/resets the
+  // listings grid. Previously these were one effect keyed on
+  // [vendor, slug, view, collectionRetryKey] — clicking "Try again" cleared
+  // and re-fetched listings too, even on a page where listings had already
+  // loaded successfully (only possible if the header failed on a RELOAD of
+  // an already-working page, e.g. a manual refresh mid-session).
   //
-  // Fixed 2026-08-04 (real bug, user report): this used to fire both
-  // requests via Promise.all([collectionFetch, fetchPage()]) — a single
-  // shared `loading`/`error` covered both. That was wrong two ways: (1) it
-  // doubled the immediate request burst against Magic Eden's already-thin
-  // ~120 req/min keyless rate limit at the exact moment a collection page
-  // opens, making a 429 more likely to happen at all; (2) Promise.all
-  // rejects as soon as EITHER request fails, so a listings-only rate-limit
-  // hit ("This marketplace is temporarily busy...") was wiping out
-  // perfectly good, already-available header data (name/description/PFP/
-  // stats) behind a full-page error banner instead of just showing that
-  // error near the (empty) grid where it belongs.
+  // Fixed 2026-08-04 (real bug, user report, still applies): the original
+  // single-effect version fired both requests via Promise.all — doubled the
+  // immediate request burst against Magic Eden's rate limit at the exact
+  // moment a collection page opens, and a listings-only failure wiped out
+  // already-successful header data behind a full-page error banner. That
+  // sequencing (header first, listings only after it succeeds) is preserved
+  // below via the listings effect's `collection` guard — it still won't
+  // fire until the header effect has actually set `collection`.
   //
-  // Now: fetch the collection header first. As soon as IT resolves, render
-  // it immediately (setCollectionLoading(false)) and only THEN start the
-  // listings request, with its own independent loading/error state
-  // (listingsLoading/loadMoreError — the latter reused from the existing
-  // scroll-pagination error state below, since a failed first page and a
-  // failed next page render in the exact same place with the exact same
-  // "Try again" retry affordance, and retrying just refetches with
-  // cursor=undefined, which is correct for a first-page retry too).
+  // Header effect — retried by collectionRetryKey alone, independent of view.
   useEffect(() => {
     let ignore = false;
     Promise.resolve()
       .then(() => {
-        if (ignore) return;
-        setCollectionLoading(true);
-        setListingsLoading(true);
-        setError(null);
-        setLoadMoreError(null);
-        setListings([]);
-        setCursor(undefined);
-        setHasMore(true);
+        if (!ignore) {
+          setCollectionLoading(true);
+          setError(null);
+        }
       })
       .then(() => fetch(`/api/nft/collection?vendor=${vendor}&slug=${encodeURIComponent(slug)}`))
       .then(async (r) => {
@@ -345,40 +337,74 @@ export default function NftCollectionPage({ params }: { params: Promise<{ vendor
         return body.collection as NftCollection;
       })
       .then((c) => {
-        if (ignore) return;
-        setCollection(c);
-        setCollectionLoading(false);
-        // Sequenced, not parallel — see the block comment above.
-        return fetchPage()
-          .then((page) => {
-            if (ignore) return;
-            setListings(dedupeListings(page.listings));
-            setCursor(page.nextCursor);
-            setHasMore(Boolean(page.nextCursor));
-          })
-          .catch((err) => {
-            if (!ignore) setLoadMoreError((err as Error).message);
-          })
-          .finally(() => {
-            if (!ignore) setListingsLoading(false);
-          });
+        if (!ignore) {
+          setCollection(c);
+          setCollectionLoading(false);
+        }
       })
       .catch((err) => {
-        // Collection fetch itself failed — a genuine full-page problem.
-        // Listings were never attempted in this branch, so clear its
-        // loading flag too rather than leaving the grid skeleton spinning.
         if (!ignore) {
           setError((err as Error).message);
           setCollectionLoading(false);
-          setListingsLoading(false);
         }
       });
-
     return () => {
       ignore = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- collection reload intentionally does NOT depend on fetchPage's identity beyond vendor/slug/view (already covered by fetchPage's own deps)
-  }, [vendor, slug, view, collectionRetryKey]);
+  }, [vendor, slug, collectionRetryKey]);
+
+  // Clears stale listings immediately on a real navigation (vendor/slug/view
+  // change) — deliberately NOT keyed on collectionRetryKey, so a header
+  // retry never touches this. Separate from the fetch effect below so the
+  // grid shows its loading skeleton right away instead of stale content
+  // from the previous page while waiting on the (now-independent) header.
+  useEffect(() => {
+    let ignore = false;
+    Promise.resolve().then(() => {
+      if (ignore) return;
+      setListings([]);
+      setCursor(undefined);
+      setHasMore(true);
+      setListingsLoading(true);
+      setLoadMoreError(null);
+    });
+    return () => {
+      ignore = true;
+    };
+  }, [vendor, slug, view]);
+
+  // Fetches the first listings page once the header has actually resolved
+  // for THIS vendor/slug — the `collection` guard is what preserves the
+  // "header first, listings only after" sequencing from the fix above,
+  // without needing collectionRetryKey in this effect's own deps (a header
+  // retry re-sets `collection` again on success, which naturally re-fires
+  // this — but only when listings genuinely haven't loaded yet, since
+  // `collection` only changes identity when the header effect actually
+  // completes).
+  useEffect(() => {
+    let ignore = false;
+    if (!collection || collection.vendor !== vendor || collection.slug !== slug) {
+      return () => {
+        ignore = true;
+      };
+    }
+    fetchPage()
+      .then((page) => {
+        if (ignore) return;
+        setListings(dedupeListings(page.listings));
+        setCursor(page.nextCursor);
+        setHasMore(Boolean(page.nextCursor));
+      })
+      .catch((err) => {
+        if (!ignore) setLoadMoreError((err as Error).message);
+      })
+      .finally(() => {
+        if (!ignore) setListingsLoading(false);
+      });
+    return () => {
+      ignore = true;
+    };
+  }, [vendor, slug, collection, fetchPage]);
 
   // Search/trait filters reset independently of the collection reload above,
   // since switching Listed<->All shouldn't silently discard a filter the
