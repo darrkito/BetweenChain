@@ -1,6 +1,7 @@
 import "server-only";
 import { encodeFunctionData, concatHex, type Hex } from "viem";
 import { cached } from "@/lib/cache";
+import { fetchWithTimeout } from "@/lib/nft/fetchWithTimeout";
 import type { NftCollection, NftListing } from "@/lib/nft/types";
 
 const OPENSEA_API = "https://api.opensea.io/api/v2";
@@ -72,7 +73,7 @@ async function fetchOpenSeaCollectionsByOrder(chain: string, orderBy: string, li
   url.searchParams.set("limit", String(limit));
   url.searchParams.set("chain", chain);
   url.searchParams.set("order_by", orderBy);
-  const res = await fetch(url, { headers: openseaHeaders(), cache: "no-store" });
+  const res = await fetchWithTimeout(url, { headers: openseaHeaders(), cache: "no-store" });
   if (!res.ok) throw new Error(`OpenSea collections list failed (${res.status})`);
   const body = (await res.json()) as { collections: RawOpenSeaCollection[] };
   return body.collections;
@@ -142,7 +143,7 @@ export async function browseOpenSeaCollections(chain = "ethereum", limit = 20): 
     // collections at once. Those stay per-collection, on the detail page.
     const stats = await Promise.all(
       collections.map((c) =>
-        fetch(`${OPENSEA_API}/collections/${encodeURIComponent(c.collection)}/stats`, { headers: openseaHeaders(), cache: "no-store" })
+        fetchWithTimeout(`${OPENSEA_API}/collections/${encodeURIComponent(c.collection)}/stats`, { headers: openseaHeaders(), cache: "no-store" })
           .then((r) => (r.ok ? (r.json() as Promise<RawOpenSeaStats>) : undefined))
           .catch(() => undefined),
       ),
@@ -155,13 +156,13 @@ export async function browseOpenSeaCollections(chain = "ethereum", limit = 20): 
 export async function getOpenSeaCollection(slug: string): Promise<NftCollection | undefined> {
   return cached(`opensea:collection:${slug}`, COLLECTIONS_TTL_MS, async () => {
     const [collectionRes, statsRes] = await Promise.all([
-      fetch(`${OPENSEA_API}/collections/${encodeURIComponent(slug)}`, { headers: openseaHeaders(), cache: "no-store" }),
+      fetchWithTimeout(`${OPENSEA_API}/collections/${encodeURIComponent(slug)}`, { headers: openseaHeaders(), cache: "no-store" }),
       // /stats requires OPENSEA_API_KEY (confirmed live 2026-07-20) — the
       // base collection lookup above does not. Missing/failed stats degrade
       // gracefully to undefined floor/volume/owners, not a hard failure —
       // the collection itself (name/image/description/totalSupply) is still
       // useful without them.
-      fetch(`${OPENSEA_API}/collections/${encodeURIComponent(slug)}/stats`, { headers: openseaHeaders(), cache: "no-store" }),
+      fetchWithTimeout(`${OPENSEA_API}/collections/${encodeURIComponent(slug)}/stats`, { headers: openseaHeaders(), cache: "no-store" }),
     ]);
     if (!collectionRes.ok) return undefined;
     const c = (await collectionRes.json()) as RawOpenSeaCollection;
@@ -197,7 +198,7 @@ const NFT_METADATA_TTL_MS = 60 * 60_000;
 
 export async function getOpenSeaNftMetadata(chain: string, contract: string, identifier: string): Promise<RawOpenSeaNft | undefined> {
   return cached(`opensea:nft:${chain}:${contract}:${identifier}`, NFT_METADATA_TTL_MS, async () => {
-    const res = await fetch(`${OPENSEA_API}/chain/${chain}/contract/${contract}/nfts/${identifier}`, {
+    const res = await fetchWithTimeout(`${OPENSEA_API}/chain/${chain}/contract/${contract}/nfts/${identifier}`, {
       headers: openseaHeaders(),
       cache: "no-store",
     });
@@ -230,7 +231,7 @@ export async function getOpenSeaListings(slug: string, limit = 20, cursor?: stri
   url.searchParams.set("limit", String(limit));
   url.searchParams.set("order_by", "unit_price");
   if (cursor) url.searchParams.set("next", cursor);
-  const res = await fetch(url, { headers: openseaHeaders(), cache: "no-store" });
+  const res = await fetchWithTimeout(url, { headers: openseaHeaders(), cache: "no-store" });
   if (!res.ok) throw new Error(`OpenSea listings failed (${res.status}): ${await res.text()}`);
   const body = (await res.json()) as { listings: RawOpenSeaListing[]; next?: string };
 
@@ -311,7 +312,7 @@ export async function countOpenSeaListedItems(slug: string): Promise<OpenSeaList
       url.searchParams.set("limit", "100");
       url.searchParams.set("order_by", "unit_price");
       if (cursor) url.searchParams.set("next", cursor);
-      const res = await fetch(url, { headers: openseaHeaders(), cache: "no-store" });
+      const res = await fetchWithTimeout(url, { headers: openseaHeaders(), cache: "no-store" });
       if (!res.ok) throw new Error(`OpenSea listed-count failed (${res.status}): ${await res.text()}`);
       const body = (await res.json()) as { listings: RawOpenSeaListing[]; next?: string };
       if (page === 0 && body.listings[0]) {
@@ -351,7 +352,7 @@ export async function getOpenSeaAllAssets(slug: string, limit = 20, cursor?: str
   const url = new URL(`${OPENSEA_API}/collection/${encodeURIComponent(slug)}/nfts`);
   url.searchParams.set("limit", String(limit));
   if (cursor) url.searchParams.set("next", cursor);
-  const res = await fetch(url, { headers: openseaHeaders(), cache: "no-store" });
+  const res = await fetchWithTimeout(url, { headers: openseaHeaders(), cache: "no-store" });
   if (!res.ok) throw new Error(`OpenSea collection assets failed (${res.status}): ${await res.text()}`);
   const body = (await res.json()) as { nfts: RawOpenSeaAsset[]; next?: string };
 
@@ -423,7 +424,7 @@ export async function getOpenSeaFulfillmentData(params: {
 }): Promise<OpenSeaFulfillmentData> {
   requireOpenseaKey();
   const raw = params.listing.raw as RawOpenSeaListing;
-  const res = await fetch(`${OPENSEA_API}/listings/fulfillment_data`, {
+  const res = await fetchWithTimeout(`${OPENSEA_API}/listings/fulfillment_data`, {
     method: "POST",
     headers: { "content-type": "application/json", ...openseaHeaders() },
     body: JSON.stringify({

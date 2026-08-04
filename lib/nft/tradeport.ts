@@ -1,5 +1,6 @@
 import "server-only";
 import { cached } from "@/lib/cache";
+import { fetchWithTimeout } from "@/lib/nft/fetchWithTimeout";
 import type { NftCollection, NftListing } from "@/lib/nft/types";
 
 const TRADEPORT_API = "https://api.indexer.xyz/graphql";
@@ -87,7 +88,7 @@ function requireTradeportKey() {
 
 async function tradeportQuery<T>(query: string, variables: Record<string, unknown>): Promise<T> {
   requireTradeportKey();
-  const res = await fetch(TRADEPORT_API, {
+  const res = await fetchWithTimeout(TRADEPORT_API, {
     method: "POST",
     headers: {
       "content-type": "application/json",

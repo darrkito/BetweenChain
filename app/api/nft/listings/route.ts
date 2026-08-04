@@ -93,15 +93,15 @@ export async function GET(req: Request) {
 
     return NextResponse.json({ listings: [] });
   } catch (err) {
-    // Same upstream-rate-limit mapping as app/api/nft/collection/route.ts —
+    // Same upstream-rate-limit/timeout mapping as app/api/nft/collection/route.ts —
     // keep the two in sync if this grows a shared helper later.
-    const message = (err as Error).message;
-    if (message.includes("429")) {
+    const err_ = err as Error;
+    if (err_.message.includes("429") || err_.name === "TimeoutError") {
       return NextResponse.json(
         { error: "This marketplace is temporarily busy — please try again in a moment." },
         { status: 503 },
       );
     }
-    return NextResponse.json({ error: message }, { status: 502 });
+    return NextResponse.json({ error: err_.message }, { status: 502 });
   }
 }

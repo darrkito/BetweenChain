@@ -49,13 +49,16 @@ export async function GET(req: Request) {
     // generic thrown Error with the status embedded in the message — no
     // structured error type exists for this yet. Map it to a real 503 with
     // copy the UI can show as "try again", not a raw vendor error string.
-    const message = (err as Error).message;
-    if (message.includes("429")) {
+    // TimeoutError (2026-08-04, added alongside lib/nft/fetchWithTimeout.ts)
+    // is the same user-facing situation — a hung/slow vendor — gets the same
+    // friendly copy rather than the raw "operation was aborted" message.
+    const err_ = err as Error;
+    if (err_.message.includes("429") || err_.name === "TimeoutError") {
       return NextResponse.json(
         { error: "This marketplace is temporarily busy — please try again in a moment." },
         { status: 503 },
       );
     }
-    return NextResponse.json({ error: message }, { status: 502 });
+    return NextResponse.json({ error: err_.message }, { status: 502 });
   }
 }

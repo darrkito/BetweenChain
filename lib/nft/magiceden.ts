@@ -1,5 +1,6 @@
 import "server-only";
 import { cached } from "@/lib/cache";
+import { fetchWithTimeout } from "@/lib/nft/fetchWithTimeout";
 import type { NftCollection, NftListing } from "@/lib/nft/types";
 
 const MAGICEDEN_API = "https://api-mainnet.magiceden.dev/v2";
@@ -35,10 +36,10 @@ function magicEdenHeaders(): HeadersInit | undefined {
  * would hard-fail on a transient 429 with no retry at all.
  */
 async function fetchMagicEden(url: string | URL, retryDelayMs = 800): Promise<Response> {
-  const res = await fetch(url, { headers: magicEdenHeaders(), cache: "no-store" });
+  const res = await fetchWithTimeout(url, { headers: magicEdenHeaders(), cache: "no-store" });
   if (res.status !== 429) return res;
   await new Promise((resolve) => setTimeout(resolve, retryDelayMs));
-  return fetch(url, { headers: magicEdenHeaders(), cache: "no-store" });
+  return fetchWithTimeout(url, { headers: magicEdenHeaders(), cache: "no-store" });
 }
 
 interface RawMagicEdenCollection {
