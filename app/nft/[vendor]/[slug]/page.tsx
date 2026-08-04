@@ -73,49 +73,23 @@ function displayedListingPrice(l: NftListing): string {
   return raw.toFixed(3);
 }
 
-// 2026-08-04 (real user request) — a sustained upstream vendor rate-limit
-// (confirmed live: Magic Eden 429ing sitewide, with and without our API key,
-// across collections never touched before) can outlast what a single
-// serverless invocation is allowed to wait for (app/api/nft/collection/
-// route.ts's own maxDuration=30s budget, itself already spent on 3 internal
-// retries — see lib/nft/magiceden.ts's fetchMagicEden). The explicit ask:
-// don't show the "temporarily busy" error quickly, keep trying until it
-// actually succeeds. The only way to genuinely wait longer than one
-// function invocation allows is to chain many separate, short client-driven
-// requests over time instead of one long server-side wait — this does that.
-// Deliberately bounded, not infinite: a schedule this long (~89s of backoff
-// alone, 8 retries) only gets fully exhausted during a genuinely extended
-// vendor outage, not a normal transient rate-limit window, at which point a
-// real error is still the right outcome rather than hanging forever.
-const COLLECTION_RETRY_SCHEDULE_MS = [2000, 4000, 8000, 15000, 15000, 15000, 15000, 15000];
-
-async function fetchCollectionPatiently(
-  vendor: string,
-  slug: string,
-  isCancelled: () => boolean,
-  onRetry: (attempt: number) => void,
-): Promise<NftCollection> {
-  for (let attempt = 0; ; attempt++) {
-    const res = await fetch(`/api/nft/collection?vendor=${vendor}&slug=${encodeURIComponent(slug)}`);
-    if (isCancelled()) throw new Error("cancelled");
-    if (res.ok) {
-      const body = await res.json();
-      return body.collection as NftCollection;
-    }
-    const body = await res.json().catch(() => ({}));
-    // Only the known transient case (upstream vendor rate-limit/timeout —
-    // see app/api/nft/collection/route.ts, always a 503 for this specific
-    // situation) is worth patiently retrying. A genuine 404 (bad slug) or
-    // 400 (bad vendor) will never resolve itself no matter how long we
-    // wait, so those still fail immediately, same as before this change.
-    if (res.status !== 503 || attempt >= COLLECTION_RETRY_SCHEDULE_MS.length) {
-      throw new Error(body.error ?? "Failed to load collection");
-    }
-    onRetry(attempt + 1);
-    await new Promise((resolve) => setTimeout(resolve, COLLECTION_RETRY_SCHEDULE_MS[attempt]));
-    if (isCancelled()) throw new Error("cancelled");
-  }
-}
+// 2026-08-04 (real regression found and reverted, same session) — an
+// earlier pass added a client-side retry loop here (up to 8 attempts) on
+// top of the server's own internal retry (lib/nft/magiceden.ts's
+// fetchMagicEden). Stacking two independent retry layers MULTIPLIES total
+// upstream request volume instead of just waiting longer (up to 8 client
+// attempts x up to 3 server attempts = up to 24 real requests to Magic Eden
+// from one page load) — under a tight 60s/120-request rolling rate limit,
+// that's enough to keep re-tripping it indefinitely rather than ever
+// letting it clear. This was the actual cause of a user-reported "it used
+// to load fine, now it never does" regression, not a genuine code bug.
+// REMOVED — all patient-waiting now happens in exactly one place, server-
+// side, as a single request (see app/api/nft/collection/route.ts's
+// maxDuration=60 and fetchMagicEden's ~50s backoff budget). This page makes
+// exactly one fetch per load, same as before any of today's changes; the
+// only difference is that single fetch can now legitimately take up to
+// ~55s before resolving instead of failing fast, and the loading skeleton
+// below has copy explaining why.
 
 export default function NftCollectionPage({ params }: { params: Promise<{ vendor: string; slug: string }> }) {
   const { vendor, slug: rawSlug } = use(params);
@@ -154,11 +128,14 @@ export default function NftCollectionPage({ params }: { params: Promise<{ vendor
   // the header AND the listings grid, fetched via Promise.all([collection,
   // firstPage]). See the collection-load effect below for the full fix.
   const [collectionLoading, setCollectionLoading] = useState(true);
-  // Set only while fetchCollectionPatiently is between retry attempts on a
-  // transient 503 — drives the "marketplace is busy, retrying…" note under
-  // the header skeleton so a long wait doesn't read as a frozen page.
-  const [collectionRetryAttempt, setCollectionRetryAttempt] = useState(0);
   const [listingsLoading, setListingsLoading] = useState(true);
+  // Manual retry trigger for a failed collection load (see the error banner
+  // below) — included in the load effect's deps so clicking "Try again"
+  // re-runs it. Deliberately manual, not automatic: see the block comment
+  // above the component for why an automatic client-side retry loop was
+  // removed (it multiplied upstream request volume against Magic Eden's
+  // rate limit instead of helping).
+  const [collectionRetryKey, setCollectionRetryKey] = useState(0);
   const [loadingMore, setLoadingMore] = useState(false);
   // Now scoped to the collection/header fetch only — a listings failure no
   // longer sets this (see loadMoreError below), so it never hides
@@ -320,7 +297,6 @@ export default function NftCollectionPage({ params }: { params: Promise<{ vendor
       .then(() => {
         if (ignore) return;
         setCollectionLoading(true);
-        setCollectionRetryAttempt(0);
         setListingsLoading(true);
         setError(null);
         setLoadMoreError(null);
@@ -328,16 +304,12 @@ export default function NftCollectionPage({ params }: { params: Promise<{ vendor
         setCursor(undefined);
         setHasMore(true);
       })
-      .then(() =>
-        fetchCollectionPatiently(
-          vendor,
-          slug,
-          () => ignore,
-          (attempt) => {
-            if (!ignore) setCollectionRetryAttempt(attempt);
-          },
-        ),
-      )
+      .then(() => fetch(`/api/nft/collection?vendor=${vendor}&slug=${encodeURIComponent(slug)}`))
+      .then(async (r) => {
+        const body = await r.json();
+        if (!r.ok) throw new Error(body.error ?? "Failed to load collection");
+        return body.collection as NftCollection;
+      })
       .then((c) => {
         if (ignore) return;
         setCollection(c);
@@ -372,7 +344,7 @@ export default function NftCollectionPage({ params }: { params: Promise<{ vendor
       ignore = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- collection reload intentionally does NOT depend on fetchPage's identity beyond vendor/slug/view (already covered by fetchPage's own deps)
-  }, [vendor, slug, view]);
+  }, [vendor, slug, view, collectionRetryKey]);
 
   // Search/trait filters reset independently of the collection reload above,
   // since switching Listed<->All shouldn't silently discard a filter the
@@ -440,7 +412,12 @@ export default function NftCollectionPage({ params }: { params: Promise<{ vendor
       />
 
       {error && (
-        <div className="rounded-2xl border border-danger-soft bg-danger-soft px-4 py-3 text-sm text-danger">{error}</div>
+        <div className="flex flex-col items-start gap-2 rounded-2xl border border-danger-soft bg-danger-soft px-4 py-3 text-sm text-danger">
+          <span>{error}</span>
+          <button onClick={() => setCollectionRetryKey((k) => k + 1)} className="font-medium underline hover:no-underline">
+            Try again
+          </button>
+        </div>
       )}
 
       {collection ? (
@@ -449,11 +426,12 @@ export default function NftCollectionPage({ params }: { params: Promise<{ vendor
         collectionLoading && (
           <>
             <NftCollectionHeroSkeleton />
-            {collectionRetryAttempt > 0 && (
-              <p className="text-center text-xs text-ink-faint">
-                Marketplace is busy — still trying (attempt {collectionRetryAttempt + 1})…
-              </p>
-            )}
+            {/* This single fetch can legitimately take up to ~55s now (see
+                app/api/nft/collection/route.ts's maxDuration=60 and
+                lib/nft/magiceden.ts's fetchMagicEden) when a vendor is
+                rate-limiting us — this line exists so that doesn't read as
+                a frozen page during a real, if uncommon, long wait. */}
+            <p className="text-center text-xs text-ink-faint">This can take a moment if the marketplace is busy…</p>
           </>
         )
       )}

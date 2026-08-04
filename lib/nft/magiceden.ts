@@ -37,21 +37,33 @@ function magicEdenHeaders(): HeadersInit | undefined {
 
 /**
  * ME's public rate limit (120 QPM/2 QPS, see above) resets on a rolling
- * per-minute window — a request that lands right at the edge of someone
- * else's burst has a good chance of succeeding a moment later. Real bug
- * found live 2026-08-03: opening a collection page would hard-fail on a
- * transient 429 with no retry at all; fixed with a single 800ms retry.
+ * 60-second window (confirmed live 2026-08-04 via the `retry-after: 60` /
+ * `x-ratelimit-reset` response headers) — a request that lands right at the
+ * edge of someone else's burst has a good chance of succeeding a moment
+ * later. Real bug found live 2026-08-03: opening a collection page would
+ * hard-fail on a transient 429 with no retry at all; fixed with a single
+ * 800ms retry, later widened to 2 retries (2026-08-04 first pass).
  *
- * 2026-08-04 (reliability pass, user report: header still 503s "temporarily
- * busy" too often) — one retry wasn't enough headroom during a sustained
- * burst. Now up to 2 retries (3 attempts total) with increasing backoff
- * (800ms, 1600ms) — gives a slow-clearing rate-limit window more real time
- * to reset before giving up. Worst case ~26s (3 * 8s fetchWithTimeout budget
- * + 2.4s backoff) — callers of this must set `maxDuration` accordingly (see
- * app/api/nft/collection/route.ts, bumped 20 -> 30 alongside this change) so
- * Vercel's platform timeout never fires before this loop's own give-up does.
+ * 2026-08-04 (SAME DAY, second pass — real regression found and reverted):
+ * that first pass ALSO added a client-side retry loop on top of this one
+ * (app/nft/[vendor]/[slug]/page.tsx) — stacking retries on two independent
+ * layers multiplies total upstream request volume (up to 8 client attempts
+ * x up to 3 server attempts here = up to 24 real HTTP requests to Magic
+ * Eden from ONE page load), which can keep re-tripping a 60s/120-request
+ * rolling limit indefinitely instead of ever letting it clear — the
+ * opposite of the intended effect, and the likely actual cause of a
+ * user-reported "it used to load fine, now it never does" regression.
+ * REMOVED the client-side retry entirely; all patient-waiting now happens
+ * in exactly ONE place (here), as a single request/response cycle. Widened
+ * to up to 5 retries (6 attempts total) with a longer backoff schedule,
+ * since Vercel's function timeout is 300s by default (not the ~20-30s this
+ * was originally budgeted against) — comfortably affords a real ~50s of
+ * patient backoff in one request instead of forcing a second, separate
+ * client-driven request layer to get there.
  */
-async function fetchMagicEden(url: string | URL, backoffScheduleMs: number[] = [800, 1600]): Promise<Response> {
+const DEFAULT_BACKOFF_SCHEDULE_MS = [1000, 2000, 4000, 8000, 15000, 15000];
+
+async function fetchMagicEden(url: string | URL, backoffScheduleMs: number[] = DEFAULT_BACKOFF_SCHEDULE_MS): Promise<Response> {
   let res = await fetchWithTimeout(url, { headers: magicEdenHeaders(), cache: "no-store" });
   for (const delayMs of backoffScheduleMs) {
     if (res.status !== 429) return res;

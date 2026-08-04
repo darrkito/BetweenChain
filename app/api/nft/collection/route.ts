@@ -8,10 +8,12 @@ import { safeErrorResponse } from "@/lib/apiError";
 // function timeout from killing the request with an empty/non-JSON body
 // before our own error handling gets a chance to run (see
 // lib/fetchWithTimeout.ts's doc comment for the failure mode this closes).
-// 2026-08-04: bumped 20 -> 30 alongside lib/nft/magiceden.ts's fetchMagicEden
-// retry change (now up to 3 attempts, worst case ~26s) so the platform
-// timeout never fires before that retry loop's own give-up does.
-export const maxDuration = 30;
+// 2026-08-04: bumped 20 -> 30 -> 60. All patient-waiting on a Magic Eden
+// rate-limit now happens in exactly one place, this single request (see
+// lib/nft/magiceden.ts's fetchMagicEden doc comment for why the earlier
+// client-side retry layer was removed) — worst case here is ~55s (6 attempts
+// x ~0.3s + ~50s total backoff), so this needs real headroom past that.
+export const maxDuration = 60;
 
 // Single-collection detail, powers the collection page header. `vendor` and
 // `slug` come from the collection card the user clicked (see
