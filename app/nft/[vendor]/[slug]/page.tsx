@@ -131,12 +131,21 @@ export default function NftCollectionPage({ params }: { params: Promise<{ vendor
   // Fired independently of, and after, the main collection/listings load —
   // computing an accurate listed count for OpenSea costs up to 20 sequential
   // upstream calls (see lib/nft/opensea.ts's countOpenSeaListedItems), so it
-  // must never block the page itself from rendering. Magic Eden already gets
-  // listedCount for free on the main collection fetch, so this only runs for
-  // OpenSea collections.
+  // must never block the page itself from rendering.
+  //
+  // Magic Eden included here too as of 2026-08-04 (real bug, user report):
+  // it used to get listedCount/floorPrice "for free" bundled into the main
+  // /api/nft/collection response, but that bundling was itself the bug —
+  // doubled Magic Eden's per-page request count (base collection + stats),
+  // making the header specifically fail more often than the listings grid
+  // under Magic Eden's tight, apparently key-agnostic rate limit (see
+  // lib/nft/magiceden.ts's getMagicEdenCollection doc comment for the full
+  // root-cause investigation). Now both vendors defer their secondary stats
+  // the same way — the collection header itself only ever needs ONE
+  // upstream call, matching listings' footprint.
   useEffect(() => {
     let ignore = false;
-    if (vendor !== "opensea") {
+    if (vendor !== "opensea" && vendor !== "magiceden") {
       Promise.resolve().then(() => {
         if (!ignore) setListedCountInfo(undefined);
       });

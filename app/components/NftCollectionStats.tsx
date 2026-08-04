@@ -108,7 +108,18 @@ export function NftCollectionStats({
       <Stat
         label="Floor Price"
         value={floorPriceDisplay != null ? `${floorPriceDisplay} ${floorPriceCurrency ?? ""}` : "—"}
-        title={listedCountInfo?.floorPrice != null ? "Computed from the cheapest currently-listed item, not OpenSea's stats endpoint (the two can disagree)" : undefined}
+        // OpenSea's floorPrice is computed live from actual listings (see
+        // countOpenSeaListedItems) and can genuinely disagree with its own
+        // /stats endpoint. Magic Eden's is now fetched via a separate
+        // deferred call too (2026-08-04, see getMagicEdenCollectionStats)
+        // but it's still literally the SAME /stats endpoint value as
+        // before, just no longer bundled into the main collection fetch —
+        // the OpenSea-specific "can disagree" caveat doesn't apply to it.
+        title={
+          collection.vendor === "opensea" && listedCountInfo?.floorPrice != null
+            ? "Computed from the cheapest currently-listed item, not OpenSea's stats endpoint (the two can disagree)"
+            : undefined
+        }
         emphasize
       />
       <Stat

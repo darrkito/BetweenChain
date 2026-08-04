@@ -105,7 +105,10 @@ interface RawMagicEdenListing {
   token?: { name?: string; image?: string; attributes?: Array<{ trait_type: string; value: string }> };
 }
 
-function toNftCollection(c: RawMagicEdenCollection, stats?: RawMagicEdenStats): NftCollection {
+// floorPrice/listedCount deliberately absent here — those come from the
+// separate, deferred getMagicEdenCollectionStats above (see
+// getMagicEdenCollection's doc comment for why they were split apart).
+function toNftCollection(c: RawMagicEdenCollection): NftCollection {
   return {
     vendor: "magiceden",
     chainFamily: "solana",
@@ -113,9 +116,6 @@ function toNftCollection(c: RawMagicEdenCollection, stats?: RawMagicEdenStats): 
     name: c.name,
     description: c.description ?? "",
     imageUrl: c.image ?? "",
-    floorPrice: stats?.floorPrice != null ? (stats.floorPrice / 1e9).toString() : undefined,
-    floorPriceCurrency: "SOL",
-    listedCount: stats?.listedCount,
   };
 }
 
@@ -181,22 +181,58 @@ export async function browseMagicEdenCollections(limit = 20): Promise<NftCollect
   });
 }
 
+/**
+ * Split from stats 2026-08-04 (real bug, user report: Solana collection
+ * pages showed the header failing while the listings grid loaded fine, on
+ * OpenSea/Sui this worked). Root cause: this used to fire the base
+ * collection call AND the /stats call together via Promise.all — TWO
+ * upstream requests per page open, vs getMagicEdenListings' ONE. Confirmed
+ * live: Magic Eden's collections-read rate limit (~120 QPM/2 QPS,
+ * undocumented whether MAGICEDEN_API_KEY even raises it — tested live
+ * 2026-08-04, identical 429 with and without the Authorization header, so
+ * assume it does NOT for this endpoint) is tight enough that doubling the
+ * per-page-load request count measurably doubles how often the header
+ * specifically gets rate-limited compared to listings, for the exact same
+ * user action. Now: this only fetches the base collection (name/
+ * description/image) — ONE call, same footprint as listings. floorPrice/
+ * listedCount are fetched separately via getMagicEdenCollectionStats below,
+ * deferred and non-blocking (see app/api/nft/listed-count/route.ts and the
+ * NFT collection page's listedCountInfo effect) — same pattern already used
+ * for OpenSea's listed count and this exact vendor's own total-supply gap
+ * (lib/chains/heliusDas.ts).
+ */
 export async function getMagicEdenCollection(symbol: string): Promise<NftCollection | undefined> {
   return cached(`magiceden:collection:${symbol}`, COLLECTIONS_TTL_MS, async () => {
-    const [collectionRes, statsRes] = await Promise.all([
-      fetchMagicEden(`${MAGICEDEN_API}/collections/${encodeURIComponent(symbol)}`),
-      fetchMagicEden(`${MAGICEDEN_API}/collections/${encodeURIComponent(symbol)}/stats`),
-    ]);
+    const res = await fetchMagicEden(`${MAGICEDEN_API}/collections/${encodeURIComponent(symbol)}`);
     // Only a real 404 means "no such collection" — any other non-ok status
     // (e.g. 429 from ME's aggressive ~120 req/min keyless rate limit,
     // confirmed live 2026-07-20) must surface as an error, not be silently
     // swallowed into "not found" (a real bug this exact confusion caused
     // during live verification — see STATE.md).
-    if (collectionRes.status === 404) return undefined;
-    if (!collectionRes.ok) throw new Error(`Magic Eden collection lookup failed (${collectionRes.status})`);
-    const collection = (await collectionRes.json()) as RawMagicEdenCollection;
-    const stats = statsRes.ok ? ((await statsRes.json()) as RawMagicEdenStats) : undefined;
-    return toNftCollection(collection, stats);
+    if (res.status === 404) return undefined;
+    if (!res.ok) throw new Error(`Magic Eden collection lookup failed (${res.status})`);
+    const collection = (await res.json()) as RawMagicEdenCollection;
+    return toNftCollection(collection);
+  });
+}
+
+export interface MagicEdenCollectionStats {
+  listedCount?: number;
+  floorPrice?: string;
+  floorPriceCurrency?: string;
+}
+
+/** See getMagicEdenCollection's doc comment above for why this is separate. */
+export async function getMagicEdenCollectionStats(symbol: string): Promise<MagicEdenCollectionStats> {
+  return cached(`magiceden:collection-stats:${symbol}`, COLLECTIONS_TTL_MS, async () => {
+    const res = await fetchMagicEden(`${MAGICEDEN_API}/collections/${encodeURIComponent(symbol)}/stats`);
+    if (!res.ok) return {};
+    const stats = (await res.json()) as RawMagicEdenStats;
+    return {
+      listedCount: stats.listedCount,
+      floorPrice: stats.floorPrice != null ? (stats.floorPrice / 1e9).toString() : undefined,
+      floorPriceCurrency: "SOL",
+    };
   });
 }
 
