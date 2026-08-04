@@ -94,6 +94,15 @@ export default function NftCollectionPage({ params }: { params: Promise<{ vendor
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Separate from `error` — real bug found live 2026-08-04: a loadMore()
+  // failure (e.g. Magic Eden's listings pagination hitting its rate limit,
+  // surfaced as a 503 "temporarily busy") was reusing `error`, which renders
+  // a page-wide banner ABOVE the collection header. The header/stats/PFP
+  // had already loaded fine from the initial fetch (a completely separate,
+  // successful request) — showing a full "something's broken" banner next
+  // to genuinely-working content was confusing and wrong. loadMore failures
+  // are scoped to their own state, rendered near the grid/sentinel instead.
+  const [loadMoreError, setLoadMoreError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [traitSelection, setTraitSelection] = useState<TraitSelection>({});
   const [view, setView] = useState<View>("listed");
@@ -204,6 +213,7 @@ export default function NftCollectionPage({ params }: { params: Promise<{ vendor
         if (ignore) return;
         setLoading(true);
         setError(null);
+        setLoadMoreError(null);
         setListings([]);
         setCursor(undefined);
         setHasMore(true);
@@ -255,13 +265,14 @@ export default function NftCollectionPage({ params }: { params: Promise<{ vendor
   const loadMore = useCallback(() => {
     if (loadingMore || loading || !hasMore) return;
     setLoadingMore(true);
+    setLoadMoreError(null);
     fetchPage(cursor)
       .then((page) => {
         setListings((prev) => dedupeListings([...prev, ...page.listings]));
         setCursor(page.nextCursor);
         setHasMore(Boolean(page.nextCursor));
       })
-      .catch((err) => setError((err as Error).message))
+      .catch((err) => setLoadMoreError((err as Error).message))
       .finally(() => setLoadingMore(false));
   }, [fetchPage, cursor, hasMore, loading, loadingMore]);
 
@@ -492,6 +503,14 @@ export default function NftCollectionPage({ params }: { params: Promise<{ vendor
 
           <div ref={sentinelRef} className="h-1" />
           {loadingMore && <p className="pb-2 text-center text-xs text-ink-faint">Loading more…</p>}
+          {loadMoreError && !loadingMore && (
+            <div className="flex flex-col items-center gap-2 py-2 text-center">
+              <p className="text-xs text-danger">{loadMoreError}</p>
+              <button onClick={loadMore} className="text-xs font-medium text-accent hover:underline">
+                Try again
+              </button>
+            </div>
+          )}
         </div>
       </div>
 

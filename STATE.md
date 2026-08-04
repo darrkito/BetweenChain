@@ -6,6 +6,33 @@ delete history (superseded entries stay for context, just note what replaced the
 
 ---
 
+## 2026-08-04e — Confusing "temporarily busy" banner shown above a fully-working collection header
+
+User-reported: opening a Solana collection page showed "This marketplace is temporarily
+busy — please try again in a moment." right below the breadcrumb, while the PFP, floor,
+volume, and listed count all rendered correctly right below it. Root cause,
+`app/nft/[vendor]/[slug]/page.tsx`: the initial collection load and `loadMore()`
+(infinite-scroll pagination, triggered via an IntersectionObserver on a sentinel div) both
+wrote to the SAME `error` state. The collection header comes from the initial load, which
+had genuinely succeeded — the error was actually from a LATER `loadMore()` call hitting
+Magic Eden's listings endpoint rate limit (503, mapped to this exact copy in
+`app/api/nft/listings/route.ts`), a completely separate request. Since `error`'s banner
+renders unconditionally above the header whenever it's set, a working page looked broken.
+
+Fixed: split into two states. `error` stays for genuine initial-load failures (still
+renders the same way, still means the page really didn't load). New `loadMoreError` is
+scoped to `loadMore()` failures only, rendered near the grid/scroll-sentinel instead of the
+page top, with its own "Try again" retry button (the IntersectionObserver won't re-fire on
+its own if the sentinel is already in view and its intersection state hasn't changed).
+Reset alongside `error` on every fresh collection/view load. `tsc`/tests/lint/`next build`
+all clean.
+
+Underlying rate-limit itself (Magic Eden's listings endpoint, already given an auth header
++ one retry in an earlier session) is unchanged by this fix — this addresses the confusing
+UI, not the occasional real upstream 503, which needs Magic Eden's own rate-limit increase
+(form already identified, tracked as a pending user action).
+
+
 ## 2026-08-04d — Verified-only filtering extended to Magic Eden and OpenSea (user request)
 
 Following 2026-08-04c's Tradeport fix (verified-only filter, needed there to exclude spam
