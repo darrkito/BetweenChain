@@ -1,6 +1,6 @@
 import "server-only";
 import { Ratelimit } from "@upstash/ratelimit";
-import { Redis } from "@upstash/redis";
+import { redis, warnIfMissingRedisInProduction } from "@/lib/redis";
 
 /**
  * Redis-backed sliding-window rate limiter (Upstash), shared across
@@ -9,22 +9,11 @@ import { Redis } from "@upstash/redis";
  * without an Upstash database) — that fallback resets on redeploy and does
  * not share state across instances, so it must not be relied on in
  * production. A warning is logged once if production is running without it.
+ * Redis client itself now lives in lib/redis.ts (2026-08-04, extracted so
+ * lib/cache.ts can share the same client instead of each module opening its
+ * own).
  */
-const redis =
-  process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN
-    ? new Redis({
-        url: process.env.UPSTASH_REDIS_REST_URL,
-        token: process.env.UPSTASH_REDIS_REST_TOKEN,
-      })
-    : null;
-
-if (!redis && process.env.NODE_ENV === "production") {
-  console.warn(
-    "[rate-limit] UPSTASH_REDIS_REST_URL/UPSTASH_REDIS_REST_TOKEN not set — " +
-      "falling back to in-memory rate limiting, which is NOT shared across " +
-      "serverless instances. Set both env vars before real traffic.",
-  );
-}
+warnIfMissingRedisInProduction("rate-limit");
 
 // One Ratelimit instance per distinct (limit, windowMs) pair — cheap to
 // create, but Upstash recommends reusing instances rather than constructing
