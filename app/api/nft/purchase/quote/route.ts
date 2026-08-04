@@ -9,6 +9,13 @@ import { getEthUsdPrice, weiToUsd } from "@/lib/pricing";
 import { isPlausibleEvmAddress } from "@/lib/validation";
 import { rateLimit, clientKey } from "@/lib/rate-limit";
 import type { NftListing } from "@/lib/nft/types";
+import { safeErrorResponse } from "@/lib/apiError";
+
+// External-call budget for this route -- prevents Vercel's platform-level
+// function timeout from killing the request with an empty/non-JSON body
+// before our own error handling gets a chance to run (see
+// lib/fetchWithTimeout.ts's doc comment for the failure mode this closes).
+export const maxDuration = 20;
 
 const QUOTE_TTL_MS = 60_000; // longer than the token-swap quote's 30s — an NFT
 // buy needs the user to review a price before committing, and step 2's fresh
@@ -177,6 +184,6 @@ export async function POST(req: Request) {
     if (err instanceof OpenSeaListingUnavailableError) {
       return NextResponse.json({ error: "This listing is no longer available." }, { status: 409 });
     }
-    return NextResponse.json({ error: (err as Error).message }, { status: 502 });
+    return safeErrorResponse("nft/purchase/quote", err, 502);
   }
 }

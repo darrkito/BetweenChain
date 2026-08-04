@@ -3,6 +3,12 @@ import { requireSession, SessionError } from "@/lib/auth/session";
 import { supabaseAdmin } from "@/lib/supabase/server";
 import { rateLimit, clientKey } from "@/lib/rate-limit";
 
+// External-call budget for this route -- prevents Vercel's platform-level
+// function timeout from killing the request with an empty/non-JSON body
+// before our own error handling gets a chance to run (see
+// lib/fetchWithTimeout.ts's doc comment for the failure mode this closes).
+export const maxDuration = 20;
+
 /**
  * Lightweight "am I signed in" check — used by lib/client/AuthProvider.tsx
  * so the header's Connect Wallet popup can tell whether a just-connected

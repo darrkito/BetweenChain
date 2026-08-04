@@ -82,10 +82,37 @@ export async function verifyEvmBuyTx(params: {
     client.getTransactionReceipt({ hash: params.txHash }),
     client.getTransaction({ hash: params.txHash }),
   ]);
-  if (receipt.status !== "success") return false;
-  if (tx.from.toLowerCase() !== params.expectedFrom.toLowerCase()) return false;
-  if (!tx.to || tx.to.toLowerCase() !== params.expectedTo.toLowerCase()) return false;
-  if (tx.value !== BigInt(params.expectedValueWei)) return false;
+  return evaluateEvmBuyTx({
+    receiptStatus: receipt.status,
+    txFrom: tx.from,
+    txTo: tx.to,
+    txValue: tx.value,
+    expectedFrom: params.expectedFrom,
+    expectedTo: params.expectedTo,
+    expectedValueWei: params.expectedValueWei,
+  });
+}
+
+/**
+ * Pure comparison logic split out of verifyEvmBuyTx (2026-08-04, reliability
+ * pass) specifically so it's unit-testable without mocking viem's client —
+ * this is the actual security-critical decision (does this tx really pay
+ * for THIS purchase), separated from the network I/O that fetches its
+ * inputs. See lib/chains/evm.test.ts.
+ */
+export function evaluateEvmBuyTx(params: {
+  receiptStatus: "success" | "reverted";
+  txFrom: string;
+  txTo: string | null | undefined;
+  txValue: bigint;
+  expectedFrom: string;
+  expectedTo: string;
+  expectedValueWei: string;
+}): boolean {
+  if (params.receiptStatus !== "success") return false;
+  if (params.txFrom.toLowerCase() !== params.expectedFrom.toLowerCase()) return false;
+  if (!params.txTo || params.txTo.toLowerCase() !== params.expectedTo.toLowerCase()) return false;
+  if (params.txValue !== BigInt(params.expectedValueWei)) return false;
   return true;
 }
 

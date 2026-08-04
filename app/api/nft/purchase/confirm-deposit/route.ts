@@ -6,6 +6,13 @@ import { getRelayIntentStatus, getRelayRequestId } from "@/lib/chains/relay";
 import { getOpenSeaBuyCall, OpenSeaListingUnavailableError } from "@/lib/nft/opensea";
 import { rateLimit, clientKey } from "@/lib/rate-limit";
 import type { NftListing } from "@/lib/nft/types";
+import { safeErrorResponse } from "@/lib/apiError";
+
+// External-call budget for this route -- prevents Vercel's platform-level
+// function timeout from killing the request with an empty/non-JSON body
+// before our own error handling gets a chance to run (see
+// lib/fetchWithTimeout.ts's doc comment for the failure mode this closes).
+export const maxDuration = 20;
 
 const bodySchema = z.object({ purchaseId: z.string().uuid() });
 
@@ -111,6 +118,6 @@ export async function POST(req: Request) {
       // specific NFT. 200 with a clear status, not a thrown error.
       return NextResponse.json({ status: "listing_gone" });
     }
-    return NextResponse.json({ error: (err as Error).message }, { status: 502 });
+    return safeErrorResponse("nft/purchase/confirm-deposit", err, 502);
   }
 }

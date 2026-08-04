@@ -3,6 +3,13 @@ import { browseMagicEdenCollections } from "@/lib/nft/magiceden";
 import { browseOpenSeaCollections } from "@/lib/nft/opensea";
 import { browseTradeportCollections, isTradeportChain, TRADEPORT_CHAINS } from "@/lib/nft/tradeport";
 import { rateLimit, clientKey } from "@/lib/rate-limit";
+import { safeErrorResponse } from "@/lib/apiError";
+
+// External-call budget for this route -- prevents Vercel's platform-level
+// function timeout from killing the request with an empty/non-JSON body
+// before our own error handling gets a chance to run (see
+// lib/fetchWithTimeout.ts's doc comment for the failure mode this closes).
+export const maxDuration = 30;
 
 // Public market data — no auth required, mirrors app/api/tokens/list/route.ts.
 // Routes to whichever vendor covers the requested chain family (no single
@@ -36,6 +43,6 @@ export async function GET(req: Request) {
 
     return NextResponse.json({ error: "chainFamily query param must be one of: solana, evm, move" }, { status: 400 });
   } catch (err) {
-    return NextResponse.json({ error: (err as Error).message }, { status: 502 });
+    return safeErrorResponse("nft/collections", err, 502);
   }
 }

@@ -6,6 +6,13 @@ import { CRYPTOPUNKS_SLUG } from "@/lib/nft/cryptopunksShared";
 import { getTradeportListings, isTradeportChain, TRADEPORT_CHAINS } from "@/lib/nft/tradeport";
 import { rateLimit, clientKey } from "@/lib/rate-limit";
 import type { NftListing, NftVendor } from "@/lib/nft/types";
+import { safeErrorResponse } from "@/lib/apiError";
+
+// External-call budget for this route -- prevents Vercel's platform-level
+// function timeout from killing the request with an empty/non-JSON body
+// before our own error handling gets a chance to run (see
+// lib/fetchWithTimeout.ts's doc comment for the failure mode this closes).
+export const maxDuration = 30;
 
 const PAGE_SIZE = 20;
 
@@ -102,6 +109,6 @@ export async function GET(req: Request) {
         { status: 503 },
       );
     }
-    return NextResponse.json({ error: err_.message }, { status: 502 });
+    return safeErrorResponse("nft/listings", err, 502);
   }
 }

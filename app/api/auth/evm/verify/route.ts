@@ -5,6 +5,13 @@ import { requireSession, SessionError, SESSION_COOKIE_NAME } from "@/lib/auth/se
 import { verifyEvmChallengeAndLink, verifyEvmChallengeAndSignIn } from "@/lib/auth/siwe";
 import { isPlausibleEvmAddress } from "@/lib/validation";
 import { rateLimit, clientKey } from "@/lib/rate-limit";
+import { safeErrorResponse } from "@/lib/apiError";
+
+// External-call budget for this route -- prevents Vercel's platform-level
+// function timeout from killing the request with an empty/non-JSON body
+// before our own error handling gets a chance to run (see
+// lib/fetchWithTimeout.ts's doc comment for the failure mode this closes).
+export const maxDuration = 20;
 
 const bodySchema = z.object({
   evmAddress: z.string().min(1),
@@ -62,6 +69,6 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ ok: true });
   } catch (err) {
-    return NextResponse.json({ error: (err as Error).message }, { status: 401 });
+    return safeErrorResponse("auth/evm/verify", err, 401, "Authentication failed");
   }
 }

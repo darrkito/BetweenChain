@@ -7,6 +7,13 @@ import { isTradeportListingStillActive, type TradeportChain } from "@/lib/nft/tr
 import { buildVerifiedTradeportBuyTransaction } from "@/lib/nft/tradeportBuy";
 import { TRADEPORT_FEE_SAFETY_MARGIN } from "@/lib/chains/sui";
 import { rateLimit, clientKey } from "@/lib/rate-limit";
+import { safeErrorResponse } from "@/lib/apiError";
+
+// External-call budget for this route -- prevents Vercel's platform-level
+// function timeout from killing the request with an empty/non-JSON body
+// before our own error handling gets a chance to run (see
+// lib/fetchWithTimeout.ts's doc comment for the failure mode this closes).
+export const maxDuration = 20;
 
 // Unlike Squid's status API (which needed the client-reported origin tx
 // hash to look anything up), ChangeNOW's exchange id is already known
@@ -111,6 +118,6 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ status: "deposit_confirmed", buyTransaction: verified.serializedTx });
   } catch (err) {
-    return NextResponse.json({ error: (err as Error).message }, { status: 502 });
+    return safeErrorResponse("nft/purchase/sui/confirm-deposit", err, 502);
   }
 }

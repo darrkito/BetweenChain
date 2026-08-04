@@ -47,14 +47,40 @@ export async function verifySolanaBuyTx(params: {
     commitment: "confirmed",
   });
   if (!tx) throw new Error("Transaction not found yet");
-  if (tx.meta?.err) return false;
 
-  const accountKeys = tx.transaction.message.accountKeys;
-  const signerIndex = accountKeys.findIndex((k) => k.signer && k.pubkey.toBase58() === params.expectedSigner);
+  return evaluateSolanaBuyTx({
+    txErr: tx.meta?.err ?? null,
+    accountKeys: tx.transaction.message.accountKeys.map((k) => ({ pubkey: k.pubkey.toBase58(), signer: k.signer })),
+    preBalances: tx.meta?.preBalances ?? [],
+    postBalances: tx.meta?.postBalances ?? [],
+    expectedSigner: params.expectedSigner,
+    minLamportsSpent: params.minLamportsSpent,
+  });
+}
+
+/**
+ * Pure comparison logic split out of verifySolanaBuyTx (2026-08-04,
+ * reliability pass) specifically so it's unit-testable without mocking
+ * @solana/web3.js's Connection — this is the actual security-critical
+ * decision (did the buyer's own wallet really sign and pay for this),
+ * separated from the network I/O that fetches its inputs. See
+ * lib/chains/solana.test.ts.
+ */
+export function evaluateSolanaBuyTx(params: {
+  txErr: unknown;
+  accountKeys: Array<{ pubkey: string; signer: boolean }>;
+  preBalances: number[];
+  postBalances: number[];
+  expectedSigner: string;
+  minLamportsSpent: bigint;
+}): boolean {
+  if (params.txErr) return false;
+
+  const signerIndex = params.accountKeys.findIndex((k) => k.signer && k.pubkey === params.expectedSigner);
   if (signerIndex === -1) return false;
 
-  const preBalance = BigInt(tx.meta?.preBalances?.[signerIndex] ?? 0);
-  const postBalance = BigInt(tx.meta?.postBalances?.[signerIndex] ?? 0);
+  const preBalance = BigInt(params.preBalances[signerIndex] ?? 0);
+  const postBalance = BigInt(params.postBalances[signerIndex] ?? 0);
   const spent = preBalance - postBalance;
   return spent >= params.minLamportsSpent;
 }

@@ -45,12 +45,37 @@ export async function verifySuiBuyTx(params: {
     digest: params.digest,
     options: { showEffects: true, showBalanceChanges: true, showInput: true },
   });
-  if (result.effects?.status.status !== "success") return false;
-  if (result.transaction?.data?.sender !== params.expectedSigner) return false;
+  return evaluateSuiBuyTx({
+    effectsStatus: result.effects?.status.status,
+    sender: result.transaction?.data?.sender,
+    balanceChanges: (result.balanceChanges ?? []).map((c) => ({
+      coinType: c.coinType,
+      amount: c.amount,
+      addressOwner: typeof c.owner === "object" && "AddressOwner" in c.owner ? c.owner.AddressOwner : undefined,
+    })),
+    expectedSigner: params.expectedSigner,
+    minMistSpent: params.minMistSpent,
+  });
+}
 
-  const suiChange = result.balanceChanges?.find(
-    (c) => c.coinType === SUI_COIN_TYPE && typeof c.owner === "object" && "AddressOwner" in c.owner && c.owner.AddressOwner === params.expectedSigner,
-  );
+/**
+ * Pure comparison logic split out of verifySuiBuyTx (2026-08-04, reliability
+ * pass) specifically so it's unit-testable without mocking
+ * SuiJsonRpcClient — this is the actual security-critical decision (did the
+ * buyer's own wallet really sign and pay for this), separated from the
+ * network I/O that fetches its inputs. See lib/chains/sui.test.ts.
+ */
+export function evaluateSuiBuyTx(params: {
+  effectsStatus: string | undefined;
+  sender: string | undefined;
+  balanceChanges: Array<{ coinType: string; amount: string; addressOwner: string | undefined }>;
+  expectedSigner: string;
+  minMistSpent: bigint;
+}): boolean {
+  if (params.effectsStatus !== "success") return false;
+  if (params.sender !== params.expectedSigner) return false;
+
+  const suiChange = params.balanceChanges.find((c) => c.coinType === SUI_COIN_TYPE && c.addressOwner === params.expectedSigner);
   if (!suiChange) return false;
   const amount = BigInt(suiChange.amount); // negative = spent
   return -amount >= params.minMistSpent;

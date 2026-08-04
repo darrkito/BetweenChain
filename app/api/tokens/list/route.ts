@@ -1,6 +1,13 @@
 import { NextResponse } from "next/server";
 import { getTokenListForChain } from "@/lib/chains/tokenList";
 import { rateLimit, clientKey } from "@/lib/rate-limit";
+import { safeErrorResponse } from "@/lib/apiError";
+
+// External-call budget for this route -- prevents Vercel's platform-level
+// function timeout from killing the request with an empty/non-JSON body
+// before our own error handling gets a chance to run (see
+// lib/fetchWithTimeout.ts's doc comment for the failure mode this closes).
+export const maxDuration = 20;
 
 // Public market data — no auth required. Powers the token-select modal's
 // right-hand token list and the top trending bar.
@@ -21,6 +28,6 @@ export async function GET(req: Request) {
     const tokens = await getTokenListForChain(chainId, term);
     return NextResponse.json({ tokens });
   } catch (err) {
-    return NextResponse.json({ error: (err as Error).message }, { status: 502 });
+    return safeErrorResponse("tokens/list", err, 502);
   }
 }

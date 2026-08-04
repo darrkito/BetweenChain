@@ -5,6 +5,13 @@ import { getCryptoPunksOnchainListedCount } from "@/lib/nft/cryptopunksOnchain";
 import { CRYPTOPUNKS_SLUG } from "@/lib/nft/cryptopunksShared";
 import { rateLimit, clientKey } from "@/lib/rate-limit";
 import type { NftVendor } from "@/lib/nft/types";
+import { safeErrorResponse } from "@/lib/apiError";
+
+// External-call budget for this route -- prevents Vercel's platform-level
+// function timeout from killing the request with an empty/non-JSON body
+// before our own error handling gets a chance to run (see
+// lib/fetchWithTimeout.ts's doc comment for the failure mode this closes).
+export const maxDuration = 30;
 
 // Deliberately separate from /api/nft/collection — computing an accurate
 // listed count for OpenSea costs up to 20 sequential upstream API calls (see
@@ -50,6 +57,6 @@ export async function GET(req: Request) {
     const result = slug === CRYPTOPUNKS_SLUG ? await getCryptoPunksOnchainListedCount() : await countOpenSeaListedItems(slug);
     return NextResponse.json(result);
   } catch (err) {
-    return NextResponse.json({ error: (err as Error).message }, { status: 502 });
+    return safeErrorResponse("nft/listed-count", err, 502);
   }
 }

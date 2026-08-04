@@ -7,6 +7,12 @@ import { getSolUsdPrice, lamportsToUsd } from "@/lib/pricing";
 import { creditSwapPoints } from "@/lib/points";
 import { rateLimit, clientKey } from "@/lib/rate-limit";
 
+// External-call budget for this route -- prevents Vercel's platform-level
+// function timeout from killing the request with an empty/non-JSON body
+// before our own error handling gets a chance to run (see
+// lib/fetchWithTimeout.ts's doc comment for the failure mode this closes).
+export const maxDuration = 20;
+
 const bodySchema = z.object({ swapId: z.string().uuid() });
 
 export async function POST(req: Request) {

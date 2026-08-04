@@ -3,6 +3,13 @@ import { getMagicEdenListings } from "@/lib/nft/magiceden";
 import { getCollectionTotalSupply } from "@/lib/chains/heliusDas";
 import { rateLimit, clientKey } from "@/lib/rate-limit";
 import type { NftVendor } from "@/lib/nft/types";
+import { safeErrorResponse } from "@/lib/apiError";
+
+// External-call budget for this route -- prevents Vercel's platform-level
+// function timeout from killing the request with an empty/non-JSON body
+// before our own error handling gets a chance to run (see
+// lib/fetchWithTimeout.ts's doc comment for the failure mode this closes).
+export const maxDuration = 20;
 
 // Solana-only (Magic Eden) — closes the total-supply gap flagged since
 // 2026-07-20i via Helius DAS (see lib/chains/heliusDas.ts), which needs a
@@ -36,6 +43,6 @@ export async function GET(req: Request) {
     const totalSupply = await getCollectionTotalSupply(sampleMint);
     return NextResponse.json({ totalSupply: totalSupply ?? null });
   } catch (err) {
-    return NextResponse.json({ error: (err as Error).message }, { status: 502 });
+    return safeErrorResponse("nft/total-supply", err, 502);
   }
 }

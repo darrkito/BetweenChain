@@ -6,6 +6,12 @@ import { verifySuiBuyTx } from "@/lib/chains/sui";
 import { creditNftPurchasePoints } from "@/lib/points";
 import { rateLimit, clientKey } from "@/lib/rate-limit";
 
+// External-call budget for this route -- prevents Vercel's platform-level
+// function timeout from killing the request with an empty/non-JSON body
+// before our own error handling gets a chance to run (see
+// lib/fetchWithTimeout.ts's doc comment for the failure mode this closes).
+export const maxDuration = 20;
+
 // Sui transaction digests are base58, not the 0x-hex EVM shape — 32 raw
 // bytes base58-encoded, roughly 43-44 characters, confirmed against
 // @mysten/sui's own digest examples.

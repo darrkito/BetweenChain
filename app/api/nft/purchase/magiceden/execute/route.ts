@@ -7,6 +7,13 @@ import { buildRelayExecutionSteps } from "@/lib/chains/relay";
 import { getSolanaBalanceLamports } from "@/lib/chains/solana";
 import { rateLimit, clientKey } from "@/lib/rate-limit";
 import type { NftListing } from "@/lib/nft/types";
+import { safeErrorResponse } from "@/lib/apiError";
+
+// External-call budget for this route -- prevents Vercel's platform-level
+// function timeout from killing the request with an empty/non-JSON body
+// before our own error handling gets a chance to run (see
+// lib/fetchWithTimeout.ts's doc comment for the failure mode this closes).
+export const maxDuration = 20;
 
 const bodySchema = z.object({ quoteId: z.string().uuid() });
 
@@ -100,7 +107,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ purchaseId: purchase.id, status: "deposit_confirmed", sameChain: true, buyTransaction: buyTx });
     } catch (err) {
       await db.from("nft_purchases").update({ status: "failed" }).eq("id", purchase.id);
-      return NextResponse.json({ error: (err as Error).message }, { status: 502 });
+      return safeErrorResponse("nft/purchase/magiceden/execute", err, 502);
     }
   }
 
@@ -110,6 +117,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ purchaseId: purchase.id, status: "deposit_pending", sameChain: false, steps });
   } catch (err) {
     await db.from("nft_purchases").update({ status: "failed" }).eq("id", purchase.id);
-    return NextResponse.json({ error: (err as Error).message }, { status: 502 });
+    return safeErrorResponse("nft/purchase/magiceden/execute", err, 502);
   }
 }

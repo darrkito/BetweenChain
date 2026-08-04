@@ -12,6 +12,13 @@ import { TRADEPORT_FEE_SAFETY_MARGIN, CROSS_CHAIN_BRIDGE_BUFFER } from "@/lib/nf
 import { isPlausibleEvmAddress } from "@/lib/validation";
 import { roundUpTo2Decimals } from "@/lib/client/amount";
 import { rateLimit, clientKey } from "@/lib/rate-limit";
+import { safeErrorResponse } from "@/lib/apiError";
+
+// External-call budget for this route -- prevents Vercel's platform-level
+// function timeout from killing the request with an empty/non-JSON body
+// before our own error handling gets a chance to run (see
+// lib/fetchWithTimeout.ts's doc comment for the failure mode this closes).
+export const maxDuration = 20;
 
 const QUOTE_TTL_MS = 60_000; // same as the OpenSea NFT quote — see that route's comment
 
@@ -205,6 +212,6 @@ export async function POST(req: Request) {
         { status: 400 },
       );
     }
-    return NextResponse.json({ error: (err as Error).message }, { status: 502 });
+    return safeErrorResponse("nft/purchase/sui/quote", err, 502);
   }
 }

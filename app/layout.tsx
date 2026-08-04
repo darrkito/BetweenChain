@@ -1,5 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
 import { Providers } from "./providers";
 
@@ -87,6 +89,16 @@ export default function RootLayout({
       </head>
       <body className="min-h-full flex flex-col">
         <Providers>{children}</Providers>
+        {/* 2026-08-04 (reliability/observability pass) — this app had zero
+            real-user visibility before this: no error tracking, no
+            performance monitoring, console.log/warn only. These two are
+            Vercel-native (tied to the existing project, no new account/DSN
+            needed) and give real Core Web Vitals + traffic visibility.
+            Dedicated error tracking (e.g. Sentry) still needs its own
+            account — flagged as a follow-up, not something addable without
+            the user creating one. */}
+        <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   );

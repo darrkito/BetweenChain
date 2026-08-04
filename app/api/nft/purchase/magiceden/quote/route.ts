@@ -9,6 +9,13 @@ import { isPlausibleEvmAddress } from "@/lib/validation";
 import { EVM_CHAINS } from "@/lib/nft/evmChains";
 import { rateLimit, clientKey } from "@/lib/rate-limit";
 import type { NftListing } from "@/lib/nft/types";
+import { safeErrorResponse } from "@/lib/apiError";
+
+// External-call budget for this route -- prevents Vercel's platform-level
+// function timeout from killing the request with an empty/non-JSON body
+// before our own error handling gets a chance to run (see
+// lib/fetchWithTimeout.ts's doc comment for the failure mode this closes).
+export const maxDuration = 20;
 
 const QUOTE_TTL_MS = 60_000; // same as every other NFT purchase quote — see app/api/nft/purchase/quote/route.ts
 
@@ -168,6 +175,6 @@ export async function POST(req: Request) {
       originCurrencySymbol,
     });
   } catch (err) {
-    return NextResponse.json({ error: (err as Error).message }, { status: 502 });
+    return safeErrorResponse("nft/purchase/magiceden/quote", err, 502);
   }
 }

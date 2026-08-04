@@ -26,6 +26,8 @@
     "@tradeport/sui-trading-sdk": "^0.7.2",
     "@upstash/ratelimit": "^2.0.8",
     "@upstash/redis": "^1.38.0",
+    "@vercel/analytics": "^2.0.1",
+    "@vercel/speed-insights": "^2.0.0",
     "bs58": "^6.0.0",
     "jsonwebtoken": "^9.0.3",
     "next": "^16.3.0",

@@ -7,6 +7,12 @@ import { getRelayQuote, SOLANA_CHAIN_ID, RELAY_NATIVE_SOL_SENTINEL } from "@/lib
 import { isPlausibleEvmAddress } from "@/lib/validation";
 import { rateLimit, clientKey } from "@/lib/rate-limit";
 
+// External-call budget for this route -- prevents Vercel's platform-level
+// function timeout from killing the request with an empty/non-JSON body
+// before our own error handling gets a chance to run (see
+// lib/fetchWithTimeout.ts's doc comment for the failure mode this closes).
+export const maxDuration = 20;
+
 const QUOTE_TTL_MS = 30_000; // matches Jupiter's own quote validity window
 
 const bodySchema = z.object({
