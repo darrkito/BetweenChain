@@ -9,8 +9,8 @@ const CHALLENGE_TTL_MS = 5 * 60 * 1000; // 5 minutes to sign, same as SIWS
 export function buildEvmChallengeMessage(nonce: string, address: string, standalone: boolean): string {
   return [
     standalone
-      ? "ChainBreak wants you to sign in with your Ethereum account:"
-      : "ChainBreak wants you to link this Ethereum account:",
+      ? "Blockchains.Click wants you to sign in with your Ethereum account:"
+      : "Blockchains.Click wants you to link this Ethereum account:",
     address,
     "",
     "This request will not trigger a blockchain transaction or cost any gas.",

@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
+import { proxiedImageUrl } from "@/lib/client/imageProxy";
 
 // Alternate public IPFS gateways to retry a CID against before giving up —
 // added 2026-08-04 after a real live investigation (user-reported: Okay
@@ -88,10 +90,17 @@ export function NftImage({
   return (
     <div className={`relative overflow-hidden bg-surface-hover ${className ?? ""}`}>
       {!loaded && <div className="absolute inset-0 animate-pulse bg-accent-soft" />}
-      {/* eslint-disable-next-line @next/next/no-img-element -- external, unbounded set of NFT media hosts (IPFS gateways, marketplace CDNs) */}
-      <img
-        src={effectiveSrc}
+      {/* Routed through /api/img (2026-08-04) — effectiveSrc is a genuinely
+          unbounded third-party host (IPFS gateways, marketplace CDNs), so
+          next/image can't point at it directly. `fill` fits here since the
+          caller controls actual size entirely via `className` on the parent
+          (which is already `relative` + sized above), never a fixed
+          width/height passed to this component. */}
+      <Image
+        src={proxiedImageUrl(effectiveSrc)}
         alt={alt}
+        fill
+        sizes="(max-width: 640px) 33vw, 220px"
         onError={() => {
           if (ipfsRef && gatewayAttempt < IPFS_GATEWAYS.length) {
             setGatewayAttempt((n) => n + 1);
@@ -103,7 +112,7 @@ export function NftImage({
           }
         }}
         onLoad={() => setLoaded(true)}
-        className={`h-full w-full object-cover transition-opacity duration-300 ${loaded ? "opacity-100" : "opacity-0"}`}
+        className={`object-cover transition-opacity duration-300 ${loaded ? "opacity-100" : "opacity-0"}`}
       />
     </div>
   );

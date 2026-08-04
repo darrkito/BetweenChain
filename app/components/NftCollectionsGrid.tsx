@@ -2,9 +2,11 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { NftImage } from "@/app/components/NftImage";
 import { TRADEPORT_FEE_SAFETY_MARGIN } from "@/lib/nft/tradeportFee";
 import { roundUpTo2Decimals } from "@/lib/client/amount";
+import { proxiedImageUrl } from "@/lib/client/imageProxy";
 import type { NftCollection } from "@/lib/nft/types";
 
 type SortKey = "volume" | "floor";
@@ -121,16 +123,24 @@ export function NftCollectionsGrid({ collections }: { collections: NftCollection
             >
               <div className="relative h-16 w-full overflow-hidden bg-accent-soft">
                 {c.bannerImageUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element -- external, unbounded set of NFT media hosts
-                  <img
-                    src={c.bannerImageUrl}
+                  // Routed through /api/img (2026-08-04) — see lib/client/imageProxy.ts
+                  <Image
+                    src={proxiedImageUrl(c.bannerImageUrl)}
                     alt=""
                     aria-hidden="true"
-                    className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                    fill
+                    sizes="(max-width: 640px) 50vw, 25vw"
+                    className="object-cover transition-transform duration-300 group-hover:scale-105"
                   />
                 ) : c.imageUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element -- external, unbounded set of NFT media hosts
-                  <img src={c.imageUrl} alt="" aria-hidden="true" className="h-full w-full scale-125 object-cover blur-lg" />
+                  <Image
+                    src={proxiedImageUrl(c.imageUrl)}
+                    alt=""
+                    aria-hidden="true"
+                    fill
+                    sizes="(max-width: 640px) 50vw, 25vw"
+                    className="scale-125 object-cover blur-lg"
+                  />
                 ) : null}
                 <div className="absolute inset-0 bg-gradient-to-t from-surface/80 via-transparent to-transparent" />
                 <span className="absolute left-2 top-2 rounded-full bg-black/40 px-1.5 py-0.5 text-[10px] font-semibold text-white backdrop-blur-sm">

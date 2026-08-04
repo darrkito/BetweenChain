@@ -38,7 +38,7 @@ export function SuiWalletProvider({ children }: { children: React.ReactNode }) {
             reconnect attempt on page load can hang forever if the wallet has
             no trusted prior session for this origin, making a real click
             look like a no-op. Manual connect only, every time. */}
-        <MystenWalletProvider autoConnect={false} slushWallet={{ name: "ChainBreak" }}>
+        <MystenWalletProvider autoConnect={false} slushWallet={{ name: "Blockchains.Click" }}>
           {children}
         </MystenWalletProvider>
       </SuiClientProvider>

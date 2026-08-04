@@ -1,11 +1,16 @@
+<!-- Rebrand 2026-08-04 (ChainBreak to Blockchains.Click): three chain nodes
+     converging into one accent dot, all the blockchains in one click,
+     replaces the old crossing-arrows swap motif. Mirrors the header wordmark
+     icon in app/components/AppHeader.tsx; keep both in sync if this changes.
+     Background/accent purple (#5b4fe8) kept for continuity. -->
 <svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
   <rect width="512" height="512" rx="112" fill="#5b4fe8"/>
   <g transform="translate(256 256)">
-    <path d="M-116 -32 L-32 -116 M-116 -32 L256 -32 M-116 -32 L-32 52"
-          stroke="#ffffff" stroke-width="34" stroke-linecap="round" stroke-linejoin="round" fill="none"
-          transform="translate(-6 -6)"/>
-    <path d="M116 32 L32 116 M116 32 L-140 32 M116 32 L32 -52"
-          stroke="#ffffff" stroke-width="34" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity="0.55"
-          transform="translate(6 6)"/>
+    <circle cx="-108" cy="-108" r="30" fill="#ffffff" opacity="0.55"/>
+    <circle cx="108" cy="-108" r="30" fill="#ffffff" opacity="0.55"/>
+    <circle cx="-108" cy="108" r="30" fill="#ffffff" opacity="0.55"/>
+    <path d="M-108 -108 0 0 M108 -108 0 0 M-108 108 0 0"
+          stroke="#ffffff" stroke-width="20" stroke-linecap="round" opacity="0.55" fill="none"/>
+    <circle cx="0" cy="0" r="72" fill="#ffffff"/>
   </g>
 </svg>

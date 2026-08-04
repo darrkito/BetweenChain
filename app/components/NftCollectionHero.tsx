@@ -1,4 +1,6 @@
+import Image from "next/image";
 import { NftImage } from "@/app/components/NftImage";
+import { proxiedImageUrl } from "@/lib/client/imageProxy";
 import type { NftCollection } from "@/lib/nft/types";
 
 /**
@@ -18,12 +20,14 @@ export function NftCollectionHero({ collection }: { collection: NftCollection })
     <div className="flex flex-col">
       <div className="relative h-32 w-full overflow-hidden rounded-2xl border border-hairline bg-surface sm:h-48">
         {bannerSrc ? (
-          // eslint-disable-next-line @next/next/no-img-element -- external, unbounded set of NFT media hosts
-          <img
-            src={bannerSrc}
+          // Routed through /api/img (2026-08-04) — see lib/client/imageProxy.ts
+          <Image
+            src={proxiedImageUrl(bannerSrc)}
             alt=""
             aria-hidden="true"
-            className={`h-full w-full object-cover ${collection.bannerImageUrl ? "" : "scale-125 blur-2xl"}`}
+            fill
+            sizes="(max-width: 640px) 100vw, 768px"
+            className={`object-cover ${collection.bannerImageUrl ? "" : "scale-125 blur-2xl"}`}
           />
         ) : (
           <div className="h-full w-full bg-gradient-to-br from-accent-soft via-surface to-accent-soft" />

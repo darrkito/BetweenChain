@@ -1,7 +1,7 @@
 {
-  "name": "ChainBreak",
-  "short_name": "ChainBreak",
-  "description": "Swap meme coins across chains, starting from Solana.",
+  "name": "Blockchains.Click",
+  "short_name": "B.Click",
+  "description": "All the blockchains, in just one click. Swap meme coins across chains, starting from Solana.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#f5f3fc",

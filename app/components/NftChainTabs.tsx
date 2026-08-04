@@ -1,15 +1,16 @@
+import Image from "next/image";
 import Link from "next/link";
 import { NFT_CHAIN_FAMILIES } from "@/lib/nft/labels";
 import type { NftChainFamily } from "@/lib/nft/types";
 
 // alt="" deliberately — decorative, the chain name text always sits right
 // next to this mark, so a screen reader announcing it too would be noise.
+// next/image (2026-08-04) — both real sources here (Relay + CoinGecko, see
+// next.config.ts's remotePatterns) are fixed/bounded, unlike TokenIcon/
+// NftImage's genuinely unbounded per-token/per-collection hosts.
 function ChainMark({ iconUrl }: { iconUrl: string | null }) {
   if (iconUrl) {
-    return (
-      // eslint-disable-next-line @next/next/no-img-element -- external chain-logo host (assets.relay.link), same pattern as TokenIcon/NftImage
-      <img src={iconUrl} alt="" width={16} height={16} className="h-4 w-4 shrink-0 rounded-full" />
-    );
+    return <Image src={iconUrl} alt="" width={16} height={16} className="h-4 w-4 shrink-0 rounded-full" />;
   }
   // No real logo source for this chain yet (see lib/nft/labels.ts) — a plain
   // glyph rather than guessing at an external logo URL.

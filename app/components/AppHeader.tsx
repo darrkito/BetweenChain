@@ -42,33 +42,43 @@ export function AppHeader() {
     <header className="flex flex-wrap items-center justify-between gap-x-2 gap-y-2 rounded-2xl border border-hairline bg-surface/90 p-2.5 pl-3 shadow-sm backdrop-blur sm:gap-x-3">
       <div className="flex min-w-0 items-center gap-2 sm:gap-5">
         <Link href="/" className="flex shrink-0 items-center gap-2">
+          {/* Rebrand 2026-08-04 (ChainBreak → Blockchains.Click, new
+              blockchains.click domain). New icon concept: three small chain
+              nodes converging into one point — "all the blockchains, in one
+              click" — replaces the old crossing-arrows "break/swap" motif,
+              which read as this app's prior swap-focused identity rather
+              than the broader multi-chain-in-one-click positioning. Same
+              accent purple (`var(--accent)`) kept for continuity with the
+              rest of the design system (see STATE.md 2026-07-20g). */}
           <svg width="26" height="26" viewBox="0 0 26 26" fill="none" aria-hidden="true" className="shrink-0">
+            <circle cx="6" cy="6" r="2.4" fill="var(--ink-faint)" />
+            <circle cx="20" cy="6" r="2.4" fill="var(--ink-faint)" />
+            <circle cx="6" cy="20" r="2.4" fill="var(--ink-faint)" />
             <path
-              d="M6 10.5 10.5 6M6 10.5h13M6 10.5l4.5 4.5"
-              stroke="var(--accent)"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-            <path
-              d="M20 15.5 15.5 20M20 15.5H7M20 15.5l-4.5-4.5"
+              d="M6 6 13 13M20 6 13 13M6 20 13 13"
               stroke="var(--ink-faint)"
-              strokeWidth="2"
+              strokeWidth="1.6"
               strokeLinecap="round"
-              strokeLinejoin="round"
+              opacity="0.6"
             />
+            <circle cx="13" cy="13" r="4.2" fill="var(--accent)" />
           </svg>
-          {/* Full wordmark on wider screens; below `sm` (real risk: logo +
-              nav + "Wallets connected" all crowding a ~360px viewport at
-              once) it shrinks to just the initials so the nav links and
+          {/* Full wordmark + tagline on wider screens; below `sm` (real risk:
+              logo + nav + "Wallets connected" all crowding a ~360px viewport
+              at once) it shrinks to just the initials so the nav links and
               wallet button always have room. `whitespace-nowrap` on both —
               see the header-level comment above for the real bug this
               closes (text wrapping mid-word inside a squeezed flex item). */}
-          <span className="hidden whitespace-nowrap text-[15px] font-semibold tracking-tight text-ink sm:inline">
-            Chain<span className="text-accent">Break</span>
+          <span className="hidden flex-col sm:flex">
+            <span className="whitespace-nowrap text-[15px] font-semibold tracking-tight text-ink">
+              Blockchains<span className="text-accent">.Click</span>
+            </span>
+            <span className="hidden whitespace-nowrap text-[11px] font-medium leading-tight text-ink-faint lg:block">
+              All the blockchains, in just one click
+            </span>
           </span>
           <span className="whitespace-nowrap text-[15px] font-semibold tracking-tight text-ink sm:hidden">
-            C<span className="text-accent">B</span>
+            B<span className="text-accent">C</span>
           </span>
         </Link>
         <nav className="flex shrink-0 items-center gap-1">

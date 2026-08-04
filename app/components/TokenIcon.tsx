@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
+import { proxiedImageUrl } from "@/lib/client/imageProxy";
 
 const PALETTE = ["#4B3AF0", "#7C6BFB", "#2FB6A3", "#F0824B", "#E0568C", "#3A8DE0"];
 
@@ -35,9 +37,12 @@ function Circle({
   }
 
   return (
-    // eslint-disable-next-line @next/next/no-img-element -- external, unbounded set of token/chain logo hosts
-    <img
-      src={src}
+    // Routed through /api/img (2026-08-04) — src is a genuinely unbounded
+    // third-party host (any token's own logoURI), so next/image can't point
+    // at it directly without every such host allowlisted. See
+    // lib/client/imageProxy.ts.
+    <Image
+      src={proxiedImageUrl(src)}
       alt={fallbackLetter}
       width={size}
       height={size}

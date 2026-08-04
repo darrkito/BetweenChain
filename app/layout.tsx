@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "ChainBreak",
-  description: "Swap meme coins across chains, starting from Solana.",
+  title: "Blockchains.Click",
+  description: "All the blockchains, in just one click. Swap meme coins across chains, starting from Solana.",
   manifest: "/manifest.json",
   // apple-icon.png / icon.svg are picked up automatically from app/ by
   // Next.js's file-based icon convention — no explicit `icons` entry needed

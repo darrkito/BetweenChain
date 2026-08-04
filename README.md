@@ -1,6 +1,6 @@
-# ChainBreak
+# Blockchains.Click
 
-Cross-chain meme coin swap dApp: Solana-first, using **Jupiter** (SPL → SOL) and
+All the blockchains, in just one click. Cross-chain meme coin swap dApp: Solana-first, using **Jupiter** (SPL → SOL) and
 **Relay.link** (SOL → any other chain/token) as the swap/bridge legs. Sign-In with
 Solana for auth, points + referral system, Supabase/Postgres backend. Runs against
 **Solana mainnet** — this is not a devnet/testnet build.

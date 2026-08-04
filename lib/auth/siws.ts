@@ -11,7 +11,7 @@ const SESSION_TTL_SECONDS = 60 * 60 * 24 * 7; // 7 day session
 
 export function buildChallengeMessage(nonce: string, pubkey: string): string {
   return [
-    "ChainBreak wants you to sign in with your Solana account:",
+    "Blockchains.Click wants you to sign in with your Solana account:",
     pubkey,
     "",
     "This request will not trigger a blockchain transaction or cost any gas.",

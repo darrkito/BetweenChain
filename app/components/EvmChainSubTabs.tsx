@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { EVM_CHAINS } from "@/lib/nft/evmChains";
 
@@ -27,8 +28,8 @@ export function EvmChainSubTabs({ active }: { active: string }) {
                 : "border-hairline text-ink-muted hover:bg-surface-hover hover:text-ink"
             }`}
           >
-            {/* eslint-disable-next-line @next/next/no-img-element -- Relay's hosted chain icon assets, same source used site-wide */}
-            <img src={c.iconUrl} alt="" width={14} height={14} className="h-3.5 w-3.5 shrink-0 rounded-full" />
+            {/* next/image (2026-08-04) — all EVM_CHAINS icons are Relay-hosted, a fixed/bounded host (next.config.ts's remotePatterns) */}
+            <Image src={c.iconUrl} alt="" width={14} height={14} className="h-3.5 w-3.5 shrink-0 rounded-full" />
             {c.label}
           </Link>
         );

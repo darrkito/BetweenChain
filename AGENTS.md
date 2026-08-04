@@ -8,9 +8,9 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 <!-- END:nextjs-agent-rules -->
 
-# ChainBreak
+# Blockchains.Click
 
-Cross-chain meme coin swap dApp, Relay.link-style UI. **Jupiter** converts SPL tokens to
+All the blockchains, in just one click. Cross-chain meme coin swap dApp, Relay.link-style UI. **Jupiter** converts SPL tokens to
 native SOL (Solana leg only); **Relay.link** bridges from *any* chain to *any* chain
 directly — Solana included, but no longer required as either endpoint. Sign-In with
 Solana for auth (mandatory for every user, regardless of which chain they trade from),

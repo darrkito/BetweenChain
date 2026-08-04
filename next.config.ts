@@ -4,6 +4,37 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: __dirname,
   },
+  // 2026-08-04 — next/image requires every remote host allowlisted up front.
+  // Only Relay's own hosted chain-icon assets (a single fixed host, used by
+  // EvmChainSubTabs/NftChainTabs) qualify for this. Token logos and NFT
+  // media (TokenIcon, NftImage, NftCollectionHero, NftCollectionsGrid) come
+  // from a genuinely unbounded set of third-party hosts (IPFS gateways,
+  // arbitrary marketplace CDNs, whatever URL a token/collection creator set)
+  // — those correctly stay as plain `<img>` (see each component's own
+  // eslint-disable comment) rather than either a brittle allowlist that
+  // breaks on every new host, or a wildcard hostname pattern that would let
+  // Vercel's Image Optimization API fetch/proxy literally any URL.
+  images: {
+    remotePatterns: [
+      { protocol: "https", hostname: "assets.relay.link" },
+      // Sui's chain-icon (lib/nft/labels.ts's SUI_ICON_URL) — the one
+      // exception to "chain icons are all Relay-hosted," a single fixed
+      // CoinGecko coin-image URL, not an unbounded per-token/per-collection
+      // source like TokenIcon/NftImage.
+      { protocol: "https", hostname: "coin-images.coingecko.com" },
+    ],
+    // 2026-08-04 — next/image also allowlists LOCAL (same-origin) image
+    // paths, separate from remotePatterns above. Its default local pattern
+    // only matches an empty query string (`search: ''`), which silently
+    // rejects /api/img?url=... (real error: `"url" parameter is not
+    // allowed`, easy to misdiagnose as the SSRF-guard error below since
+    // both share that exact message text). Omitting `search` here skips
+    // that exact-match check entirely — safe because app/api/img/route.ts
+    // is the only local path that ever needs an arbitrary query value, and
+    // it independently validates/blocks the actual `url` value itself
+    // (private IPs, protocol, redirects, content-type — see that file).
+    localPatterns: [{ pathname: "/api/img" }],
+  },
   // Dev server is also opened from other devices on the LAN (e.g.
   // http://192.168.100.200:3000) — without this, Next blocks the HMR
   // websocket for any non-localhost origin ("Blocked cross-origin request to

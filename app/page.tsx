@@ -308,10 +308,18 @@ export default function SwapPage() {
   }
 
   return (
-    <main className="mx-auto flex w-full max-w-lg flex-col gap-4 p-6">
+    // AppHeader lives in this wider (`max-w-5xl`) outer container, matching
+    // the NFT page's width — before this it shared the narrow `max-w-lg`
+    // swap-widget column below, which made the same header component read
+    // visibly smaller/more cramped here than on /nft. The swap widget itself
+    // stays intentionally narrow (single-column DEX-style card), just
+    // centered inside the wider row now instead of constraining the header
+    // too.
+    <main className="mx-auto flex w-full max-w-5xl flex-col gap-4 p-6">
       <AppHeader />
 
-      <TrendingBar chainId={SOLANA_CHAIN_ID_CLIENT} />
+      <div className="mx-auto flex w-full max-w-lg flex-col gap-4">
+        <TrendingBar chainId={SOLANA_CHAIN_ID_CLIENT} />
 
       <SwapPanel
         sellToken={sellToken}
@@ -363,6 +371,7 @@ export default function SwapPage() {
         View points &amp; referrals
         <span aria-hidden="true">→</span>
       </Link>
+      </div>
 
       {/*
         Real gap fixed 2026-08-03: clicking "Swap" used to go straight from
