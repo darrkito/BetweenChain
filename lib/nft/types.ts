@@ -34,8 +34,15 @@ export interface NftCollection {
   // total-count field, only a page + cursor). Never fabricate a missing
   // field — leave it undefined and let the UI render "—" rather than guess.
   totalSupply?: number;
-  volume24hr?: string; // formatted; OpenSea only (stats `intervals[one_day]`)
+  volume24hr?: string; // formatted; OpenSea = true 24h (stats `intervals[one_day]`), Magic Eden = 7d (see volumePeriodDays)
   volume24hrCurrency?: string;
+  // Present (and !== 1) only for Magic Eden, whose cheap per-collection
+  // /stats endpoint exposes a 7-day volume figure, not a 24h one (confirmed
+  // live 2026-08-04 — no 1d window available on that endpoint without an
+  // extra call to a different, search-only host). Absent/1 means the value
+  // in volume24hr is a genuine 24h figure — the UI must label the stat
+  // accordingly rather than always saying "24hr Volume".
+  volumePeriodDays?: number;
   numOwners?: number; // OpenSea only (stats `total.num_owners`)
   // Tradeport only, computed (not returned directly by any field): derived from
   // collection_floors(period: days_1) vs the current floor — see

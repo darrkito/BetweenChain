@@ -270,7 +270,11 @@ async function enrichCollection(
 // caches the Tradeport response (including whatever CDN/Walrus/IPFS link it
 // contains) in memory, so a repeat page view serves the same real link
 // without a new upstream call.
-const TRADEPORT_COLLECTIONS_TTL_MS = 5 * 60_000;
+// 2026-08-04: raised 5min -> 15min, same reasoning as the identical OpenSea/
+// Magic Eden change this same pass — collection metadata/floor/volume all
+// change slowly, buy flow re-verifies freshness independently at execute
+// time, so this is a pure API-hit reduction with no real staleness cost.
+const TRADEPORT_COLLECTIONS_TTL_MS = 15 * 60_000;
 
 type TradeportCollectionRow = { id: string; slug: string; title: string; cover_url?: string; floor?: number; supply?: number };
 

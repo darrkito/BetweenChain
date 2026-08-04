@@ -6,7 +6,13 @@ import { mapWithConcurrency } from "@/lib/concurrency";
 import type { NftCollection, NftListing } from "@/lib/nft/types";
 
 const OPENSEA_API = "https://api.opensea.io/api/v2";
-const COLLECTIONS_TTL_MS = 5 * 60_000;
+// 2026-08-04 (reliability pass) — raised 5min -> 15min, same reasoning as
+// lib/nft/magiceden.ts's identical change: name/description/image/floor/
+// volume/totalSupply all change slowly, and the buy flow always re-verifies
+// a listing immediately before execution regardless of this cache — so a
+// display-only figure being up to 15min stale costs nothing real, while
+// meaningfully cutting how often this hits OpenSea's 60-reads/min key.
+const COLLECTIONS_TTL_MS = 15 * 60_000;
 
 // Header name confirmed live 2026-07-20: an unset/wrong key returns "Invalid
 // API key" (401), a fully missing header returns "Missing an API Key" (401).

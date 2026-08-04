@@ -9,7 +9,16 @@ const MAGICEDEN_API = "https://api-mainnet.magiceden.dev/v2";
 // "Popular collections" ranking. See browseMagicEdenCollections below for
 // why the documented v2 /collections endpoint can't be used for this.
 const MAGICEDEN_STATS_API = "https://stats-mainnet.magiceden.io";
-const COLLECTIONS_TTL_MS = 5 * 60_000;
+// 2026-08-04 (reliability pass) — raised 5min -> 15min. Name/description/
+// image/floor/volume/listedCount all change slowly enough that showing them
+// up to 15min stale is a non-issue (the buy flow always re-verifies a
+// listing is still live immediately before execution — this cache only ever
+// affects DISPLAY freshness, never what a purchase actually executes
+// against). The real payoff is fewer upstream calls hitting Magic Eden's
+// tight, apparently key-agnostic ~120 QPM/2 QPS limit (see
+// getMagicEdenCollection's doc comment) — directly cuts how often the
+// collection header 503s with "temporarily busy".
+const COLLECTIONS_TTL_MS = 15 * 60_000;
 
 // Only strictly required for the buy-instruction endpoints (see
 // getMagicEdenBuyInstructions below) — collection browse/listings/stats
@@ -29,17 +38,27 @@ function magicEdenHeaders(): HeadersInit | undefined {
 /**
  * ME's public rate limit (120 QPM/2 QPS, see above) resets on a rolling
  * per-minute window — a request that lands right at the edge of someone
- * else's burst has a good chance of succeeding a moment later, so a single
- * short-backoff retry meaningfully cuts user-visible 429s without masking a
- * sustained outage (only ever retries once; a second 429 still surfaces as a
- * real error). Real bug found live 2026-08-03: opening a collection page
- * would hard-fail on a transient 429 with no retry at all.
+ * else's burst has a good chance of succeeding a moment later. Real bug
+ * found live 2026-08-03: opening a collection page would hard-fail on a
+ * transient 429 with no retry at all; fixed with a single 800ms retry.
+ *
+ * 2026-08-04 (reliability pass, user report: header still 503s "temporarily
+ * busy" too often) — one retry wasn't enough headroom during a sustained
+ * burst. Now up to 2 retries (3 attempts total) with increasing backoff
+ * (800ms, 1600ms) — gives a slow-clearing rate-limit window more real time
+ * to reset before giving up. Worst case ~26s (3 * 8s fetchWithTimeout budget
+ * + 2.4s backoff) — callers of this must set `maxDuration` accordingly (see
+ * app/api/nft/collection/route.ts, bumped 20 -> 30 alongside this change) so
+ * Vercel's platform timeout never fires before this loop's own give-up does.
  */
-async function fetchMagicEden(url: string | URL, retryDelayMs = 800): Promise<Response> {
-  const res = await fetchWithTimeout(url, { headers: magicEdenHeaders(), cache: "no-store" });
-  if (res.status !== 429) return res;
-  await new Promise((resolve) => setTimeout(resolve, retryDelayMs));
-  return fetchWithTimeout(url, { headers: magicEdenHeaders(), cache: "no-store" });
+async function fetchMagicEden(url: string | URL, backoffScheduleMs: number[] = [800, 1600]): Promise<Response> {
+  let res = await fetchWithTimeout(url, { headers: magicEdenHeaders(), cache: "no-store" });
+  for (const delayMs of backoffScheduleMs) {
+    if (res.status !== 429) return res;
+    await new Promise((resolve) => setTimeout(resolve, delayMs));
+    res = await fetchWithTimeout(url, { headers: magicEdenHeaders(), cache: "no-store" });
+  }
+  return res;
 }
 
 interface RawMagicEdenCollection {
@@ -53,6 +72,12 @@ interface RawMagicEdenStats {
   symbol: string;
   floorPrice?: number; // lamports
   listedCount?: number;
+  // Both confirmed live 2026-08-04 (curl against a real symbol) — previously
+  // unused. No 24h volume field exists on this endpoint, only 7d; there is
+  // no extra call cost to capture these, they're already in the same
+  // response we fetch for floorPrice/listedCount.
+  volume7d?: number; // lamports
+  avgPrice24hr?: number; // lamports
 }
 
 // Shape of stats-mainnet.magiceden.io's collection_stats/search response —
@@ -220,6 +245,8 @@ export interface MagicEdenCollectionStats {
   listedCount?: number;
   floorPrice?: string;
   floorPriceCurrency?: string;
+  volume7d?: string;
+  volume7dCurrency?: string;
 }
 
 /** See getMagicEdenCollection's doc comment above for why this is separate. */
@@ -232,6 +259,8 @@ export async function getMagicEdenCollectionStats(symbol: string): Promise<Magic
       listedCount: stats.listedCount,
       floorPrice: stats.floorPrice != null ? (stats.floorPrice / 1e9).toString() : undefined,
       floorPriceCurrency: "SOL",
+      volume7d: stats.volume7d != null ? (stats.volume7d / 1e9).toString() : undefined,
+      volume7dCurrency: "SOL",
     };
   });
 }

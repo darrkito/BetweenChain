@@ -20,6 +20,12 @@ export interface ListedCountInfo {
   loading: boolean;
   floorPrice?: string;
   floorPriceCurrency?: string;
+  // Magic Eden only (see app/api/nft/listed-count/route.ts) — its
+  // per-collection endpoint exposes 7d volume, not 24h, at zero extra call
+  // cost since it's already in the same response used for floor/listedCount.
+  volume?: string;
+  volumeCurrency?: string;
+  volumePeriodDays?: number;
 }
 
 export interface TotalSupplyInfo {
@@ -103,6 +109,15 @@ export function NftCollectionStats({
         ? Number(floorPrice).toFixed(2)
         : null;
 
+  // listedCountInfo.volume (Magic Eden, 7d) takes priority when present,
+  // same override pattern as floorPrice above — collection.volume24hr is
+  // OpenSea's true 24h figure, sourced directly on the collection object
+  // instead since OpenSea doesn't need a deferred second call for it.
+  const volumeValue = listedCountInfo?.volume ?? collection.volume24hr;
+  const volumeCurrency = listedCountInfo?.volumeCurrency ?? collection.volume24hrCurrency;
+  const volumePeriodDays = listedCountInfo?.volumePeriodDays ?? collection.volumePeriodDays ?? 1;
+  const volumeLabel = volumePeriodDays === 1 ? "24hr Volume" : `${volumePeriodDays}d Volume`;
+
   return (
     <div className="flex flex-wrap gap-1.5 overflow-x-auto rounded-2xl border border-hairline bg-surface p-2 shadow-sm sm:flex-nowrap">
       <Stat
@@ -123,8 +138,8 @@ export function NftCollectionStats({
         emphasize
       />
       <Stat
-        label="24hr Volume"
-        value={collection.volume24hr != null ? `${Number(collection.volume24hr).toFixed(2)} ${collection.volume24hrCurrency ?? ""}` : "—"}
+        label={volumeLabel}
+        value={volumeValue != null ? `${Number(volumeValue).toFixed(2)} ${volumeCurrency ?? ""}` : "—"}
       />
       <Stat
         label="Listed / Total"

@@ -50,6 +50,10 @@ export async function GET(req: Request) {
         approximate: false,
         floorPrice: stats.floorPrice,
         floorPriceCurrency: stats.floorPriceCurrency,
+        // 7d, not 24h — see lib/nft/magiceden.ts's RawMagicEdenStats comment.
+        volume: stats.volume7d,
+        volumeCurrency: stats.volume7dCurrency,
+        volumePeriodDays: 7,
       });
     }
     // Same CryptoPunks-only on-chain fallback as /api/nft/listings — see

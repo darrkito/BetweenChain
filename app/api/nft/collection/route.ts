@@ -8,7 +8,10 @@ import { safeErrorResponse } from "@/lib/apiError";
 // function timeout from killing the request with an empty/non-JSON body
 // before our own error handling gets a chance to run (see
 // lib/fetchWithTimeout.ts's doc comment for the failure mode this closes).
-export const maxDuration = 20;
+// 2026-08-04: bumped 20 -> 30 alongside lib/nft/magiceden.ts's fetchMagicEden
+// retry change (now up to 3 attempts, worst case ~26s) so the platform
+// timeout never fires before that retry loop's own give-up does.
+export const maxDuration = 30;
 
 // Single-collection detail, powers the collection page header. `vendor` and
 // `slug` come from the collection card the user clicked (see
