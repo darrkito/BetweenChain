@@ -78,6 +78,26 @@ interface RawMagicEdenCollection {
   name: string;
   description?: string;
   image?: string;
+  // 2026-08-04 (docs-driven change) — Magic Eden's own docs
+  // (docs.magiceden.io/reference/get_collections) claim these fields are
+  // present on the base collection object, which would let this single call
+  // replace the separate getMagicEdenCollectionStats call entirely. This
+  // directly CONTRADICTS an earlier live test the same day (see
+  // getMagicEdenCollection's doc comment below) that found them absent on
+  // this exact endpoint — ME's docs have already proven wrong once in this
+  // same investigation (claimed `volumeAll`, live reality is `volume7d`,
+  // see RawMagicEdenStats). Deliberately coded defensively: all optional,
+  // toNftCollection below only uses them when actually present, and
+  // getMagicEdenCollectionStats/the listed-count route stay as a fallback
+  // for whichever ends up true live. Accept either volume field name since
+  // we don't know which this endpoint actually returns without a live test
+  // that wasn't possible to run in the same session this was written
+  // (sustained rate-limit — see fetchMagicEden's doc comment).
+  floorPrice?: number; // lamports
+  listedCount?: number;
+  volume7d?: number; // lamports
+  volumeAll?: number; // lamports — docs' claimed name, likely wrong per volume7d precedent
+  avgPrice24hr?: number; // lamports
 }
 
 interface RawMagicEdenStats {
@@ -142,10 +162,17 @@ interface RawMagicEdenListing {
   token?: { name?: string; image?: string; attributes?: Array<{ trait_type: string; value: string }> };
 }
 
-// floorPrice/listedCount deliberately absent here — those come from the
-// separate, deferred getMagicEdenCollectionStats above (see
-// getMagicEdenCollection's doc comment for why they were split apart).
+// floorPrice/listedCount/volume are populated here ONLY when the base
+// endpoint actually returns them (see RawMagicEdenCollection's comment on
+// why this is uncertain) — if absent, these stay undefined and the caller
+// (app/nft/[vendor]/[slug]/page.tsx's listedCountInfo effect) falls back to
+// the separate getMagicEdenCollectionStats call, same as before this change.
 function toNftCollection(c: RawMagicEdenCollection): NftCollection {
+  // Only c.volume7d is trusted for display — its unit/period is already
+  // live-confirmed (see RawMagicEdenStats). c.volumeAll (the docs' claimed
+  // field, unverified) is deliberately NOT surfaced here: an all-time figure
+  // mislabeled "7d Volume" would be a worse bug than just showing "—" until
+  // this can be live-verified.
   return {
     vendor: "magiceden",
     chainFamily: "solana",
@@ -153,6 +180,12 @@ function toNftCollection(c: RawMagicEdenCollection): NftCollection {
     name: c.name,
     description: c.description ?? "",
     imageUrl: c.image ?? "",
+    floorPrice: c.floorPrice != null ? (c.floorPrice / 1e9).toString() : undefined,
+    floorPriceCurrency: c.floorPrice != null ? "SOL" : undefined,
+    listedCount: c.listedCount,
+    volume24hr: c.volume7d != null ? (c.volume7d / 1e9).toString() : undefined,
+    volume24hrCurrency: c.volume7d != null ? "SOL" : undefined,
+    volumePeriodDays: c.volume7d != null ? 7 : undefined,
   };
 }
 
@@ -230,13 +263,23 @@ export async function browseMagicEdenCollections(limit = 20): Promise<NftCollect
  * assume it does NOT for this endpoint) is tight enough that doubling the
  * per-page-load request count measurably doubles how often the header
  * specifically gets rate-limited compared to listings, for the exact same
- * user action. Now: this only fetches the base collection (name/
- * description/image) — ONE call, same footprint as listings. floorPrice/
- * listedCount are fetched separately via getMagicEdenCollectionStats below,
- * deferred and non-blocking (see app/api/nft/listed-count/route.ts and the
- * NFT collection page's listedCountInfo effect) — same pattern already used
- * for OpenSea's listed count and this exact vendor's own total-supply gap
- * (lib/chains/heliusDas.ts).
+ * user action. This only fetches the base collection (name/description/
+ * image) — ONE call, same footprint as listings. floorPrice/listedCount
+ * used to always require a separate, deferred getMagicEdenCollectionStats
+ * call for that same live-tested reason.
+ *
+ * 2026-08-04 (SAME DAY, docs-driven change — unresolved conflict, see
+ * RawMagicEdenCollection's comment): Magic Eden's docs claim this base
+ * endpoint DOES include floorPrice/listedCount/volume, contradicting the
+ * live test above from earlier the same day. Rather than trust either
+ * source blindly, toNftCollection now opportunistically reads these fields
+ * IF present on this response. The listed-count route/listedCountInfo
+ * effect (app/nft/[vendor]/[slug]/page.tsx) still exists as a fallback and
+ * only fires when this call's collection object comes back without
+ * listedCount — so this is safe either way the doc-vs-live conflict
+ * resolves: if the docs are right, this collapses 2 calls into 1 (halving
+ * Magic Eden's per-page-load request count); if the earlier live test was
+ * right, nothing changes, the fallback just always fires like before.
  */
 export async function getMagicEdenCollection(symbol: string): Promise<NftCollection | undefined> {
   return cached(`magiceden:collection:${symbol}`, COLLECTIONS_TTL_MS, async () => {

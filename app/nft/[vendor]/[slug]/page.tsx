@@ -181,11 +181,45 @@ export default function NftCollectionPage({ params }: { params: Promise<{ vendor
   // root-cause investigation). Now both vendors defer their secondary stats
   // the same way — the collection header itself only ever needs ONE
   // upstream call, matching listings' footprint.
+  //
+  // 2026-08-04 (SAME DAY, later) — gated on `collection` now, and skips this
+  // fallback fetch entirely for Magic Eden when the merged single-call
+  // response (see getMagicEdenCollection's doc comment) already populated
+  // listedCount. The extra `collection.vendor === vendor && collection.slug
+  // === slug` check guards against `collection` still holding the PREVIOUS
+  // page's object during a navigation (the main load effect doesn't clear it
+  // eagerly) — without it, a stale collection could be mistaken for this
+  // one's data during the brief window between a vendor/slug change and the
+  // new collection actually resolving.
   useEffect(() => {
     let ignore = false;
     if (vendor !== "opensea" && vendor !== "magiceden") {
       Promise.resolve().then(() => {
         if (!ignore) setListedCountInfo(undefined);
+      });
+      return () => {
+        ignore = true;
+      };
+    }
+    if (!collection || collection.vendor !== vendor || collection.slug !== slug) {
+      return () => {
+        ignore = true;
+      };
+    }
+    if (vendor === "magiceden" && collection.listedCount != null) {
+      Promise.resolve().then(() => {
+        if (!ignore) {
+          setListedCountInfo({
+            count: collection.listedCount!,
+            approximate: false,
+            loading: false,
+            floorPrice: collection.floorPrice,
+            floorPriceCurrency: collection.floorPriceCurrency,
+            volume: collection.volume24hr,
+            volumeCurrency: collection.volume24hrCurrency,
+            volumePeriodDays: collection.volumePeriodDays,
+          });
+        }
       });
       return () => {
         ignore = true;
@@ -218,7 +252,7 @@ export default function NftCollectionPage({ params }: { params: Promise<{ vendor
     return () => {
       ignore = true;
     };
-  }, [vendor, slug]);
+  }, [vendor, slug, collection]);
 
   // Mirrors the listed-count effect above, other direction: Magic Eden gives
   // listedCount for free but no total supply — resolved lazily via Helius
