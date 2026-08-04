@@ -68,6 +68,7 @@ interface RawMagicEdenTopCollection {
   currency?: string;
   totalSupply?: number;
   listedCount?: number;
+  isVerified?: boolean;
 }
 
 function toNftCollectionFromStats(c: RawMagicEdenTopCollection): NftCollection {
@@ -154,6 +155,16 @@ async function fetchMagicEdenTopCollectionsBySort(sort: "volume" | "floorPrice",
  * sort value is accepted by the same endpoint) and merging+deduping by
  * `collectionSymbol` — a collection that's top-ranked by EITHER metric now
  * always makes the list, regardless of which sort the user picks in the UI.
+ *
+ * `isVerified` filter added 2026-08-04 (explicit user request, for
+ * consistency with Tradeport's identical `verified: true` filter — see
+ * browseTradeportCollections) — checked live: the top 20 by both volume
+ * and floor were already essentially all `isVerified: true` with only a
+ * couple of small-but-real exceptions (e.g. "Drifella III"), so this is a
+ * modest trust/quality tightening here rather than a spam fix the way it
+ * was for Tradeport (where unverified floor-sorted results were
+ * outright fabricated prices). A small number of legitimate but unbadged
+ * collections will no longer appear — accepted trade-off per the request.
  */
 export async function browseMagicEdenCollections(limit = 20): Promise<NftCollection[]> {
   return cached(`magiceden:top-collections:${limit}`, COLLECTIONS_TTL_MS, async () => {
@@ -163,7 +174,7 @@ export async function browseMagicEdenCollections(limit = 20): Promise<NftCollect
     ]);
     const bySymbol = new Map<string, RawMagicEdenTopCollection>();
     for (const row of [...byVolume, ...byFloor]) {
-      if (!bySymbol.has(row.collectionSymbol)) bySymbol.set(row.collectionSymbol, row);
+      if (row.isVerified && !bySymbol.has(row.collectionSymbol)) bySymbol.set(row.collectionSymbol, row);
     }
     return Array.from(bySymbol.values()).map(toNftCollectionFromStats);
   });

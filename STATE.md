@@ -6,6 +6,28 @@ delete history (superseded entries stay for context, just note what replaced the
 
 ---
 
+## 2026-08-04d — Verified-only filtering extended to Magic Eden and OpenSea (user request)
+
+Following 2026-08-04c's Tradeport fix (verified-only filter, needed there to exclude spam
+with fabricated floor prices), user asked to add the same verified-collection filtering to
+Magic Eden/Solana and OpenSea/EVM too, for consistency across all three vendors.
+
+Both vendors already expose a trust-tier field: Magic Eden's stats API has `isVerified`
+(boolean), OpenSea's collections endpoint has `safelist_status` (string, `"verified"` for
+the trusted tier). Checked live before filtering (unlike Tradeport, neither had an active
+spam problem — this is a quality/consistency tightening, not a spam fix):
+- Magic Eden: top-20-by-volume and top-20-by-floor were mostly `isVerified: true` already,
+  with a few real-but-unbadged exceptions (e.g. "Drifella III"). Filtering drops the total
+  from 30 to 24 collections — confirmed live, Bulltoshi and CATE (both `isVerified: None`)
+  are now correctly excluded.
+- OpenSea: both rankings were already ~100% `safelist_status: "verified"` — filtering had
+  no visible effect on the Ethereum list (still 31 collections after dedup).
+
+Both applied at the same merge point as 2026-08-04c/2026-08-04b's fixes (filter before
+dedup, so a collection failing verification on one ranking but not present differently on
+the other still correctly excludes). `tsc`/tests/lint clean, 72/72 tests pass.
+
+
 ## 2026-08-04c — Same "missing blue-chips" bug found + fixed on OpenSea and Tradeport too
 
 User asked to check for other instances of 2026-08-04b's bug pattern (single-dimension

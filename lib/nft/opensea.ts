@@ -33,6 +33,10 @@ interface RawOpenSeaCollection {
   // Confirmed live 2026-07-20 on the base collection-detail response (not the
   // /stats endpoint, which lacks it) — a true collection-wide item count.
   total_supply?: number;
+  // OpenSea's own trust tier — confirmed live 2026-08-04: "verified" is by
+  // far the dominant value across both order_by rankings (seven_day_volume
+  // AND market_cap), only used to filter browseOpenSeaCollections below.
+  safelist_status?: string;
 }
 
 interface RawOpenSeaStats {
@@ -103,6 +107,12 @@ async function fetchOpenSeaCollectionsByOrder(chain: string, orderBy: string, li
  * both order_by values in parallel and merges+dedupes by `collection`
  * slug BEFORE the per-collection /stats enrichment below, so the stats
  * call count still stays bounded by the deduped set size, not doubled.
+ *
+ * `safelist_status` filter added 2026-08-04 (explicit user request, for
+ * consistency with Tradeport's/Magic Eden's identical verified-only
+ * filters) — checked live: both rankings were already essentially
+ * entirely `"verified"` collections, so this is a modest trust/quality
+ * tightening rather than a spam fix here.
  */
 export async function browseOpenSeaCollections(chain = "ethereum", limit = 20): Promise<NftCollection[]> {
   requireOpenseaKey();
@@ -113,7 +123,7 @@ export async function browseOpenSeaCollections(chain = "ethereum", limit = 20): 
     ]);
     const bySlug = new Map<string, RawOpenSeaCollection>();
     for (const c of [...byVolume, ...byMarketCap]) {
-      if (!bySlug.has(c.collection)) bySlug.set(c.collection, c);
+      if (c.safelist_status === "verified" && !bySlug.has(c.collection)) bySlug.set(c.collection, c);
     }
     const collections = Array.from(bySlug.values());
 
