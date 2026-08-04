@@ -110,10 +110,24 @@ async function tradeportQuery<T>(query: string, variables: Record<string, unknow
 // as "15000000000 SUI"). `listed`/`listed_count` are NOT on collections and
 // have no nested aggregate relation either — listed count requires a separate
 // `listings_aggregate` call per collection (see below).
-const COLLECTIONS_QUERY = (chain: TradeportChain) => `
+//
+// `order_by` is a template parameter (not a fixed `{ volume: desc }`) —
+// real gap found live 2026-08-04, same root cause as the identical Magic
+// Eden fix: sorting by volume alone meant a genuine high-floor collection
+// with lower recent trading volume never appeared at all (see
+// browseTradeportCollections below). `where: { verified: { _eq: true } }`
+// is REQUIRED once floor-sorting is in play, not optional polish — confirmed
+// live that unverified `order_by: { floor: desc }` results are dominated by
+// spam/scam listings with fabricated floor prices (one row showed a raw
+// floor of 944444444000000000 — ~9.4 * 10^8 SUI — with zero volume, not a
+// real market price). Filtering to verified collections cleaned this
+// completely; applied to BOTH order directions for consistency, not just
+// the floor one, since a legitimate top collection should be verified
+// either way.
+const COLLECTIONS_QUERY = (chain: TradeportChain, orderBy: string) => `
   query Collections($limit: Int!) {
     ${chain} {
-      collections(limit: $limit, order_by: { volume: desc }) {
+      collections(limit: $limit, order_by: { ${orderBy}: desc }, where: { verified: { _eq: true } }) {
         id
         slug
         title
@@ -257,13 +271,36 @@ async function enrichCollection(
 // without a new upstream call.
 const TRADEPORT_COLLECTIONS_TTL_MS = 5 * 60_000;
 
+type TradeportCollectionRow = { id: string; slug: string; title: string; cover_url?: string; floor?: number; supply?: number };
+
+async function fetchTradeportCollectionsByOrder(chain: TradeportChain, orderBy: string, limit: number): Promise<TradeportCollectionRow[]> {
+  const data = await tradeportQuery<{ [K in TradeportChain]?: { collections: TradeportCollectionRow[] } }>(COLLECTIONS_QUERY(chain, orderBy), {
+    limit,
+  });
+  return data[chain]?.collections ?? [];
+}
+
+// Real gap found live 2026-08-04, same root cause as the identical Magic
+// Eden fix (see lib/nft/magiceden.ts's browseMagicEdenCollections doc):
+// fetching `order_by: { volume: desc }` ONLY meant a genuine high-floor
+// collection with lower recent trading volume never appeared at all —
+// confirmed live on Sui, `order_by: { floor: desc }` (with `verified: true`,
+// see COLLECTIONS_QUERY's doc) surfaced collections like Enforcer Machin,
+// Legacy, and Sui Lord that never showed up in a volume-only top-8. Fetches
+// both orderings in parallel and merges+dedupes by `slug` BEFORE the
+// per-collection enrichment below, so the enrichment call count stays
+// bounded by the deduped set size, not doubled.
 export async function browseTradeportCollections(chain: TradeportChain, limit = 20): Promise<NftCollection[]> {
   return cached(`tradeport:collections:${chain}:${limit}`, TRADEPORT_COLLECTIONS_TTL_MS, async () => {
-    const data = await tradeportQuery<{
-      [K in TradeportChain]?: { collections: Array<{ id: string; slug: string; title: string; cover_url?: string; floor?: number; supply?: number }> };
-    }>(COLLECTIONS_QUERY(chain), { limit });
-    const rows = data[chain]?.collections ?? [];
-    return Promise.all(rows.map((c) => enrichCollection(chain, c)));
+    const [byVolume, byFloor] = await Promise.all([
+      fetchTradeportCollectionsByOrder(chain, "volume", limit),
+      fetchTradeportCollectionsByOrder(chain, "floor", limit),
+    ]);
+    const bySlug = new Map<string, TradeportCollectionRow>();
+    for (const c of [...byVolume, ...byFloor]) {
+      if (!bySlug.has(c.slug)) bySlug.set(c.slug, c);
+    }
+    return Promise.all(Array.from(bySlug.values()).map((c) => enrichCollection(chain, c)));
   });
 }
 

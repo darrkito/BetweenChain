@@ -63,6 +63,17 @@ function toNftCollection(c: RawOpenSeaCollection, stats?: RawOpenSeaStats, chain
   };
 }
 
+async function fetchOpenSeaCollectionsByOrder(chain: string, orderBy: string, limit: number): Promise<RawOpenSeaCollection[]> {
+  const url = new URL(`${OPENSEA_API}/collections`);
+  url.searchParams.set("limit", String(limit));
+  url.searchParams.set("chain", chain);
+  url.searchParams.set("order_by", orderBy);
+  const res = await fetch(url, { headers: openseaHeaders(), cache: "no-store" });
+  if (!res.ok) throw new Error(`OpenSea collections list failed (${res.status})`);
+  const body = (await res.json()) as { collections: RawOpenSeaCollection[] };
+  return body.collections;
+}
+
 /**
  * Browse collections. `chain` is OpenSea's own chain-slug (e.g. "ethereum",
  * "matic", "base") — NOT a numeric chain id. REQUIRES OPENSEA_API_KEY —
@@ -74,24 +85,37 @@ function toNftCollection(c: RawOpenSeaCollection, stats?: RawOpenSeaStats, chain
  * (needed before this can be wired into the cross-chain buy flow) — see
  * PLAN.md's open architecture questions.
  *
- * Defaults to chain="ethereum" and order_by="seven_day_volume" — a real bug
- * found live 2026-07-20: with no chain/order_by, OpenSea's default ordering
- * returns essentially arbitrary/spam collections (raw contract addresses as
- * names, null images, random chains like avalanche) instead of anything
- * real. `order_by=seven_day_volume` (confirmed live, other candidates like
- * `total_volume`/`num_owners` 400 as unsupported) surfaces real collections
- * (CryptoPunks, Pudgy Penguins, etc). Caller can still override `chain`.
+ * Defaults to chain="ethereum" — a real bug found live 2026-07-20: with no
+ * chain/order_by, OpenSea's default ordering returns essentially
+ * arbitrary/spam collections (raw contract addresses as names, null images,
+ * random chains like avalanche) instead of anything real.
+ *
+ * Real gap found live 2026-08-04 (same root cause as the identical Magic
+ * Eden fix, see lib/nft/magiceden.ts's browseMagicEdenCollections doc):
+ * fetching by `order_by=seven_day_volume` ONLY meant genuine blue chips
+ * with high value but lower recent trading volume (Otherdeed, CloneX,
+ * Moonbirds, Meebits, Bored Ape Kennel Club, Cool Cats — confirmed live,
+ * none of these appeared in a volume-only top-15) never appeared at all.
+ * OpenSea's API has no `floor_price` order_by (confirmed live, 400s as
+ * unsupported — unlike Magic Eden's stats endpoint), but `market_cap` IS
+ * supported and correlates with floor price much more than 7-day volume
+ * does, revealing a meaningfully different set of collections. Fetches
+ * both order_by values in parallel and merges+dedupes by `collection`
+ * slug BEFORE the per-collection /stats enrichment below, so the stats
+ * call count still stays bounded by the deduped set size, not doubled.
  */
 export async function browseOpenSeaCollections(chain = "ethereum", limit = 20): Promise<NftCollection[]> {
   requireOpenseaKey();
   return cached(`opensea:collections:${chain}:${limit}`, COLLECTIONS_TTL_MS, async () => {
-    const url = new URL(`${OPENSEA_API}/collections`);
-    url.searchParams.set("limit", String(limit));
-    url.searchParams.set("chain", chain);
-    url.searchParams.set("order_by", "seven_day_volume");
-    const res = await fetch(url, { headers: openseaHeaders(), cache: "no-store" });
-    if (!res.ok) throw new Error(`OpenSea collections list failed (${res.status})`);
-    const body = (await res.json()) as { collections: RawOpenSeaCollection[] };
+    const [byVolume, byMarketCap] = await Promise.all([
+      fetchOpenSeaCollectionsByOrder(chain, "seven_day_volume", limit),
+      fetchOpenSeaCollectionsByOrder(chain, "market_cap", limit),
+    ]);
+    const bySlug = new Map<string, RawOpenSeaCollection>();
+    for (const c of [...byVolume, ...byMarketCap]) {
+      if (!bySlug.has(c.collection)) bySlug.set(c.collection, c);
+    }
+    const collections = Array.from(bySlug.values());
 
     // The browse list itself carries only name/image/description — confirmed
     // live 2026-07-21 (no floor_price/volume/total_supply on this endpoint at
@@ -100,21 +124,21 @@ export async function browseOpenSeaCollections(chain = "ethereum", limit = 20): 
     // table is the whole point of this endpoint's caller
     // (NftCollectionsTable) — without this, every Floor/Volume cell would be
     // a blank "—", defeating it entirely. One /stats call per collection, in
-    // parallel, bounded by `limit` (default 20) — within the 60-reads/min
-    // agent-tier key's budget for a single page load. total_supply/listed
+    // parallel, bounded by the deduped set size (up to 2x `limit`) — within
+    // the agent-tier key's budget for a single page load. total_supply/listed
     // count are deliberately NOT fetched here — those need the base
     // collection-detail endpoint and (for listed count) an expensive
     // multi-page scan respectively; too costly to do for a whole page of
     // collections at once. Those stay per-collection, on the detail page.
     const stats = await Promise.all(
-      body.collections.map((c) =>
+      collections.map((c) =>
         fetch(`${OPENSEA_API}/collections/${encodeURIComponent(c.collection)}/stats`, { headers: openseaHeaders(), cache: "no-store" })
           .then((r) => (r.ok ? (r.json() as Promise<RawOpenSeaStats>) : undefined))
           .catch(() => undefined),
       ),
     );
 
-    return body.collections.map((c, i) => toNftCollection(c, stats[i]));
+    return collections.map((c, i) => toNftCollection(c, stats[i]));
   });
 }
 

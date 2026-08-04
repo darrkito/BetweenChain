@@ -6,6 +6,36 @@ delete history (superseded entries stay for context, just note what replaced the
 
 ---
 
+## 2026-08-04c — Same "missing blue-chips" bug found + fixed on OpenSea and Tradeport too
+
+User asked to check for other instances of 2026-08-04b's bug pattern (single-dimension
+ranking + limit silently excludes items a secondary sort could never surface) across the
+rest of the app. Audited every "top N collections" browse call — found the identical bug
+on BOTH remaining vendors:
+
+- **OpenSea/EVM** (`browseOpenSeaCollections`): `order_by=seven_day_volume` only.
+  Confirmed live: Otherdeed, CloneX, Moonbirds, Meebits, Bored Ape Kennel Club, Cool Cats
+  never appeared in a volume-only top-15 on Ethereum — all real, well-known blue chips.
+  OpenSea has no `floor_price` order_by (confirmed live, 400s as unsupported), but
+  `market_cap` IS supported and correlates with floor much more than 7-day volume does.
+  Fixed: fetch both `seven_day_volume` and `market_cap`, merge+dedupe by `collection` slug
+  before the per-collection `/stats` enrichment call (so enrichment cost stays bounded by
+  the deduped set, not doubled). Verified live: all 5 previously-missing collections now
+  appear.
+- **Tradeport/Sui** (`browseTradeportCollections`): `order_by: { volume: desc }` only, same
+  gap — confirmed live, Enforcer Machin, Legacy, Sui Lord, Tamashi, AstroBats never
+  appeared in a volume-only top-8. BUT: sorting by `floor: desc` alone (without a verified
+  filter) surfaced spam — one row showed a fabricated floor of ~9.4×10⁸ SUI with zero real
+  volume. Fixed: fetch both `volume: desc` and `floor: desc`, both filtered to `where: {
+  verified: { _eq: true } }` (added to the volume ordering too, for consistency/safety, not
+  just the floor one), merge+dedupe by slug. Verified live: 35 total collections, all real
+  (35 legitimate names, no fabricated-price spam), previously-missing blue chips now present.
+
+All three vendors (Magic Eden/Solana — 2026-08-04b, OpenSea/EVM, Tradeport/Move) now use the
+same "fetch top-N by every meaningful ranking dimension the vendor supports, merge+dedupe"
+pattern. `tsc`/tests/lint/`next build` all clean, 72/72 tests still pass.
+
+
 ## 2026-08-04b — Solana top collections: blue-chip low-volume collections were missing entirely
 
 User-reported: "Claynosaurz: The Call of Saga" (a real blue-chip, floor 18.25 SOL, confirmed
