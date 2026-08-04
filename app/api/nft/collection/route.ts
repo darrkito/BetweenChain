@@ -1,7 +1,5 @@
 import { NextResponse } from "next/server";
-import { getMagicEdenCollection } from "@/lib/nft/magiceden";
-import { getOpenSeaCollection } from "@/lib/nft/opensea";
-import { getTradeportCollection, isTradeportChain, TRADEPORT_CHAINS } from "@/lib/nft/tradeport";
+import { NFT_VENDOR_CLIENTS, isTradeportChain, TRADEPORT_CHAINS } from "@/lib/nft/vendorClients";
 import { rateLimit, clientKey } from "@/lib/rate-limit";
 import type { NftVendor } from "@/lib/nft/types";
 import { safeErrorResponse } from "@/lib/apiError";
@@ -34,20 +32,11 @@ export async function GET(req: Request) {
   if (!vendor || !slug) {
     return NextResponse.json({ error: "vendor and slug query params are required" }, { status: 400 });
   }
+  const client = NFT_VENDOR_CLIENTS[vendor];
+  if (!client) return NextResponse.json({ error: `Unknown vendor: ${vendor}` }, { status: 400 });
 
   try {
-    // Tradeport branch added 2026-07-21 — this route previously had NO
-    // Tradeport case at all (fell through to `undefined` -> 404), which
-    // meant every Tradeport/Sui collection detail page was unreachable
-    // regardless of anything else being wired up correctly.
-    const collection =
-      vendor === "magiceden"
-        ? await getMagicEdenCollection(slug)
-        : vendor === "opensea"
-          ? await getOpenSeaCollection(slug)
-          : vendor === "tradeport"
-            ? await getTradeportCollection(chain, slug)
-            : undefined;
+    const collection = await client.getCollection(slug, chain);
     if (!collection) return NextResponse.json({ error: "Collection not found" }, { status: 404 });
     return NextResponse.json({ collection });
   } catch (err) {

@@ -1,9 +1,17 @@
 import { NextResponse } from "next/server";
-import { browseMagicEdenCollections } from "@/lib/nft/magiceden";
-import { browseOpenSeaCollections } from "@/lib/nft/opensea";
-import { browseTradeportCollections, isTradeportChain, TRADEPORT_CHAINS } from "@/lib/nft/tradeport";
+import { NFT_VENDOR_CLIENTS, isTradeportChain, TRADEPORT_CHAINS } from "@/lib/nft/vendorClients";
 import { rateLimit, clientKey } from "@/lib/rate-limit";
 import { safeErrorResponse } from "@/lib/apiError";
+import type { NftChainFamily, NftVendor } from "@/lib/nft/types";
+
+// No single vendor spans more than one chain family (see PLAN.md's
+// "Multichain NFT section") — this is the family -> vendor direction,
+// complementing lib/nft/labels.ts's nftFamilyForVendor (vendor -> family).
+const VENDOR_FOR_FAMILY: Record<NftChainFamily, NftVendor> = {
+  solana: "magiceden",
+  evm: "opensea",
+  move: "tradeport",
+};
 
 // External-call budget for this route -- prevents Vercel's platform-level
 // function timeout from killing the request with an empty/non-JSON body
@@ -19,29 +27,23 @@ export async function GET(req: Request) {
   if (!rl.ok) return NextResponse.json({ error: "Too many requests" }, { status: 429 });
 
   const url = new URL(req.url);
-  const chainFamily = url.searchParams.get("chainFamily");
-  const chain = url.searchParams.get("chain") ?? undefined; // OpenSea chain slug, e.g. "ethereum"
+  const chainFamily = url.searchParams.get("chainFamily") as NftChainFamily | null;
+  const chain = url.searchParams.get("chain") ?? undefined; // OpenSea chain slug, e.g. "ethereum"; required+validated below for "move"
+
+  if (!chainFamily || !(chainFamily in VENDOR_FOR_FAMILY)) {
+    return NextResponse.json({ error: "chainFamily query param must be one of: solana, evm, move" }, { status: 400 });
+  }
+  // "move" is the one family with a real, required chain param (Tradeport
+  // spans Sui/Aptos/Movement, no default makes sense) — solana/evm ignore
+  // `chain` entirely (Magic Eden) or default it themselves (OpenSea).
+  if (chainFamily === "move" && (!chain || !isTradeportChain(chain))) {
+    return NextResponse.json({ error: `chain query param must be one of: ${TRADEPORT_CHAINS.join(", ")}` }, { status: 400 });
+  }
 
   try {
-    if (chainFamily === "solana") {
-      const collections = await browseMagicEdenCollections();
-      return NextResponse.json({ collections });
-    }
-
-    if (chainFamily === "evm") {
-      const collections = await browseOpenSeaCollections(chain);
-      return NextResponse.json({ collections });
-    }
-
-    if (chainFamily === "move") {
-      if (!chain || !isTradeportChain(chain)) {
-        return NextResponse.json({ error: `chain query param must be one of: ${TRADEPORT_CHAINS.join(", ")}` }, { status: 400 });
-      }
-      const collections = await browseTradeportCollections(chain);
-      return NextResponse.json({ collections });
-    }
-
-    return NextResponse.json({ error: "chainFamily query param must be one of: solana, evm, move" }, { status: 400 });
+    const client = NFT_VENDOR_CLIENTS[VENDOR_FOR_FAMILY[chainFamily]];
+    const collections = await client.browseCollections(chain);
+    return NextResponse.json({ collections });
   } catch (err) {
     return safeErrorResponse("nft/collections", err, 502);
   }
