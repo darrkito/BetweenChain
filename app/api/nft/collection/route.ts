@@ -49,7 +49,7 @@ export async function GET(req: Request) {
     // generic thrown Error with the status embedded in the message — no
     // structured error type exists for this yet. Map it to a real 503 with
     // copy the UI can show as "try again", not a raw vendor error string.
-    // TimeoutError (2026-08-04, added alongside lib/nft/fetchWithTimeout.ts)
+    // TimeoutError (2026-08-04, added alongside lib/fetchWithTimeout.ts)
     // is the same user-facing situation — a hung/slow vendor — gets the same
     // friendly copy rather than the raw "operation was aborted" message.
     const err_ = err as Error;

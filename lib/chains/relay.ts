@@ -2,6 +2,8 @@ import "server-only";
 import type { TokenListItem } from "@/lib/chains/types";
 import { relayAppFees } from "@/lib/fees";
 import { EVM_CHAINS } from "@/lib/nft/evmChains";
+import { fetchWithTimeout } from "@/lib/fetchWithTimeout";
+import { cached } from "@/lib/cache";
 
 const RELAY_API = process.env.RELAY_API ?? "https://api.relay.link";
 export const SOLANA_CHAIN_ID = 792703809; // Relay's chain id for Solana mainnet
@@ -72,16 +74,25 @@ function toTokenListItem(c: RawRelayCurrency, source: TokenListItem["source"]): 
  * Full-text token search for a chain — powers the token-select modal's
  * search box ("Search for a token or paste address").
  */
+// 2026-08-04 (API-hit reduction pass, mirrors the same fix on
+// searchJupiterTokens) — was completely uncached, hit fresh on every
+// debounced keystroke. Same 30s TTL reasoning: token search results don't
+// change minute to minute, and popular terms are searched identically by
+// many users.
+const SEARCH_TTL_MS = 30_000;
+
 export async function searchRelayCurrencies(chainId: number, term: string, limit = 30): Promise<TokenListItem[]> {
-  const res = await fetch(`${RELAY_API}/currencies/v2`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ chainIds: [chainId], term, limit }),
-    cache: "no-store",
+  return cached(`relay:search:${chainId}:${term}:${limit}`, SEARCH_TTL_MS, async () => {
+    const res = await fetchWithTimeout(`${RELAY_API}/currencies/v2`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ chainIds: [chainId], term, limit }),
+      cache: "no-store",
+    });
+    if (!res.ok) throw new Error(`Relay currencies search failed (${res.status})`);
+    const currencies = (await res.json()) as RawRelayCurrency[];
+    return currencies.map((c) => toTokenListItem(c, "search"));
   });
-  if (!res.ok) throw new Error(`Relay currencies search failed (${res.status})`);
-  const currencies = (await res.json()) as RawRelayCurrency[];
-  return currencies.map((c) => toTokenListItem(c, "search"));
 }
 
 /**
@@ -97,7 +108,7 @@ export async function filterRoutableCurrencies(
 ): Promise<Map<string, TokenListItem>> {
   if (addresses.length === 0) return new Map();
 
-  const res = await fetch(`${RELAY_API}/currencies/v2`, {
+  const res = await fetchWithTimeout(`${RELAY_API}/currencies/v2`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ tokens: addresses.map((a) => `${chainId}:${a}`), limit: addresses.length }),
@@ -165,7 +176,7 @@ export async function getRelayQuote(params: {
   } = params;
   if (!userOriginAddress) throw new Error("getRelayQuote requires userOriginAddress or userSolanaAddress");
 
-  const res = await fetch(`${RELAY_API}/quote`, {
+  const res = await fetchWithTimeout(`${RELAY_API}/quote`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
@@ -246,7 +257,7 @@ export async function getRelayCallQuote(params: {
   destAmount: string; // exact wei amount to deliver — e.g. an OpenSea listing's price
   recipient: string; // must be an address the caller can independently sign from afterward
 }): Promise<RelayCallQuote> {
-  const res = await fetch(`${RELAY_API}/quote/v2`, {
+  const res = await fetchWithTimeout(`${RELAY_API}/quote/v2`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
@@ -352,7 +363,7 @@ export interface RelayIntentStatus {
  * SECURITY.md's "trusts client" gap, closed by this function).
  */
 export async function getRelayIntentStatus(requestId: string): Promise<RelayIntentStatus> {
-  const res = await fetch(`${RELAY_API}/intents/status?requestId=${encodeURIComponent(requestId)}`, {
+  const res = await fetchWithTimeout(`${RELAY_API}/intents/status?requestId=${encodeURIComponent(requestId)}`, {
     cache: "no-store",
   });
   if (!res.ok) throw new Error(`Relay intent status check failed (${res.status})`);

@@ -1,5 +1,7 @@
 import "server-only";
 import { JUPITER_FEE_ACCOUNT, JUPITER_FEE_BPS } from "@/lib/fees";
+import { cached } from "@/lib/cache";
+import { fetchWithTimeout } from "@/lib/fetchWithTimeout";
 import type { TokenListItem } from "@/lib/chains/types";
 
 const JUPITER_API = process.env.JUPITER_QUOTE_API ?? "https://lite-api.jup.ag/swap/v1";
@@ -27,24 +29,33 @@ interface JupiterTokenSearchResult {
  * being perfectly swappable via this leg. Same principle already applied to
  * Solana trending in lib/chains/trending.ts; search just hadn't gotten it.
  */
-export async function searchJupiterTokens(term: string, limit = 30): Promise<TokenListItem[]> {
-  const res = await fetch(`${JUPITER_TOKENS_API}/search?query=${encodeURIComponent(term)}`, {
-    cache: "no-store",
-  });
-  if (!res.ok) throw new Error(`Jupiter token search failed (${res.status})`);
-  const tokens = (await res.json()) as JupiterTokenSearchResult[];
+// 2026-08-04 (API-hit reduction pass) — this was completely uncached, hit
+// fresh on every debounced keystroke. Popular terms ("sol", "usdc", "eth")
+// are searched identically by many users; 30s TTL absorbs that without
+// meaningfully staling out results (token search results — name/symbol/
+// decimals — don't change minute to minute the way a price would).
+const SEARCH_TTL_MS = 30_000;
 
-  return tokens.slice(0, limit).map((t) => ({
-    chainId: SOLANA_CHAIN_ID,
-    address: t.id,
-    symbol: t.symbol,
-    name: t.name,
-    decimals: t.decimals,
-    logoURI: t.icon ?? "",
-    verified: t.organicScoreLabel === "high",
-    isNative: t.id === NATIVE_SOL_MINT,
-    source: "search",
-  }));
+export async function searchJupiterTokens(term: string, limit = 30): Promise<TokenListItem[]> {
+  return cached(`jupiter:search:${term}:${limit}`, SEARCH_TTL_MS, async () => {
+    const res = await fetchWithTimeout(`${JUPITER_TOKENS_API}/search?query=${encodeURIComponent(term)}`, {
+      cache: "no-store",
+    });
+    if (!res.ok) throw new Error(`Jupiter token search failed (${res.status})`);
+    const tokens = (await res.json()) as JupiterTokenSearchResult[];
+
+    return tokens.slice(0, limit).map((t) => ({
+      chainId: SOLANA_CHAIN_ID,
+      address: t.id,
+      symbol: t.symbol,
+      name: t.name,
+      decimals: t.decimals,
+      logoURI: t.icon ?? "",
+      verified: t.organicScoreLabel === "high",
+      isNative: t.id === NATIVE_SOL_MINT,
+      source: "search",
+    }));
+  });
 }
 
 export interface JupiterQuote {
@@ -87,7 +98,7 @@ export async function getJupiterQuote(params: {
     url.searchParams.set("platformFeeBps", String(JUPITER_FEE_BPS));
   }
 
-  const res = await fetch(url, { cache: "no-store" });
+  const res = await fetchWithTimeout(url, { cache: "no-store" });
   if (!res.ok) {
     throw new Error(`Jupiter quote failed (${res.status}): ${await res.text()}`);
   }
@@ -116,7 +127,7 @@ export async function buildJupiterSwapTransaction(params: {
   route: unknown;
   userPublicKey: string;
 }): Promise<{ swapTransaction: string }> {
-  const res = await fetch(`${JUPITER_API}/swap`, {
+  const res = await fetchWithTimeout(`${JUPITER_API}/swap`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({

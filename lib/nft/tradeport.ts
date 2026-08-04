@@ -1,6 +1,6 @@
 import "server-only";
 import { cached } from "@/lib/cache";
-import { fetchWithTimeout } from "@/lib/nft/fetchWithTimeout";
+import { fetchWithTimeout } from "@/lib/fetchWithTimeout";
 import type { NftCollection, NftListing } from "@/lib/nft/types";
 
 const TRADEPORT_API = "https://api.indexer.xyz/graphql";

@@ -1,7 +1,8 @@
 import "server-only";
 import { encodeFunctionData, concatHex, type Hex } from "viem";
 import { cached } from "@/lib/cache";
-import { fetchWithTimeout } from "@/lib/nft/fetchWithTimeout";
+import { fetchWithTimeout } from "@/lib/fetchWithTimeout";
+import { mapWithConcurrency } from "@/lib/concurrency";
 import type { NftCollection, NftListing } from "@/lib/nft/types";
 
 const OPENSEA_API = "https://api.opensea.io/api/v2";
@@ -134,19 +135,24 @@ export async function browseOpenSeaCollections(chain = "ethereum", limit = 20): 
     // already enriches with /stats). A ranked "top collections by volume"
     // table is the whole point of this endpoint's caller
     // (NftCollectionsTable) — without this, every Floor/Volume cell would be
-    // a blank "—", defeating it entirely. One /stats call per collection, in
-    // parallel, bounded by the deduped set size (up to 2x `limit`) — within
-    // the agent-tier key's budget for a single page load. total_supply/listed
-    // count are deliberately NOT fetched here — those need the base
-    // collection-detail endpoint and (for listed count) an expensive
-    // multi-page scan respectively; too costly to do for a whole page of
-    // collections at once. Those stay per-collection, on the detail page.
-    const stats = await Promise.all(
-      collections.map((c) =>
-        fetchWithTimeout(`${OPENSEA_API}/collections/${encodeURIComponent(c.collection)}/stats`, { headers: openseaHeaders(), cache: "no-store" })
-          .then((r) => (r.ok ? (r.json() as Promise<RawOpenSeaStats>) : undefined))
-          .catch(() => undefined),
-      ),
+    // a blank "—", defeating it entirely. One /stats call per collection —
+    // bounded by the deduped set size (up to 2x `limit`, so up to ~40) —
+    // total_supply/listed count are deliberately NOT fetched here — those
+    // need the base collection-detail endpoint and (for listed count) an
+    // expensive multi-page scan respectively; too costly to do for a whole
+    // page of collections at once. Those stay per-collection, on the detail
+    // page.
+    //
+    // 2026-08-04 (API-hit reduction pass) — this used to fire all ~40 calls
+    // via a single Promise.all, a burst that could nearly exhaust OpenSea's
+    // 60-reads/min budget in one shot on a cache-miss. mapWithConcurrency
+    // caps it at 5 in flight at once — same total call count (still need
+    // every collection's stats), spread out instead of bursted, cutting the
+    // odds of tripping the rate limit from the burst shape itself.
+    const stats = await mapWithConcurrency(collections, 5, (c) =>
+      fetchWithTimeout(`${OPENSEA_API}/collections/${encodeURIComponent(c.collection)}/stats`, { headers: openseaHeaders(), cache: "no-store" })
+        .then((r) => (r.ok ? (r.json() as Promise<RawOpenSeaStats>) : undefined))
+        .catch(() => undefined),
     );
 
     return collections.map((c, i) => toNftCollection(c, stats[i]));
@@ -235,27 +241,33 @@ export async function getOpenSeaListings(slug: string, limit = 20, cursor?: stri
   if (!res.ok) throw new Error(`OpenSea listings failed (${res.status}): ${await res.text()}`);
   const body = (await res.json()) as { listings: RawOpenSeaListing[]; next?: string };
 
-  const listings = await Promise.all(
-    body.listings.map(async (l) => {
-      const amount = BigInt(l.price.current.value);
-      const formatted = (Number(amount) / 10 ** l.price.current.decimals).toString();
-      const nft = await getOpenSeaNftMetadata(l.chain, l.asset.contract, l.asset.identifier);
-      return {
-        vendor: "opensea" as const,
-        chainFamily: "evm" as const,
-        collectionSlug: slug,
-        tokenId: l.asset.identifier,
-        name: nft?.name,
-        imageUrl: nft?.image_url,
-        traits: nft?.traits?.map((t) => ({ traitType: t.trait_type, value: String(t.value) })),
-        listed: true,
-        price: formatted,
-        priceCurrency: l.price.current.currency,
-        seller: l.protocol_data.parameters.offerer,
-        raw: l,
-      };
-    }),
-  );
+  // 2026-08-04 (API-hit reduction pass) — this is a real N+1: one
+  // getOpenSeaNftMetadata call per listing (up to `limit`, default 20),
+  // fired all at once. getOpenSeaNftMetadata is itself cached (1hr TTL, see
+  // NFT_METADATA_TTL_MS above) so repeat views of the same NFT are free —
+  // this only matters on a cold cache-miss burst, which is exactly the
+  // default first-page-load case every collection page hits.
+  // mapWithConcurrency caps it at 5 in flight instead of bursting all 20 at
+  // once, same total call count, spread out to cut 429 risk.
+  const listings = await mapWithConcurrency(body.listings, 5, async (l) => {
+    const amount = BigInt(l.price.current.value);
+    const formatted = (Number(amount) / 10 ** l.price.current.decimals).toString();
+    const nft = await getOpenSeaNftMetadata(l.chain, l.asset.contract, l.asset.identifier);
+    return {
+      vendor: "opensea" as const,
+      chainFamily: "evm" as const,
+      collectionSlug: slug,
+      tokenId: l.asset.identifier,
+      name: nft?.name,
+      imageUrl: nft?.image_url,
+      traits: nft?.traits?.map((t) => ({ traitType: t.trait_type, value: String(t.value) })),
+      listed: true,
+      price: formatted,
+      priceCurrency: l.price.current.currency,
+      seller: l.protocol_data.parameters.offerer,
+      raw: l,
+    };
+  });
   return { listings, nextCursor: body.next };
 }
 

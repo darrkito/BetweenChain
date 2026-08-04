@@ -1,6 +1,6 @@
 import "server-only";
 import { cached } from "@/lib/cache";
-import { fetchWithTimeout } from "@/lib/nft/fetchWithTimeout";
+import { fetchWithTimeout } from "@/lib/fetchWithTimeout";
 import type { NftCollection, NftListing } from "@/lib/nft/types";
 
 const MAGICEDEN_API = "https://api-mainnet.magiceden.dev/v2";
@@ -236,25 +236,35 @@ export async function getMagicEdenCollectionStats(symbol: string): Promise<Magic
   });
 }
 
-export async function getMagicEdenListings(symbol: string, offset = 0, limit = 20): Promise<NftListing[]> {
-  const res = await fetchMagicEden(`${MAGICEDEN_API}/collections/${encodeURIComponent(symbol)}/listings?offset=${offset}&limit=${limit}`);
-  if (!res.ok) throw new Error(`Magic Eden listings failed (${res.status})`);
-  const listings = (await res.json()) as RawMagicEdenListing[];
+// 2026-08-04 (API-hit reduction pass) — this was completely uncached: every
+// scroll/page-load re-hit Magic Eden fresh, even for the exact same
+// collection+offset+limit combo requested by different users seconds
+// apart. 30s TTL — short enough that listing/price changes still show up
+// quickly, long enough to absorb the common case of several users browsing
+// the same popular collection within the same half-minute.
+const LISTINGS_TTL_MS = 30_000;
 
-  return listings.map((l) => ({
-    vendor: "magiceden",
-    chainFamily: "solana",
-    collectionSlug: symbol,
-    tokenId: l.tokenMint,
-    name: l.token?.name,
-    imageUrl: l.token?.image ?? l.extra?.img,
-    traits: l.token?.attributes?.map((a) => ({ traitType: a.trait_type, value: a.value })),
-    listed: true, // this endpoint only ever returns currently-listed items
-    price: l.price.toString(),
-    priceCurrency: "SOL",
-    seller: l.seller,
-    raw: l,
-  }));
+export async function getMagicEdenListings(symbol: string, offset = 0, limit = 20): Promise<NftListing[]> {
+  return cached(`magiceden:listings:${symbol}:${offset}:${limit}`, LISTINGS_TTL_MS, async () => {
+    const res = await fetchMagicEden(`${MAGICEDEN_API}/collections/${encodeURIComponent(symbol)}/listings?offset=${offset}&limit=${limit}`);
+    if (!res.ok) throw new Error(`Magic Eden listings failed (${res.status})`);
+    const listings = (await res.json()) as RawMagicEdenListing[];
+
+    return listings.map((l) => ({
+      vendor: "magiceden",
+      chainFamily: "solana",
+      collectionSlug: symbol,
+      tokenId: l.tokenMint,
+      name: l.token?.name,
+      imageUrl: l.token?.image ?? l.extra?.img,
+      traits: l.token?.attributes?.map((a) => ({ traitType: a.trait_type, value: a.value })),
+      listed: true, // this endpoint only ever returns currently-listed items
+      price: l.price.toString(),
+      priceCurrency: "SOL",
+      seller: l.seller,
+      raw: l,
+    }));
+  });
 }
 
 // Raw shape of a buy_now/instructions/sell response — confirmed live 2026-08-03
