@@ -1,5 +1,18 @@
 "use client";
 
+// 2026-08-04 (performance pass) — app/nft/page.tsx (the browse page) was
+// converted to a Server Component the same session, server-fetching its
+// data instead of client-fetch-on-mount. This page was evaluated for the
+// same conversion (its collection-header fetch, specifically) and
+// DEFERRED, not overlooked: this file was extensively reworked earlier the
+// SAME session (sequencing the header fetch ahead of listings, splitting
+// collectionLoading/listingsLoading and error/loadMoreError apart — see
+// the effect below) to fix a real production bug. Splitting the header
+// fetch out to a Server Component now, without live browser testing
+// available, risks reintroducing a regression in code just stabilized.
+// Real follow-up, not abandoned — the header fetch is already cleanly
+// isolated (its own effect, own loading/error state) if/when this gets
+// picked up with proper testing.
 import { use, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AppHeader } from "@/app/components/AppHeader";
 import { Breadcrumb } from "@/app/components/Breadcrumb";

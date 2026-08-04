@@ -2,7 +2,7 @@ import "server-only";
 import { browseMagicEdenCollections, getMagicEdenCollection } from "@/lib/nft/magiceden";
 import { browseOpenSeaCollections, getOpenSeaCollection } from "@/lib/nft/opensea";
 import { browseTradeportCollections, getTradeportCollection, isTradeportChain, TRADEPORT_CHAINS, type TradeportChain } from "@/lib/nft/tradeport";
-import type { NftCollection, NftVendor } from "@/lib/nft/types";
+import type { NftChainFamily, NftCollection, NftVendor } from "@/lib/nft/types";
 
 /**
  * 2026-08-04 (architecture pass) — lib/nft/{magiceden,opensea,tradeport}.ts
@@ -50,6 +50,18 @@ export const NFT_VENDOR_CLIENTS: Record<NftVendor, NftVendorClient> = {
     getCollection: (slug, chain) => getTradeportCollection(resolveTradeportChain(chain), slug),
     browseCollections: (chain, limit) => browseTradeportCollections(resolveTradeportChain(chain), limit),
   },
+};
+
+// No single vendor spans more than one chain family (see PLAN.md's
+// "Multichain NFT section") — this is the family -> vendor direction,
+// complementing lib/nft/labels.ts's nftFamilyForVendor (vendor -> family).
+// Shared (2026-08-04) between app/api/nft/collections/route.ts and
+// app/nft/page.tsx's server-side browse fetch — was previously duplicated
+// in the route file alone.
+export const VENDOR_FOR_FAMILY: Record<NftChainFamily, NftVendor> = {
+  solana: "magiceden",
+  evm: "opensea",
+  move: "tradeport",
 };
 
 export { TRADEPORT_CHAINS, isTradeportChain };

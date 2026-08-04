@@ -1,17 +1,8 @@
 import { NextResponse } from "next/server";
-import { NFT_VENDOR_CLIENTS, isTradeportChain, TRADEPORT_CHAINS } from "@/lib/nft/vendorClients";
+import { NFT_VENDOR_CLIENTS, VENDOR_FOR_FAMILY, isTradeportChain, TRADEPORT_CHAINS } from "@/lib/nft/vendorClients";
 import { rateLimit, clientKey } from "@/lib/rate-limit";
 import { safeErrorResponse } from "@/lib/apiError";
-import type { NftChainFamily, NftVendor } from "@/lib/nft/types";
-
-// No single vendor spans more than one chain family (see PLAN.md's
-// "Multichain NFT section") — this is the family -> vendor direction,
-// complementing lib/nft/labels.ts's nftFamilyForVendor (vendor -> family).
-const VENDOR_FOR_FAMILY: Record<NftChainFamily, NftVendor> = {
-  solana: "magiceden",
-  evm: "opensea",
-  move: "tradeport",
-};
+import type { NftChainFamily } from "@/lib/nft/types";
 
 // External-call budget for this route -- prevents Vercel's platform-level
 // function timeout from killing the request with an empty/non-JSON body
