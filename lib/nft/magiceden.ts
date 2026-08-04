@@ -47,21 +47,28 @@ function magicEdenHeaders(): HeadersInit | undefined {
  * 2026-08-04 (SAME DAY, second pass — real regression found and reverted):
  * that first pass ALSO added a client-side retry loop on top of this one
  * (app/nft/[vendor]/[slug]/page.tsx) — stacking retries on two independent
- * layers multiplies total upstream request volume (up to 8 client attempts
- * x up to 3 server attempts here = up to 24 real HTTP requests to Magic
- * Eden from ONE page load), which can keep re-tripping a 60s/120-request
- * rolling limit indefinitely instead of ever letting it clear — the
- * opposite of the intended effect, and the likely actual cause of a
- * user-reported "it used to load fine, now it never does" regression.
- * REMOVED the client-side retry entirely; all patient-waiting now happens
- * in exactly ONE place (here), as a single request/response cycle. Widened
- * to up to 5 retries (6 attempts total) with a longer backoff schedule,
- * since Vercel's function timeout is 300s by default (not the ~20-30s this
- * was originally budgeted against) — comfortably affords a real ~50s of
- * patient backoff in one request instead of forcing a second, separate
- * client-driven request layer to get there.
+ * layers multiplies total upstream request volume, which can keep
+ * re-tripping a 60s/120-request rolling limit indefinitely instead of ever
+ * letting it clear. REMOVED the client-side retry; widened this one to 6
+ * attempts / ~50s of backoff instead, on the assumption a longer window
+ * would ride out a transient burst.
+ *
+ * 2026-08-04/05 (SAME EVENING, third pass — reverted again, real data this
+ * time): Magic Eden stayed down for HOURS across this session, confirmed
+ * from both this machine AND Vercel production (different IP ranges
+ * entirely) — a rolling 60s-window burst does not explain hours of
+ * continuous 429s. Empirically, the long backoff bought ZERO benefit during
+ * a real outage (every attempt in the 50s window still failed) while making
+ * every single collection page open hang for ~46s before failing — a much
+ * worse user experience than a fast, honest failure. Cut back down to
+ * something short: 2 retries / ~2.4s total, matching the ORIGINAL
+ * 2026-08-03 fix's intent (catch a brief edge-of-burst 429) without
+ * gambling a near-minute of hang time on an outage no amount of in-request
+ * waiting can fix. The manual "Try again" button (see
+ * app/nft/[vendor]/[slug]/page.tsx) is the right tool for a user who wants
+ * to keep trying through a longer outage, not a longer automatic wait.
  */
-const DEFAULT_BACKOFF_SCHEDULE_MS = [1000, 2000, 4000, 8000, 15000, 15000];
+const DEFAULT_BACKOFF_SCHEDULE_MS = [800, 1600];
 
 async function fetchMagicEden(url: string | URL, backoffScheduleMs: number[] = DEFAULT_BACKOFF_SCHEDULE_MS): Promise<Response> {
   let res = await fetchWithTimeout(url, { headers: magicEdenHeaders(), cache: "no-store" });

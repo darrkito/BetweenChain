@@ -11,10 +11,9 @@ import { safeErrorResponse } from "@/lib/apiError";
 // function timeout from killing the request with an empty/non-JSON body
 // before our own error handling gets a chance to run (see
 // lib/fetchWithTimeout.ts's doc comment for the failure mode this closes).
-// 2026-08-04: bumped 30 -> 60, matches app/api/nft/collection/route.ts's
-// identical change — the Magic Eden branch here uses the same
-// fetchMagicEden retry budget (~55s worst case).
-export const maxDuration = 60;
+// 2026-08-04/05: 30 -> 60 -> 30, matches app/api/nft/collection/route.ts's
+// identical revert — see lib/nft/magiceden.ts's fetchMagicEden doc comment.
+export const maxDuration = 30;
 
 // Deliberately separate from /api/nft/collection — computing an accurate
 // listed count for OpenSea costs up to 20 sequential upstream API calls (see
