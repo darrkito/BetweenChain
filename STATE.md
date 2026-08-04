@@ -6,6 +6,28 @@ delete history (superseded entries stay for context, just note what replaced the
 
 ---
 
+## 2026-08-04g — Floor Price sort no longer lets zero-volume collections rank at the top
+
+User-requested: the main NFT collections grid's default "Floor Price" sort was pure
+floor-descending with zero consideration of trading activity — a collection with an
+inflated/stale floor and no real recent trades could rank #1 ahead of genuinely liquid
+collections. Confirmed live on Ethereum: "Wrapped Cryptopunks" (floor 41.5 ETH, 0 volume)
+was ranking above CryptoPunks, BAYC, and every other real blue chip.
+
+Fixed `NftCollectionsGrid.tsx`: the Floor Price sort now groups collections with confirmed
+nonzero 24h volume ahead of zero/unknown-volume ones FIRST (regardless of asc/desc
+direction — this is a quality signal, not a literal numeric ordering), then sorts by floor
+price within each group. Zero-volume collections still appear (not filtered out entirely,
+matching "don't want them on top" not "remove them") — they just sink below every
+collection with real activity. Missing volume data is treated the same as zero (no
+confirmed real trading either way). The separate "Volume" sort tab is unaffected — it was
+already volume-primary.
+
+Verified live against real data on Ethereum (Wrapped Cryptopunks correctly drops from #1
+to below every real-volume collection) — real zero-volume examples also found on Sui (27
+of the merged list) and would behave the same way. `tsc`/tests/lint/`next build` clean.
+
+
 ## 2026-08-04f — Missing PFPs investigated: mostly genuinely dead sources, added IPFS gateway retry
 
 User-reported missing collection PFPs: Okay Bears, Market Elites (Solana); Popkins,

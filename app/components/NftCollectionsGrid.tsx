@@ -16,6 +16,20 @@ function num(v: string | number | undefined): number {
   return Number(v);
 }
 
+// Real gap found live 2026-08-04 (user-reported): the Floor Price sort was
+// pure floor-descending with zero consideration of volume — a collection
+// with an inflated/fabricated floor and no real trading activity could rank
+// #1, ahead of genuinely liquid blue chips. `hasRealVolume` groups
+// collections with confirmed nonzero trading volume ahead of zero/unknown-
+// volume ones, REGARDLESS of asc/desc direction (this is a quality signal,
+// not a literal numeric ordering concern) — floor price only breaks ties
+// within each group. Missing volume (vendor didn't report it) is treated
+// the same as zero — no confirmed real trading either way, same "don't
+// fabricate a signal we don't have" principle used throughout this file.
+function hasRealVolume(c: NftCollection): boolean {
+  return c.volume24hr != null && Number(c.volume24hr) > 0;
+}
+
 // Real bug found live 2026-07-22: this table showed Tradeport's raw
 // floorPrice while the collection detail page (NftCollectionStats.tsx) and
 // the listings grid (app/nft/[vendor]/[slug]/page.tsx's
@@ -54,6 +68,9 @@ export function NftCollectionsGrid({ collections }: { collections: NftCollection
         av = num(a.c.volume24hr);
         bv = num(b.c.volume24hr);
       } else {
+        const aHasVolume = hasRealVolume(a.c) ? 0 : 1;
+        const bHasVolume = hasRealVolume(b.c) ? 0 : 1;
+        if (aHasVolume !== bHasVolume) return aHasVolume - bHasVolume; // real-volume collections always ahead of zero/unknown-volume ones
         av = displayFloorPrice(a.c) ?? -Infinity;
         bv = displayFloorPrice(b.c) ?? -Infinity;
       }
