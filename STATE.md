@@ -6,6 +6,24 @@ delete history (superseded entries stay for context, just note what replaced the
 
 ---
 
+## 2026-08-04b — Solana top collections: blue-chip low-volume collections were missing entirely
+
+User-reported: "Claynosaurz: The Call of Saga" (a real blue-chip, floor 18.25 SOL, confirmed
+live) was completely absent from the Solana NFT main page, despite ranking top-by-floor-price.
+Root cause: `browseMagicEdenCollections` (`lib/nft/magiceden.ts`) only ever fetched the top 20
+collections by 24h `volume` from Magic Eden's stats API — a collection with a high floor but
+low daily trading volume never makes a volume-only top-20, and the frontend's Floor/Volume sort
+toggle (`NftCollectionsGrid.tsx`) can only re-sort collections that were already fetched, it
+can't retroactively pull in ones that were never fetched at all.
+
+Fixed: now fetches BOTH `sort=volume` and `sort=floorPrice` (confirmed live: the same stats
+endpoint accepts `floorPrice` as a sort value too) in parallel, and merges+dedupes by
+`collectionSymbol`. A collection that's top-ranked by either metric now always appears,
+regardless of which sort the user has selected — verified live, "Claynosaurz: The Call of Saga"
+(fp 18.25 SOL) now appears alongside "Claynosaurz" (fp 17.39 SOL, the main collection, already
+present via volume ranking) — 30 total collections after dedup (was a flat 20).
+
+
 ## 2026-08-04 — Real production outage: yesterday's new CSP header broke wallet buttons entirely
 
 User-reported live bug: connect-wallet buttons and header nav buttons both invisible on

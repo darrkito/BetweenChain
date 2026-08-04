@@ -117,8 +117,19 @@ function toNftCollection(c: RawMagicEdenCollection, stats?: RawMagicEdenStats): 
   };
 }
 
+async function fetchMagicEdenTopCollectionsBySort(sort: "volume" | "floorPrice", limit: number): Promise<RawMagicEdenTopCollection[]> {
+  const url = new URL(`${MAGICEDEN_STATS_API}/collection_stats/search/solana`);
+  url.searchParams.set("window", "1d");
+  url.searchParams.set("limit", String(limit));
+  url.searchParams.set("sort", sort);
+  url.searchParams.set("direction", "desc");
+  const res = await fetchMagicEden(url);
+  if (!res.ok) throw new Error(`Magic Eden top collections failed (${res.status})`);
+  return res.json();
+}
+
 /**
- * Ranked top collections by 24h volume, floor price included — matches how
+ * Ranked top collections, floor price + volume both included — matches how
  * browseOpenSeaCollections (order_by=seven_day_volume) and
  * browseTradeportCollections (order_by:{volume:desc}) already rank the
  * EVM/Move browse pages, so all three chain families show a genuinely
@@ -132,18 +143,29 @@ function toNftCollection(c: RawMagicEdenCollection, stats?: RawMagicEdenStats): 
  * card would show "—" for both. Switched 2026-08-03 to the same internal
  * stats API magiceden.io's own home page renders its "Popular collections"
  * table from (undocumented, but public — no API key required).
+ *
+ * Real gap found live 2026-08-04 (user-reported): fetching by `sort=volume`
+ * ONLY meant a genuine blue-chip like "Claynosaurz: The Call of Saga" (fp
+ * 18.25 SOL, confirmed live) never appeared at all — its 24h volume is too
+ * low to make a volume-only top-20, and the frontend's Floor/Volume sort
+ * toggle can only re-sort collections that were already fetched, it can't
+ * pull in ones that were never fetched to begin with. Fixed by fetching
+ * BOTH `sort=volume` and `sort=floorPrice` (confirmed live: this second
+ * sort value is accepted by the same endpoint) and merging+deduping by
+ * `collectionSymbol` — a collection that's top-ranked by EITHER metric now
+ * always makes the list, regardless of which sort the user picks in the UI.
  */
 export async function browseMagicEdenCollections(limit = 20): Promise<NftCollection[]> {
   return cached(`magiceden:top-collections:${limit}`, COLLECTIONS_TTL_MS, async () => {
-    const url = new URL(`${MAGICEDEN_STATS_API}/collection_stats/search/solana`);
-    url.searchParams.set("window", "1d");
-    url.searchParams.set("limit", String(limit));
-    url.searchParams.set("sort", "volume");
-    url.searchParams.set("direction", "desc");
-    const res = await fetchMagicEden(url);
-    if (!res.ok) throw new Error(`Magic Eden top collections failed (${res.status})`);
-    const rows = (await res.json()) as RawMagicEdenTopCollection[];
-    return rows.map(toNftCollectionFromStats);
+    const [byVolume, byFloor] = await Promise.all([
+      fetchMagicEdenTopCollectionsBySort("volume", limit),
+      fetchMagicEdenTopCollectionsBySort("floorPrice", limit),
+    ]);
+    const bySymbol = new Map<string, RawMagicEdenTopCollection>();
+    for (const row of [...byVolume, ...byFloor]) {
+      if (!bySymbol.has(row.collectionSymbol)) bySymbol.set(row.collectionSymbol, row);
+    }
+    return Array.from(bySymbol.values()).map(toNftCollectionFromStats);
   });
 }
 
