@@ -91,8 +91,17 @@ export default function NftCollectionPage({ params }: { params: Promise<{ vendor
   const [listings, setListings] = useState<NftListing[]>([]);
   const [cursor, setCursor] = useState<string | undefined>(undefined);
   const [hasMore, setHasMore] = useState(true);
-  const [loading, setLoading] = useState(true);
+  // Split 2026-08-04 (real bug, user report: entering a Solana/Magic Eden
+  // collection showed the page-wide "marketplace is temporarily busy" error
+  // instead of the collection header) — was a single `loading` covering both
+  // the header AND the listings grid, fetched via Promise.all([collection,
+  // firstPage]). See the collection-load effect below for the full fix.
+  const [collectionLoading, setCollectionLoading] = useState(true);
+  const [listingsLoading, setListingsLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
+  // Now scoped to the collection/header fetch only — a listings failure no
+  // longer sets this (see loadMoreError below), so it never hides
+  // already-successful header data behind a full-page error banner.
   const [error, setError] = useState<string | null>(null);
   // Separate from `error` — real bug found live 2026-08-04: a loadMore()
   // failure (e.g. Magic Eden's listings pagination hitting its rate limit,
@@ -204,43 +213,78 @@ export default function NftCollectionPage({ params }: { params: Promise<{ vendor
     [vendor, slug, view],
   );
 
-  // Collection header + first page — resets whenever the collection or view
-  // (Listed/All) changes.
+  // Collection header, THEN first page of listings — resets whenever the
+  // collection or view (Listed/All) changes.
+  //
+  // Fixed 2026-08-04 (real bug, user report): this used to fire both
+  // requests via Promise.all([collectionFetch, fetchPage()]) — a single
+  // shared `loading`/`error` covered both. That was wrong two ways: (1) it
+  // doubled the immediate request burst against Magic Eden's already-thin
+  // ~120 req/min keyless rate limit at the exact moment a collection page
+  // opens, making a 429 more likely to happen at all; (2) Promise.all
+  // rejects as soon as EITHER request fails, so a listings-only rate-limit
+  // hit ("This marketplace is temporarily busy...") was wiping out
+  // perfectly good, already-available header data (name/description/PFP/
+  // stats) behind a full-page error banner instead of just showing that
+  // error near the (empty) grid where it belongs.
+  //
+  // Now: fetch the collection header first. As soon as IT resolves, render
+  // it immediately (setCollectionLoading(false)) and only THEN start the
+  // listings request, with its own independent loading/error state
+  // (listingsLoading/loadMoreError — the latter reused from the existing
+  // scroll-pagination error state below, since a failed first page and a
+  // failed next page render in the exact same place with the exact same
+  // "Try again" retry affordance, and retrying just refetches with
+  // cursor=undefined, which is correct for a first-page retry too).
   useEffect(() => {
     let ignore = false;
     Promise.resolve()
       .then(() => {
         if (ignore) return;
-        setLoading(true);
+        setCollectionLoading(true);
+        setListingsLoading(true);
         setError(null);
         setLoadMoreError(null);
         setListings([]);
         setCursor(undefined);
         setHasMore(true);
       })
-      .then(() =>
-        Promise.all([
-          fetch(`/api/nft/collection?vendor=${vendor}&slug=${encodeURIComponent(slug)}`).then(async (r) => {
-            const body = await r.json();
-            if (!r.ok) throw new Error(body.error ?? "Failed to load collection");
-            return body.collection as NftCollection;
-          }),
-          fetchPage(),
-        ]),
-      )
-      .then(([c, page]) => {
+      .then(() => fetch(`/api/nft/collection?vendor=${vendor}&slug=${encodeURIComponent(slug)}`))
+      .then(async (r) => {
+        const body = await r.json();
+        if (!r.ok) throw new Error(body.error ?? "Failed to load collection");
+        return body.collection as NftCollection;
+      })
+      .then((c) => {
         if (ignore) return;
         setCollection(c);
-        setListings(dedupeListings(page.listings));
-        setCursor(page.nextCursor);
-        setHasMore(Boolean(page.nextCursor));
+        setCollectionLoading(false);
+        // Sequenced, not parallel — see the block comment above.
+        return fetchPage()
+          .then((page) => {
+            if (ignore) return;
+            setListings(dedupeListings(page.listings));
+            setCursor(page.nextCursor);
+            setHasMore(Boolean(page.nextCursor));
+          })
+          .catch((err) => {
+            if (!ignore) setLoadMoreError((err as Error).message);
+          })
+          .finally(() => {
+            if (!ignore) setListingsLoading(false);
+          });
       })
       .catch((err) => {
-        if (!ignore) setError((err as Error).message);
-      })
-      .finally(() => {
-        if (!ignore) setLoading(false);
+        // Collection fetch itself failed — a genuine full-page problem.
+        // Listings were never attempted in this branch, so clear its
+        // loading flag too rather than leaving the grid skeleton spinning.
+        if (!ignore) {
+          setError((err as Error).message);
+          setCollectionLoading(false);
+          setListingsLoading(false);
+        }
       });
+
     return () => {
       ignore = true;
     };
@@ -263,7 +307,7 @@ export default function NftCollectionPage({ params }: { params: Promise<{ vendor
   }, [vendor, slug]);
 
   const loadMore = useCallback(() => {
-    if (loadingMore || loading || !hasMore) return;
+    if (loadingMore || listingsLoading || !hasMore) return;
     setLoadingMore(true);
     setLoadMoreError(null);
     fetchPage(cursor)
@@ -274,7 +318,7 @@ export default function NftCollectionPage({ params }: { params: Promise<{ vendor
       })
       .catch((err) => setLoadMoreError((err as Error).message))
       .finally(() => setLoadingMore(false));
-  }, [fetchPage, cursor, hasMore, loading, loadingMore]);
+  }, [fetchPage, cursor, hasMore, listingsLoading, loadingMore]);
 
   const sentinelRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -316,7 +360,7 @@ export default function NftCollectionPage({ params }: { params: Promise<{ vendor
         <div className="rounded-2xl border border-danger-soft bg-danger-soft px-4 py-3 text-sm text-danger">{error}</div>
       )}
 
-      {collection ? <NftCollectionHero collection={collection} /> : loading && <NftCollectionHeroSkeleton />}
+      {collection ? <NftCollectionHero collection={collection} /> : collectionLoading && <NftCollectionHeroSkeleton />}
 
       {collection && <NftCollectionStats collection={collection} listedCountInfo={listedCountInfo} totalSupplyInfo={totalSupplyInfo} />}
 
@@ -377,14 +421,14 @@ export default function NftCollectionPage({ params }: { params: Promise<{ vendor
             </button>
           </div>
 
-          {!loading && listings.length > 0 && (
+          {!listingsLoading && listings.length > 0 && (
             <p className="px-1 text-xs text-ink-faint">
               <span className="num">{filteredListings.length}</span> of <span className="num">{listings.length}</span> loaded
               {hasMore && " · scroll for more"}
             </p>
           )}
 
-          {!loading && !error && listings.length === 0 && (
+          {!listingsLoading && !loadMoreError && listings.length === 0 && (
             <div className="flex flex-col items-center gap-1 rounded-2xl border border-dashed border-hairline py-16 text-center">
               <p className="text-sm font-medium text-ink">{view === "listed" ? "No active listings right now" : "No items found"}</p>
               {/*
@@ -415,7 +459,7 @@ export default function NftCollectionPage({ params }: { params: Promise<{ vendor
             </div>
           )}
 
-          {!loading && listings.length > 0 && filteredListings.length === 0 && (
+          {!listingsLoading && listings.length > 0 && filteredListings.length === 0 && (
             <div className="flex flex-col items-center gap-1 rounded-2xl border border-dashed border-hairline py-16 text-center">
               <p className="text-sm font-medium text-ink">No matches</p>
               <p className="text-sm text-ink-muted">Try a different search or fewer trait filters.</p>
@@ -423,7 +467,7 @@ export default function NftCollectionPage({ params }: { params: Promise<{ vendor
           )}
 
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-            {loading
+            {listingsLoading
               ? Array.from({ length: 8 }).map((_, i) => (
                   <div key={i} className="overflow-hidden rounded-2xl border border-hairline bg-surface">
                     <div className="skeleton aspect-square w-full" />
