@@ -4,6 +4,7 @@ import { randomBytes } from "node:crypto";
 import { requireSession, SessionError } from "@/lib/auth/session";
 import { supabaseAdmin } from "@/lib/supabase/server";
 import { rateLimit, clientKey } from "@/lib/rate-limit";
+import { safeErrorResponse } from "@/lib/apiError";
 
 // External-call budget for this route -- prevents Vercel's platform-level
 // function timeout from killing the request with an empty/non-JSON body
@@ -33,7 +34,7 @@ export async function GET() {
 
   const code = randomBytes(4).toString("hex");
   const { error } = await db.from("invite_codes").insert({ code, owner_id: session.userId });
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return safeErrorResponse("referral:invite-code-insert", error, 500);
   return NextResponse.json({ code });
 }
 

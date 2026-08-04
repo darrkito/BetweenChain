@@ -6,6 +6,7 @@ import { getJupiterQuote, NATIVE_SOL_MINT } from "@/lib/chains/jupiter";
 import { getRelayQuote, SOLANA_CHAIN_ID, RELAY_NATIVE_SOL_SENTINEL } from "@/lib/chains/relay";
 import { isPlausibleEvmAddress } from "@/lib/validation";
 import { rateLimit, clientKey } from "@/lib/rate-limit";
+import { safeErrorResponse } from "@/lib/apiError";
 
 // External-call budget for this route -- prevents Vercel's platform-level
 // function timeout from killing the request with an empty/non-JSON body
@@ -170,6 +171,6 @@ export async function POST(req: Request) {
       expectedOutputMin,
     });
   } catch (err) {
-    return NextResponse.json({ error: (err as Error).message }, { status: 502 });
+    return safeErrorResponse("quote", err, 502);
   }
 }

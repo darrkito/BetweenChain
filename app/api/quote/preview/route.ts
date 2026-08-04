@@ -13,6 +13,7 @@ import {
 import { getRelayChain } from "@/lib/chains/relayChains";
 import { getSolUsdPrice, lamportsToUsd, formatAtomicAmount } from "@/lib/pricing";
 import { rateLimit, clientKey } from "@/lib/rate-limit";
+import { safeErrorResponse } from "@/lib/apiError";
 
 // External-call budget for this route -- prevents Vercel's platform-level
 // function timeout from killing the request with an empty/non-JSON body
@@ -142,6 +143,6 @@ export async function GET(req: Request) {
 
     return NextResponse.json(result);
   } catch (err) {
-    return NextResponse.json({ error: (err as Error).message }, { status: 502 });
+    return safeErrorResponse("quote/preview", err, 502);
   }
 }

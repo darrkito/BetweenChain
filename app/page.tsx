@@ -413,11 +413,22 @@ export default function SwapPage() {
                 <span className="num text-sm text-ink">{slippageBps / 100}%</span>
               </div>
               {isCrossChain && (
-                <div className="flex items-center justify-between gap-2">
-                  <span className="shrink-0 text-xs text-ink-faint">Destination</span>
-                  <span className="num truncate text-xs text-ink" title={destAddress}>
-                    {destAddress}
-                  </span>
+                // 2026-08-04 (security hardening pass) — was a single
+                // `justify-between` row with `truncate` (CSS ellipsis
+                // clipping the address to fit the label's row). The
+                // underlying text was always the real full address (never
+                // string-sliced), but a visually-clipped address defeats
+                // the actual point of showing it here: current best
+                // practice against address-poisoning attacks is the buyer
+                // visually confirming the FULL destination address right
+                // before signing, not a truncated preview. Stacked layout +
+                // `break-all` (wraps instead of clipping) so the complete
+                // address is always visible, not just available via the
+                // `title` hover tooltip (which touch/mobile users can't
+                // reach anyway).
+                <div className="flex flex-col gap-1">
+                  <span className="text-xs text-ink-faint">Destination</span>
+                  <span className="num break-all text-xs text-ink">{destAddress}</span>
                 </div>
               )}
             </div>

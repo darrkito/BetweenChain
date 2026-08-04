@@ -118,7 +118,12 @@ export async function POST(req: Request) {
     // it would at quote time. Not a hard failure: the buyer's SOL already
     // safely landed in their own wallet (migration 0006's whole point) —
     // they just don't get this specific NFT.
+    // 2026-08-04 (security hardening pass) — the raw vendor error used to
+    // ride along as `detail`, inconsistent with the OpenSea/Sui sibling
+    // routes' identical listing_gone response (no detail field at all) and
+    // an unvetted-message leak besides. Logged server-side instead.
+    console.error(`[nft/purchase/magiceden/confirm-deposit] listing_gone for purchase ${purchase.id}:`, err);
     await db.from("nft_purchases").update({ status: "listing_gone", updated_at: new Date().toISOString() }).eq("id", purchase.id);
-    return NextResponse.json({ status: "listing_gone", detail: (err as Error).message });
+    return NextResponse.json({ status: "listing_gone" });
   }
 }

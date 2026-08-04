@@ -47,23 +47,31 @@ const nextConfig: NextConfig = {
   // frame-ancestors 'none'; object-src 'none'; base-uri 'self'` header was
   // added alongside the headers below, deliberately WITHOUT a script-src/
   // connect-src restriction — but even that minimal policy broke the app
-  // live: confirmed via the user's real browser console, Chrome's own CSP
-  // enforcement blocked `eval()` under a `script-src` directive this app
-  // never even specified (Next.js App Router auto-augments a
-  // user-supplied CSP with its own script-src/nonce handling once ANY CSP
-  // header is present, rather than leaving unspecified directives
-  // unrestricted the way a plain CSP normally would). Wallet-adapter/viem's
-  // dependency chain uses `eval`/`Function()` internally (common in
-  // elliptic-curve crypto libraries) — blocking it crashed wallet
-  // initialization early enough in the provider tree to cascade into the
-  // header/connect-wallet buttons never rendering, the same "one crash
-  // near the root, whole app looks broken" pattern already documented once
-  // in this file's own history (the data-theme hydration bug). Removed
-  // entirely rather than trying to special-case `unsafe-eval` — this
-  // exact failure mode is why the original comment here said a CSP
-  // "can't be safely tightened without live browser testing" up front; now
-  // confirmed the hard way. The remaining headers below don't touch script
-  // execution or CSP at all and are unaffected — kept.
+  // live: Chrome's CSP enforcement blocked `eval()` even though this app
+  // never specified a script-src at all (Next.js App Router auto-augments
+  // a user-supplied CSP with its own script-src/nonce handling once ANY CSP
+  // header is present). Wallet-adapter/viem's dependency chain uses
+  // `eval`/`Function()` internally — this crashed wallet init early enough
+  // to cascade into the header/connect-wallet buttons never rendering.
+  //
+  // 2026-08-04 (final security hardening pass, SAME DAY) — attempted a real
+  // fix (explicit `script-src 'self' 'unsafe-eval' 'unsafe-inline'` instead
+  // of omitting script-src and hitting Next's auto-augmentation blind) and
+  // then REVERTED it before shipping, per [[feedback_verify_untested_headers_before_prod]]
+  // — a memory this exact incident already produced. That memory's own
+  // explicit guidance: a change whose safety depends on live browser
+  // behavior, shipped with a self-acknowledged "can't verify this without
+  // browser testing" caveat, is precisely the failure mode that broke this
+  // app once already. Checked for real: attempted to use claude-in-chrome
+  // this session — genuinely not available (extension not connected), not
+  // a convenient excuse. Rather than repeat the exact mistake, the CSP
+  // stays OFF. A specific, ready-to-apply candidate exists (a
+  // `script-src 'self' 'unsafe-eval' 'unsafe-inline'; object-src 'none';
+  // base-uri 'self'; frame-ancestors 'none'` policy — grants unsafe-eval
+  // explicitly instead of omitting script-src, which should avoid Next's
+  // auto-augmentation collision) but needs a real browser (either the user
+  // testing it live, or a future session with working browser tooling)
+  // BEFORE it ships, not after.
   async headers() {
     return [
       {
