@@ -1,6 +1,7 @@
 import "server-only";
 import { cached } from "@/lib/cache";
 import { fetchWithTimeout } from "@/lib/fetchWithTimeout";
+import { getCollectionAssetsPage } from "@/lib/chains/heliusDas";
 import type { NftCollection, NftListing } from "@/lib/nft/types";
 
 const MAGICEDEN_API = "https://api-mainnet.magiceden.dev/v2";
@@ -276,11 +277,37 @@ const MAGICEDEN_PINNED_SYMBOLS: readonly string[] = ["saga"];
 // listing (`/listings?limit=1`, confirmed working) — Magic Eden's listing
 // payload already embeds `token.collectionName`/`token.image`, no separate
 // call needed.
+/**
+ * The collection's own real profile picture (what magiceden.io/marketplace/
+ * {symbol} actually shows) only exists on the base /v2/collections/{symbol}
+ * endpoint — confirmed live 2026-08-05: absent from the listings response,
+ * the /stats response, and the stats-mainnet pool (a pinned collection is
+ * by definition not in that pool at all). That base endpoint is also the
+ * specific, heavily-exhausted one fetchPinnedCollection otherwise avoids
+ * entirely (see this function's doc comment below). A single no-retry
+ * attempt here (deliberately `backoffScheduleMs: []` — the 2-retry default
+ * would add ~2.4s to a call this function doesn't block its main result on)
+ * is a reasonable best-effort trade: worth trying since the real profile
+ * picture is worth having, bounded since it never blocks or slows down the
+ * rest of fetchPinnedCollection if it fails. Cached long (COLLECTIONS_TTL_MS)
+ * either way — success or failure — so a rate-limited attempt doesn't retry
+ * on every single page view.
+ */
+async function fetchMagicEdenCollectionImage(symbol: string): Promise<string | undefined> {
+  return cached(`magiceden:pinned-image:${symbol}`, COLLECTIONS_TTL_MS, async () => {
+    const res = await fetchMagicEden(`${MAGICEDEN_API}/collections/${encodeURIComponent(symbol)}`, []);
+    if (!res.ok) return undefined;
+    const collection = (await res.json()) as RawMagicEdenCollection;
+    return collection.image;
+  }).catch(() => undefined);
+}
+
 async function fetchPinnedCollection(symbol: string): Promise<NftCollection | undefined> {
   return cached(`magiceden:pinned:${symbol}`, COLLECTIONS_TTL_MS, async () => {
-    const [stats, listingRes] = await Promise.all([
+    const [stats, listingRes, realImage] = await Promise.all([
       getMagicEdenCollectionStats(symbol),
       fetchMagicEden(`${MAGICEDEN_API}/collections/${encodeURIComponent(symbol)}/listings?offset=0&limit=1`),
+      fetchMagicEdenCollectionImage(symbol),
     ]);
     if (!listingRes.ok) return undefined;
     const listings = (await listingRes.json()) as RawMagicEdenListing[];
@@ -292,7 +319,11 @@ async function fetchPinnedCollection(symbol: string): Promise<NftCollection | un
       slug: symbol,
       name: token.collectionName ?? symbol,
       description: "",
-      imageUrl: token.image ?? "",
+      // Real collection profile picture when the (rate-limited, best-effort)
+      // fetch above succeeds; falls back to a sample NFT's own image
+      // otherwise — better than nothing, but NOT the same thing as the
+      // collection's actual avatar, so prefer the real one whenever available.
+      imageUrl: realImage ?? token.image ?? "",
       floorPrice: stats.floorPrice,
       floorPriceCurrency: stats.floorPriceCurrency,
       listedCount: stats.listedCount,
@@ -533,6 +564,54 @@ export async function getMagicEdenListings(symbol: string, offset = 0, limit = 2
       seller: l.seller,
       raw: l,
     }));
+  });
+}
+
+const ALL_ASSETS_TTL_MS = 30_000;
+
+/**
+ * "All items" (unlisted included) for Magic Eden — real user request
+ * 2026-08-05. Magic Eden's public API has no full-inventory endpoint of its
+ * own (confirmed via extensive doc research this session — same
+ * conclusion the original 2026-07-20 research already reached). Uses
+ * Helius DAS instead (lib/chains/heliusDas.ts's getCollectionAssetsPage,
+ * already used for the total-supply gap) — queries the actual on-chain
+ * collection inventory directly, independent of Magic Eden's marketplace
+ * listing status, same role as lib/nft/opensea.ts's getOpenSeaAllAssets.
+ * `listed: false` on every item here for the same reason OpenSea's version
+ * does — NOT cross-referenced against active listings (would cost a second
+ * lookup per item), so this intentionally doesn't claim to know which
+ * unlisted-looking items are secretly for sale.
+ *
+ * Needs a real sample mint (from an active listing) to resolve the on-chain
+ * collection address at all — a collection with zero current listings has
+ * no cheap way to resolve this and returns an empty page rather than
+ * guessing, same honesty-over-guessing rule as the total-supply gap. The
+ * sample is fetched once per call (cheap, same LISTINGS_TTL_MS-cached path
+ * getMagicEdenListings already uses) rather than threaded through from the
+ * caller, so this function's signature matches getMagicEdenListings'
+ * (symbol, page, limit) shape the listings route already dispatches on.
+ */
+export async function getMagicEdenAllAssets(symbol: string, page: number, limit = 20): Promise<{ listings: NftListing[]; nextCursor?: string }> {
+  return cached(`magiceden:allassets:${symbol}:${page}:${limit}`, ALL_ASSETS_TTL_MS, async () => {
+    const sample = await getMagicEdenListings(symbol, 0, 1).catch(() => []);
+    const sampleMint = sample[0]?.tokenId;
+    if (!sampleMint) return { listings: [], nextCursor: undefined };
+
+    const das = await getCollectionAssetsPage(sampleMint, page, limit);
+    if (!das) return { listings: [], nextCursor: undefined };
+
+    const listings: NftListing[] = das.items.map((a) => ({
+      vendor: "magiceden",
+      chainFamily: "solana",
+      collectionSlug: symbol,
+      tokenId: a.mint,
+      name: a.name,
+      imageUrl: a.imageUrl,
+      traits: a.traits,
+      listed: false,
+    }));
+    return { listings, nextCursor: das.hasMore ? String(page + 1) : undefined };
   });
 }
 

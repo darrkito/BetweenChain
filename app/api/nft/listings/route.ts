@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getMagicEdenListings } from "@/lib/nft/magiceden";
+import { getMagicEdenListings, getMagicEdenAllAssets } from "@/lib/nft/magiceden";
 import { getOpenSeaListings, getOpenSeaAllAssets, getOpenSeaCollection } from "@/lib/nft/opensea";
 import { getCryptoPunksOnchainListings } from "@/lib/nft/cryptopunksOnchain";
 import { CRYPTOPUNKS_SLUG } from "@/lib/nft/cryptopunksShared";
@@ -17,14 +17,18 @@ export const maxDuration = 30;
 const PAGE_SIZE = 20;
 
 // Collection items for the buy grid, paginated for infinite scroll.
-// `view=listed` (default) returns currently-buyable items; `view=all` (OpenSea
-// only, see lib/nft/opensea.ts's getOpenSeaAllAssets) returns full collection
-// inventory regardless of listing status. Magic Eden and Tradeport have no
-// confirmed "all items" endpoint in their public APIs — `view=all` for those
-// vendors falls back to the same listed-only result rather than 400ing, since
-// a client-side toggle shouldn't hard-fail just because one vendor can't
-// serve it (the UI disables the "All" tab for non-OpenSea collections instead
-// — see app/nft/[vendor]/[slug]/page.tsx).
+// `view=listed` (default) returns currently-buyable items; `view=all` returns
+// full collection inventory regardless of listing status. OpenSea has its own
+// native endpoint for this (getOpenSeaAllAssets). Magic Eden has no such
+// endpoint of its own (confirmed via extensive doc research) — real user
+// request 2026-08-05, now served via Helius DAS instead (see
+// lib/nft/magiceden.ts's getMagicEdenAllAssets), page-based (DAS's own
+// pagination shape) rather than offset-based like the listed view. Tradeport
+// still has no confirmed endpoint either way — `view=all` for it falls back
+// to the same listed-only result rather than 400ing, since a client-side
+// toggle shouldn't hard-fail just because one vendor can't serve it (the UI
+// disables the "All" tab for Tradeport collections — see
+// app/nft/[vendor]/[slug]/CollectionPageClient.tsx).
 export async function GET(req: Request) {
   const rl = await rateLimit(clientKey(req, "nft:listings"), 60, 60_000);
   if (!rl.ok) return NextResponse.json({ error: "Too many requests" }, { status: 429 });
@@ -40,6 +44,11 @@ export async function GET(req: Request) {
 
   try {
     if (vendor === "magiceden") {
+      if (view === "all") {
+        const page = cursor ? Number(cursor) : 1;
+        const result = await getMagicEdenAllAssets(slug, page, PAGE_SIZE);
+        return NextResponse.json(result);
+      }
       const offset = cursor ? Number(cursor) : 0;
       const listings = await getMagicEdenListings(slug, offset, PAGE_SIZE);
       const nextCursor = listings.length === PAGE_SIZE ? String(offset + PAGE_SIZE) : undefined;

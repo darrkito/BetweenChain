@@ -48,6 +48,67 @@ async function getCollectionMintFromSample(sampleMint: string): Promise<string |
   });
 }
 
+export interface DasAssetSummary {
+  mint: string;
+  name?: string;
+  imageUrl?: string;
+  traits?: Array<{ traitType: string; value: string }>;
+}
+
+// Real shape confirmed live 2026-08-05 (curl against a real Mad Lads asset)
+// — `content.links.image` is the field to use (matches `content.metadata.
+// name`/`.attributes` for the other display fields); `content.files` also
+// carries the same image URL redundantly but links.image is the documented,
+// stable field.
+interface RawDasAsset {
+  id: string;
+  content?: {
+    metadata?: { name?: string; attributes?: Array<{ trait_type: string; value: string }> };
+    links?: { image?: string };
+  };
+}
+
+/**
+ * Full on-chain collection inventory, page-based (DAS's own pagination
+ * shape, unlike Magic Eden's offset-based listings) — regardless of Magic
+ * Eden marketplace listing status. Same role as lib/nft/opensea.ts's
+ * getOpenSeaAllAssets: powers the "All items" toggle for a vendor with no
+ * confirmed native full-inventory endpoint of its own (see
+ * lib/nft/magiceden.ts's getMagicEdenAllAssets — Magic Eden's public API
+ * genuinely has none, confirmed via extensive doc research, same as the
+ * total-supply gap this file already closes). Needs a real sample mint to
+ * resolve the on-chain collection address first — same limitation as
+ * getCollectionTotalSupply, a collection with zero current listings has no
+ * cheap way to resolve this and "All items" simply isn't available for it,
+ * same honesty-over-guessing rule as everywhere else in this stats work.
+ */
+export async function getCollectionAssetsPage(
+  sampleMint: string,
+  page: number,
+  limit: number,
+): Promise<{ items: DasAssetSummary[]; hasMore: boolean } | undefined> {
+  const collectionMint = await getCollectionMintFromSample(sampleMint);
+  if (!collectionMint) return undefined;
+  return cached(`helius:das:assetspage:${collectionMint}:${page}:${limit}`, TOTAL_SUPPLY_TTL_MS, async () => {
+    const result = await dasRpc<{ items?: RawDasAsset[] }>("getAssetsByGroup", {
+      groupKey: "collection",
+      groupValue: collectionMint,
+      page,
+      limit,
+    });
+    const items = result.items ?? [];
+    return {
+      items: items.map((a) => ({
+        mint: a.id,
+        name: a.content?.metadata?.name,
+        imageUrl: a.content?.links?.image,
+        traits: a.content?.metadata?.attributes?.map((t) => ({ traitType: t.trait_type, value: t.value })),
+      })),
+      hasMore: items.length === limit,
+    };
+  });
+}
+
 /**
  * Confirmed live 2026-07-20: the plain `total` field in getAssetsByGroup's
  * response is bounded by `limit` (NOT the collection's real size, despite

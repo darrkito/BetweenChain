@@ -105,10 +105,12 @@ export function CollectionPageClient({
   // immediately from the route param, no need to wait for the collection
   // fetch below just to render the tabs/breadcrumb.
   const family = nftFamilyForVendor(vendor) ?? "solana";
-  // "All items" (unlisted included) is only wired up for OpenSea today — see
-  // lib/nft/tradeport.ts / lib/nft/magiceden.ts, neither has a confirmed
-  // full-inventory endpoint in the public API.
-  const supportsAllView = vendor === "opensea";
+  // "All items" (unlisted included) — OpenSea has its own native endpoint;
+  // Magic Eden added 2026-08-05 (real user request) via Helius DAS instead
+  // (see lib/nft/magiceden.ts's getMagicEdenAllAssets — Magic Eden's public
+  // API has no full-inventory endpoint of its own). Tradeport still has no
+  // confirmed endpoint either way (lib/nft/tradeport.ts).
+  const supportsAllView = vendor === "opensea" || vendor === "magiceden";
 
   const [collection, setCollection] = useState<NftCollection | null>(initialCollection);
   const [listings, setListings] = useState<NftListing[]>(initialListings);
@@ -574,8 +576,8 @@ export function CollectionPageClient({
               {view === "listed" && supportsAllView ? (
                 <>
                   <p className="max-w-xs text-sm text-ink-muted">
-                    OpenSea&apos;s live order book has nothing listed here right now — some collections trade through
-                    a marketplace flow outside it.
+                    Nothing listed for sale right now — the collection still has real items, some of which may
+                    trade through a marketplace flow this listed-only view doesn&apos;t see.
                   </p>
                   <button
                     onClick={() => setView("all")}
