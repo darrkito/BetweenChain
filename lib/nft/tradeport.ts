@@ -309,6 +309,66 @@ export async function browseTradeportCollections(chain: TradeportChain, limit = 
   });
 }
 
+const SEARCH_QUERY = (chain: TradeportChain) => `
+  query SearchCollections($pattern: String!, $limit: Int!) {
+    ${chain} {
+      collections(where: { title: { _ilike: $pattern } }, limit: $limit, order_by: { volume: desc }) {
+        id
+        slug
+        title
+        cover_url
+        floor
+        supply
+      }
+    }
+  }
+`;
+
+const SEARCH_TTL_MS = 60_000;
+
+/**
+ * Real, universal search by name across ALL of a chain's collections, not
+ * limited to the ranked top set browseTradeportCollections returns.
+ * Confirmed live 2026-08-05: Tradeport's GraphQL gateway (which blocks most
+ * arbitrary query shapes behind an allow-list, see this file's top comment)
+ * DOES allow `_ilike` pattern matching on `title` — a genuine Hasura-style
+ * case-insensitive substring operator, not something reverse-engineered or
+ * guessed. Deliberately NOT verified-only (unlike browseTradeportCollections)
+ * — a user searching for a specific name by name wants that exact result
+ * even if unverified, not a curated ranking; same reasoning OpenSea's search
+ * doesn't apply a trust filter beyond disabled/nsfw either.
+ *
+ * Deliberately NOT enriched (no listedCount/volume/floorChange24hrPct, unlike
+ * browse/detail) — enrichCollection costs 3 extra GraphQL calls per result;
+ * for a list of up to `limit` search results a user hasn't committed to
+ * clicking into yet, that's not worth the trial-quota cost. Floor price
+ * still comes through (already on the base collections query, free).
+ */
+export async function searchTradeportCollections(chain: TradeportChain, query: string, limit = 20): Promise<NftCollection[]> {
+  const trimmed = query.trim();
+  if (!trimmed) return [];
+  return cached(`tradeport:search:${chain}:${trimmed}:${limit}`, SEARCH_TTL_MS, async () => {
+    const decimals = CHAIN_DECIMALS[chain];
+    const currency = CHAIN_CURRENCY[chain];
+    const data = await tradeportQuery<{ [K in TradeportChain]?: { collections: TradeportCollectionRow[] } }>(SEARCH_QUERY(chain), {
+      pattern: `%${trimmed}%`,
+      limit,
+    });
+    const rows = data[chain]?.collections ?? [];
+    return rows.map((c) => ({
+      vendor: "tradeport" as const,
+      chainFamily: "move" as const,
+      slug: c.slug,
+      name: c.title,
+      description: "",
+      imageUrl: toHttpUrl(c.cover_url),
+      floorPrice: fromAtomic(c.floor, decimals),
+      floorPriceCurrency: currency,
+      totalSupply: c.supply,
+    }));
+  });
+}
+
 /**
  * Single-collection detail, used by the collection page header — see
  * COLLECTION_BY_SLUG_QUERY's comment for the 404 bug this fixes. Runs the

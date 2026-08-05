@@ -258,6 +258,44 @@ export async function browseMagicEdenCollections(limit = 20): Promise<NftCollect
   });
 }
 
+const SEARCH_POOL_SIZE = 250;
+const SEARCH_TTL_MS = 60_000;
+
+/**
+ * Best-effort search — Magic Eden has NO documented name-search endpoint
+ * for Solana collections (checked 2026-08-05: their only public "Search
+ * Collections" API, docs.magiceden.io/reference/searchcollections, is
+ * scoped to `v4/evm-public` — their EVM product line, which they already
+ * shut down in 2026-03, see PLAN.md — not usable for the Solana collections
+ * this app actually lists). Unlike searchOpenSeaCollections/
+ * searchTradeportCollections, this is NOT a true universal search: it
+ * fetches a larger pool (250 by volume + 250 by floor, same merge/dedupe
+ * pattern as browseMagicEdenCollections but ~12x the pool size) and filters
+ * by substring match server-side. A collection ranked outside the top ~500
+ * by both metrics genuinely won't be found — an accepted, documented gap,
+ * not a silent limitation. `isVerified` filter intentionally dropped here
+ * (unlike browse) — a user searching a specific name wants that exact
+ * collection even if unbadged, same reasoning as the OpenSea/Tradeport
+ * search functions not applying browse's trust filter either.
+ */
+export async function searchMagicEdenCollections(query: string, limit = 20): Promise<NftCollection[]> {
+  const trimmed = query.trim().toLowerCase();
+  if (!trimmed) return [];
+  return cached(`magiceden:search:${trimmed}:${limit}`, SEARCH_TTL_MS, async () => {
+    const [byVolume, byFloor] = await Promise.all([
+      fetchMagicEdenTopCollectionsBySort("volume", SEARCH_POOL_SIZE),
+      fetchMagicEdenTopCollectionsBySort("floorPrice", SEARCH_POOL_SIZE),
+    ]);
+    const bySymbol = new Map<string, RawMagicEdenTopCollection>();
+    for (const row of [...byVolume, ...byFloor]) {
+      if (!bySymbol.has(row.collectionSymbol) && row.name.toLowerCase().includes(trimmed)) {
+        bySymbol.set(row.collectionSymbol, row);
+      }
+    }
+    return Array.from(bySymbol.values()).slice(0, limit).map(toNftCollectionFromStats);
+  });
+}
+
 /**
  * Split from stats 2026-08-04 (real bug, user report: Solana collection
  * pages showed the header failing while the listings grid loaded fine, on

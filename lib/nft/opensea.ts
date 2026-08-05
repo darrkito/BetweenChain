@@ -183,6 +183,54 @@ export async function getOpenSeaCollection(slug: string): Promise<NftCollection 
   });
 }
 
+interface RawOpenSeaSearchResult {
+  type: string;
+  collection?: { collection: string; name: string; image_url?: string; is_disabled?: boolean; is_nsfw?: boolean };
+}
+
+const SEARCH_TTL_MS = 60_000;
+
+/**
+ * Real, documented search across ALL of OpenSea's collections by name —
+ * not limited to whatever's currently top-ranked (unlike browseOpenSea
+ * Collections, which only ever returns ~40 collections at a time). Confirmed
+ * live 2026-08-05: `GET /v2/search?query=X&asset_types=collection&chains=Y`
+ * returns real name matches (e.g. "pudgy" -> Pudgy Penguins, Lil Pudgys,
+ * Pudgy Rods, ...). Response shape only carries slug/name/image — no floor/
+ * volume/totalSupply, unlike the browse path's per-collection /stats
+ * enrichment (would cost one more call per result; not done here, same
+ * "don't fetch what search results don't need yet" principle as
+ * browseOpenSeaCollections not enriching total_supply/listedCount either).
+ * `is_disabled`/`is_nsfw` filtered out — same trust-signal principle as
+ * `safelist_status === "verified"` elsewhere in this file, applied to
+ * whatever this endpoint actually exposes for that purpose.
+ */
+export async function searchOpenSeaCollections(query: string, chain = "ethereum", limit = 20): Promise<NftCollection[]> {
+  requireOpenseaKey();
+  const trimmed = query.trim();
+  if (!trimmed) return [];
+  return cached(`opensea:search:${chain}:${trimmed}:${limit}`, SEARCH_TTL_MS, async () => {
+    const url = new URL(`${OPENSEA_API}/search`);
+    url.searchParams.set("query", trimmed);
+    url.searchParams.set("chains", chain);
+    url.searchParams.append("asset_types", "collection");
+    url.searchParams.set("limit", String(limit));
+    const res = await fetchWithTimeout(url, { headers: openseaHeaders(), cache: "no-store" });
+    if (!res.ok) throw new Error(`OpenSea search failed (${res.status})`);
+    const body = (await res.json()) as { results: RawOpenSeaSearchResult[] };
+    return body.results
+      .filter((r) => r.type === "collection" && r.collection && !r.collection.is_disabled && !r.collection.is_nsfw)
+      .map((r) => ({
+        vendor: "opensea" as const,
+        chainFamily: "evm" as const,
+        slug: r.collection!.collection,
+        name: r.collection!.name,
+        description: "",
+        imageUrl: r.collection!.image_url ?? "",
+      }));
+  });
+}
+
 interface RawOpenSeaListing {
   order_hash: string;
   chain: string;

@@ -3,6 +3,7 @@ import { Breadcrumb } from "@/app/components/Breadcrumb";
 import { NftChainTabs } from "@/app/components/NftChainTabs";
 import { EvmChainSubTabs } from "@/app/components/EvmChainSubTabs";
 import { NftCollectionsGrid } from "@/app/components/NftCollectionsGrid";
+import { NftSearchBar } from "@/app/components/NftSearchBar";
 import { nftChainFamilyLabel } from "@/lib/nft/labels";
 import { NFT_VENDOR_CLIENTS, VENDOR_FOR_FAMILY } from "@/lib/nft/vendorClients";
 import type { NftChainFamily, NftCollection } from "@/lib/nft/types";
@@ -29,11 +30,20 @@ import type { NftChainFamily, NftCollection } from "@/lib/nft/types";
  * Errors render inline rather than throwing into error.tsx — matches the
  * existing inline-banner style already used on every other page in this
  * app (see the collection detail page), not a framework-default error UI.
+ *
+ * 2026-08-05 — added `?q=` search, routed to NFT_VENDOR_CLIENTS[vendor]
+ * .searchCollections instead of .browseCollections when present. Real
+ * capability gap, not hidden: OpenSea/Tradeport search is genuinely
+ * universal (their real APIs, see lib/nft/{opensea,tradeport}.ts); Magic
+ * Eden has no such endpoint for Solana and falls back to filtering a larger
+ * fetched pool (see lib/nft/magiceden.ts's searchMagicEdenCollections doc
+ * comment) — surfaced to the user via a note under the search bar rather
+ * than pretending it's the same guarantee.
  */
 export default async function NftBrowsePage({
   searchParams,
 }: {
-  searchParams: Promise<{ family?: string; chain?: string }>;
+  searchParams: Promise<{ family?: string; chain?: string; q?: string }>;
 }) {
   const params = await searchParams;
   const family = (params.family as NftChainFamily | null) ?? "solana";
@@ -43,12 +53,15 @@ export default async function NftBrowsePage({
   // No sub-tab picker like EVM's yet since there's only one wired chain.
   const moveChain = params.chain ?? "sui";
   const chain = family === "evm" ? evmChain : family === "move" ? moveChain : undefined;
+  const query = params.q?.trim();
 
   let collections: NftCollection[] = [];
   let error: string | null = null;
   const vendor = VENDOR_FOR_FAMILY[family] ?? VENDOR_FOR_FAMILY.solana;
   try {
-    collections = await NFT_VENDOR_CLIENTS[vendor].browseCollections(chain);
+    collections = query
+      ? await NFT_VENDOR_CLIENTS[vendor].searchCollections(query, chain)
+      : await NFT_VENDOR_CLIENTS[vendor].browseCollections(chain);
   } catch (err) {
     error = (err as Error).message;
   }
@@ -60,14 +73,22 @@ export default async function NftBrowsePage({
       {family === "evm" && <EvmChainSubTabs active={evmChain} />}
       <Breadcrumb items={[{ label: "NFTs", href: "/nft" }, { label: nftChainFamilyLabel(family) }]} />
 
+      <NftSearchBar family={family} chain={chain} initialQuery={query} />
+      {query && vendor === "magiceden" && (
+        <p className="px-1 text-xs text-ink-faint">
+          Solana search checks a large set of collections but isn&apos;t exhaustive — very new or low-volume collections may not
+          appear yet.
+        </p>
+      )}
+
       {error && (
         <div className="rounded-2xl border border-danger-soft bg-danger-soft px-4 py-3 text-sm text-danger">{error}</div>
       )}
 
       {!error && collections.length === 0 && (
         <div className="flex flex-col items-center gap-1 rounded-2xl border border-dashed border-hairline py-16 text-center">
-          <p className="text-sm font-medium text-ink">No collections found</p>
-          <p className="text-sm text-ink-muted">Try a different chain.</p>
+          <p className="text-sm font-medium text-ink">{query ? `No collections found for "${query}"` : "No collections found"}</p>
+          <p className="text-sm text-ink-muted">{query ? "Try a different search term." : "Try a different chain."}</p>
         </div>
       )}
 
