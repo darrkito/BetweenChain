@@ -57,9 +57,15 @@ function displayFloorPrice(c: NftCollection): number | undefined {
  * image for the banner (see NftCollectionHero.tsx for the same trick used on
  * the detail page).
  */
+type ViewMode = "grid" | "list";
+
 export function NftCollectionsGrid({ collections }: { collections: NftCollection[] }) {
   const [sortKey, setSortKey] = useState<SortKey>("floor");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  // Local-only, same as sortKey/sortDir above (not URL-synced) — resets on
+  // navigation, matches the existing sort toggle's UX rather than adding a
+  // new ?view= param for a purely presentational preference.
+  const [view, setView] = useState<ViewMode>("grid");
 
   const sorted = useMemo(() => {
     const withIndex = collections.map((c, i) => ({ c, i }));
@@ -93,75 +99,72 @@ export function NftCollectionsGrid({ collections }: { collections: NftCollection
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex w-fit gap-1 rounded-xl border border-hairline bg-surface p-1 shadow-sm">
-        {(Object.keys(SORT_LABEL) as SortKey[]).map((key) => {
-          const active = sortKey === key;
-          return (
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex w-fit gap-1 rounded-xl border border-hairline bg-surface p-1 shadow-sm">
+          {(Object.keys(SORT_LABEL) as SortKey[]).map((key) => {
+            const active = sortKey === key;
+            return (
+              <button
+                key={key}
+                onClick={() => toggleSort(key)}
+                className={`inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
+                  active ? "bg-accent-soft text-accent" : "text-ink-muted hover:bg-surface-hover hover:text-ink"
+                }`}
+              >
+                {SORT_LABEL[key]}
+                {active && <span aria-hidden="true">{sortDir === "desc" ? "↓" : "↑"}</span>}
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="flex w-fit gap-1 rounded-xl border border-hairline bg-surface p-1 shadow-sm">
+          {(["grid", "list"] as ViewMode[]).map((mode) => (
             <button
-              key={key}
-              onClick={() => toggleSort(key)}
-              className={`inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
-                active ? "bg-accent-soft text-accent" : "text-ink-muted hover:bg-surface-hover hover:text-ink"
+              key={mode}
+              onClick={() => setView(mode)}
+              aria-label={mode === "grid" ? "Grid view" : "List view"}
+              aria-pressed={view === mode}
+              className={`inline-flex items-center justify-center rounded-lg p-1.5 transition-colors ${
+                view === mode ? "bg-accent-soft text-accent" : "text-ink-muted hover:bg-surface-hover hover:text-ink"
               }`}
             >
-              {SORT_LABEL[key]}
-              {active && <span aria-hidden="true">{sortDir === "desc" ? "↓" : "↑"}</span>}
+              {mode === "grid" ? (
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <rect x="3" y="3" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="2" />
+                  <rect x="14" y="3" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="2" />
+                  <rect x="3" y="14" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="2" />
+                  <rect x="14" y="14" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="2" />
+                </svg>
+              ) : (
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <rect x="3" y="4.5" width="18" height="3" rx="1" stroke="currentColor" strokeWidth="2" />
+                  <rect x="3" y="10.5" width="18" height="3" rx="1" stroke="currentColor" strokeWidth="2" />
+                  <rect x="3" y="16.5" width="18" height="3" rx="1" stroke="currentColor" strokeWidth="2" />
+                </svg>
+              )}
             </button>
-          );
-        })}
+          ))}
+        </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-        {sorted.map((c, i) => {
-          const floor = displayFloorPrice(c);
-          return (
-            <Link
-              key={`${c.vendor}-${c.slug}`}
-              href={`/nft/${c.vendor}/${encodeURIComponent(c.slug)}`}
-              className="group flex flex-col overflow-hidden rounded-2xl border border-hairline bg-surface shadow-sm transition-all duration-200 hover:-translate-y-1 hover:border-accent/40 hover:shadow-lg"
-              style={{ animation: `fadeInUp 0.35s ease ${Math.min(i, 12) * 0.03}s both` }}
-            >
-              <div className="relative h-16 w-full overflow-hidden bg-accent-soft">
-                {c.bannerImageUrl ? (
-                  // Routed through /api/img (2026-08-04) — see lib/client/imageProxy.ts
-                  <Image
-                    src={proxiedImageUrl(c.bannerImageUrl)}
-                    alt=""
-                    aria-hidden="true"
-                    fill
-                    sizes="(max-width: 640px) 50vw, 25vw"
-                    className="object-cover transition-transform duration-300 group-hover:scale-105"
-                  />
-                ) : c.imageUrl ? (
-                  <Image
-                    src={proxiedImageUrl(c.imageUrl)}
-                    alt=""
-                    aria-hidden="true"
-                    fill
-                    sizes="(max-width: 640px) 50vw, 25vw"
-                    className="scale-125 object-cover blur-lg"
-                  />
-                ) : null}
-                <div className="absolute inset-0 bg-gradient-to-t from-surface/80 via-transparent to-transparent" />
-                <span className="absolute left-2 top-2 rounded-full bg-black/40 px-1.5 py-0.5 text-[10px] font-semibold text-white backdrop-blur-sm">
-                  #{i + 1}
-                </span>
-              </div>
-
-              <div className="flex items-start gap-2.5 px-3 pt-0">
-                <NftImage
-                  src={c.imageUrl}
-                  alt={c.name}
-                  className="-mt-6 h-12 w-12 shrink-0 rounded-full ring-4 ring-surface"
-                />
-                <div className="flex min-w-0 flex-1 flex-col pt-1.5">
-                  <span className="truncate text-sm font-semibold text-ink group-hover:text-accent">{c.name}</span>
+      {view === "list" && (
+        <div className="flex flex-col divide-y divide-hairline overflow-hidden rounded-2xl border border-hairline bg-surface shadow-sm">
+          {sorted.map((c, i) => {
+            const floor = displayFloorPrice(c);
+            return (
+              <Link
+                key={`${c.vendor}-${c.slug}`}
+                href={`/nft/${c.vendor}/${encodeURIComponent(c.slug)}`}
+                className="flex items-center gap-3 px-3 py-2.5 transition-colors hover:bg-surface-hover"
+              >
+                <span className="w-6 shrink-0 text-right text-xs text-ink-faint">{i + 1}</span>
+                <NftImage src={c.imageUrl} alt={c.name} className="h-9 w-9 shrink-0 rounded-full" />
+                <div className="flex min-w-0 flex-1 flex-col">
+                  <span className="truncate text-sm font-semibold text-ink">{c.name}</span>
                   <span className="text-[10px] uppercase tracking-wide text-ink-faint">{c.vendor}</span>
                 </div>
-              </div>
-
-              <div className="mt-1 flex items-center gap-3 border-t border-hairline px-3 py-2 text-xs">
-                <div className="flex flex-1 flex-col gap-0.5">
+                <div className="flex w-24 shrink-0 flex-col items-end gap-0.5 text-xs">
                   <span className="text-[10px] uppercase tracking-wide text-ink-faint">Floor</span>
                   {floor != null ? (
                     <span className="num font-semibold text-ink">
@@ -171,7 +174,7 @@ export function NftCollectionsGrid({ collections }: { collections: NftCollection
                     <span className="text-ink-faint">—</span>
                   )}
                 </div>
-                <div className="flex flex-1 flex-col gap-0.5">
+                <div className="hidden w-28 shrink-0 flex-col items-end gap-0.5 text-xs sm:flex">
                   <span className="text-[10px] uppercase tracking-wide text-ink-faint">Volume</span>
                   {c.volume24hr != null ? (
                     <span className="num font-semibold text-ink">
@@ -181,11 +184,89 @@ export function NftCollectionsGrid({ collections }: { collections: NftCollection
                     <span className="text-ink-faint">—</span>
                   )}
                 </div>
-              </div>
-            </Link>
-          );
-        })}
-      </div>
+              </Link>
+            );
+          })}
+        </div>
+      )}
+
+      {view === "grid" && (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+          {sorted.map((c, i) => {
+            const floor = displayFloorPrice(c);
+            return (
+              <Link
+                key={`${c.vendor}-${c.slug}`}
+                href={`/nft/${c.vendor}/${encodeURIComponent(c.slug)}`}
+                className="group flex flex-col overflow-hidden rounded-2xl border border-hairline bg-surface shadow-sm transition-all duration-200 hover:-translate-y-1 hover:border-accent/40 hover:shadow-lg"
+                style={{ animation: `fadeInUp 0.35s ease ${Math.min(i, 12) * 0.03}s both` }}
+              >
+                <div className="relative h-16 w-full overflow-hidden bg-accent-soft">
+                  {c.bannerImageUrl ? (
+                    // Routed through /api/img (2026-08-04) — see lib/client/imageProxy.ts
+                    <Image
+                      src={proxiedImageUrl(c.bannerImageUrl)}
+                      alt=""
+                      aria-hidden="true"
+                      fill
+                      sizes="(max-width: 640px) 50vw, 25vw"
+                      className="object-cover transition-transform duration-300 group-hover:scale-105"
+                    />
+                  ) : c.imageUrl ? (
+                    <Image
+                      src={proxiedImageUrl(c.imageUrl)}
+                      alt=""
+                      aria-hidden="true"
+                      fill
+                      sizes="(max-width: 640px) 50vw, 25vw"
+                      className="scale-125 object-cover blur-lg"
+                    />
+                  ) : null}
+                  <div className="absolute inset-0 bg-gradient-to-t from-surface/80 via-transparent to-transparent" />
+                  <span className="absolute left-2 top-2 rounded-full bg-black/40 px-1.5 py-0.5 text-[10px] font-semibold text-white backdrop-blur-sm">
+                    #{i + 1}
+                  </span>
+                </div>
+
+                <div className="flex items-start gap-2.5 px-3 pt-0">
+                  <NftImage
+                    src={c.imageUrl}
+                    alt={c.name}
+                    className="-mt-6 h-12 w-12 shrink-0 rounded-full ring-4 ring-surface"
+                  />
+                  <div className="flex min-w-0 flex-1 flex-col pt-1.5">
+                    <span className="truncate text-sm font-semibold text-ink group-hover:text-accent">{c.name}</span>
+                    <span className="text-[10px] uppercase tracking-wide text-ink-faint">{c.vendor}</span>
+                  </div>
+                </div>
+
+                <div className="mt-1 flex items-center gap-3 border-t border-hairline px-3 py-2 text-xs">
+                  <div className="flex flex-1 flex-col gap-0.5">
+                    <span className="text-[10px] uppercase tracking-wide text-ink-faint">Floor</span>
+                    {floor != null ? (
+                      <span className="num font-semibold text-ink">
+                        {roundUpTo2Decimals(floor)} <span className="text-ink-faint">{c.floorPriceCurrency}</span>
+                      </span>
+                    ) : (
+                      <span className="text-ink-faint">—</span>
+                    )}
+                  </div>
+                  <div className="flex flex-1 flex-col gap-0.5">
+                    <span className="text-[10px] uppercase tracking-wide text-ink-faint">Volume</span>
+                    {c.volume24hr != null ? (
+                      <span className="num font-semibold text-ink">
+                        {Number(c.volume24hr).toFixed(2)} <span className="text-ink-faint">{c.volume24hrCurrency}</span>
+                      </span>
+                    ) : (
+                      <span className="text-ink-faint">—</span>
+                    )}
+                  </div>
+                </div>
+              </Link>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
