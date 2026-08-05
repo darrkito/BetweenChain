@@ -654,7 +654,7 @@ export function CollectionPageClient({
                                 disabled
                                 title={
                                   isOnchainPunkListing(l)
-                                    ? "This is a real on-chain listing, but buying it needs a direct contract call (CryptoPunksMarket.buyPunk) rather than OpenSea's usual flow — not wired up yet"
+                                    ? "This is a real on-chain listing, but buying it needs a direct contract call — not wired up yet"
                                     : "Buy execution isn't wired up for this vendor yet"
                                 }
                                 className="w-fit cursor-not-allowed rounded-full bg-surface-hover px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-ink-faint"

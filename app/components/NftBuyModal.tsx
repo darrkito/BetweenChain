@@ -367,8 +367,8 @@ export function NftBuyModal({ listing, onClose }: { listing: NftListing; onClose
               </span>
             </div>
             <p className="px-1 text-[11px] leading-relaxed text-ink-faint">
-              Includes the {Number(listing.price).toFixed(3)} {listing.priceCurrency} listing price (OpenSea&apos;s own marketplace fee
-              is already included in that price, same as buying directly on OpenSea), plus network gas for the on-chain purchase
+              Includes the {Number(listing.price).toFixed(3)} {listing.priceCurrency} listing price (the marketplace fee is already
+              included in that price, same as buying directly), plus network gas for the on-chain purchase
               {quote.sameChain ? "." : " and a 0.25% cross-chain fee for converting and delivering your payment."}
             </p>
             <button

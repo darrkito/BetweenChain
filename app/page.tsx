@@ -18,7 +18,7 @@ import { FAQ_ITEMS } from "@/lib/content/faq";
 export const metadata: Metadata = {
   title: "Blockchains.Click — Cross-Chain Token Swaps & NFT Marketplace",
   description:
-    "Swap tokens across Solana, Ethereum, and more in one click. Browse and buy NFTs cross-chain on Magic Eden, OpenSea, and Tradeport — pay from any supported wallet.",
+    "Swap tokens across Solana, Ethereum, and more in one click. Browse and buy NFTs cross-chain on Solana, EVM chains, and Sui — pay from any supported wallet.",
   alternates: { canonical: "/" },
 };
 

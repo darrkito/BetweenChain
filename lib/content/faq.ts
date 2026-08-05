@@ -39,6 +39,6 @@ export const FAQ_ITEMS: FaqItem[] = [
   {
     question: "Which chains and marketplaces are supported for NFTs?",
     answer:
-      "Solana (via Magic Eden), Ethereum and other EVM chains like Base and ApeChain (via OpenSea), and Sui (via Tradeport) — with the same cross-chain payment flow as token swaps, so you can pay from a different chain than the NFT you're buying.",
+      "Solana, Ethereum and other EVM chains like Base and ApeChain, and Sui — with the same cross-chain payment flow as token swaps, so you can pay from a different chain than the NFT you're buying.",
   },
 ];

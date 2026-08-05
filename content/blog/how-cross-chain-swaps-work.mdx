@@ -11,10 +11,10 @@ Blockchains.Click collapses that into a single transaction from your perspective
 
 ## What's actually happening under the hood
 
-There are two independent legs to a cross-chain swap, and they're handled by two different pieces of infrastructure:
+There are two independent legs to a cross-chain swap:
 
-- **The Solana leg** goes through Jupiter, Solana's dominant swap aggregator, which routes your source token into wrapped SOL (the bridge-ready asset).
-- **The cross-chain leg** goes through Relay, which moves that value to the destination chain and completes the swap into your chosen destination token.
+- **The Solana leg** routes your source token into wrapped SOL — the bridge-ready asset — using deep, aggregated liquidity across Solana's DEXs to get you the best price.
+- **The cross-chain leg** moves that value to the destination chain and completes the swap into your chosen destination token.
 
 Both legs are quoted together up front, so the price you see before confirming is the price you actually get — not a rough estimate that gets revised as the transaction executes.
 
