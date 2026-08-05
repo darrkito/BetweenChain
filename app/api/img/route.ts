@@ -39,25 +39,6 @@ export const maxDuration = 15;
 
 const ALLOWED_PROTOCOLS = new Set(["http:", "https:"]);
 const MAX_BYTES = 15 * 1024 * 1024; // generous for NFT art, still bounded
-// 2026-08-05 (real user report, generalized fix — applies to every
-// collection/vendor through this proxy, not just the one that surfaced it)
-// — animated GIFs bypass Next.js's image optimizer entirely: confirmed live
-// against this app's own deployed /_next/image endpoint, a w=256 resize
-// request for a real animated GIF returned the exact untouched original
-// byte count, zero compression. A collection whose listing images are
-// multi-MB animated GIFs (confirmed real: Magic Eden's "Call of Saga" was
-// 5MB each; two OTHER real collections — fomo_friends_oe, collectorcardclub
-// — have no static alternative at all, so picking a different field can't
-// help them) turns one 20-item grid into ~100MB of simultaneous unoptimized
-// downloads — this is why "only 2 images load" for a user on a normal
-// connection. A real fix (decode + re-encode just the first frame as a
-// static image) needs a new dependency (sharp isn't installed) — deferred
-// as bigger/riskier than a same-session fix. This is the safe default:
-// animated GIFs over a much stricter cap are rejected outright (NftImage's
-// existing broken-image fallback state already handles a failed image
-// gracefully) instead of passed through at whatever size the source
-// happens to be. Small/legitimate animated GIFs stay completely unaffected.
-const MAX_ANIMATED_BYTES = 800 * 1024;
 const FETCH_TIMEOUT_MS = 8_000;
 const MAX_REDIRECTS = 3;
 const CACHE_CONTROL = "public, max-age=86400, s-maxage=604800, stale-while-revalidate=604800";
@@ -146,21 +127,14 @@ export async function GET(req: Request) {
     return new Response("Not an image", { status: 415 });
   }
 
-  // See MAX_ANIMATED_BYTES's comment above — a stricter cap for animated
-  // GIFs specifically, since next/image can't shrink them like every other
-  // format here.
-  const isAnimatedGif = contentType.toLowerCase() === "image/gif";
-  const effectiveMaxBytes = isAnimatedGif ? MAX_ANIMATED_BYTES : MAX_BYTES;
-  const tooLargeMessage = isAnimatedGif ? "Animated image too large" : "Image too large";
-
   const contentLength = upstream.headers.get("content-length");
-  if (contentLength && Number(contentLength) > effectiveMaxBytes) {
-    return new Response(tooLargeMessage, { status: 413 });
+  if (contentLength && Number(contentLength) > MAX_BYTES) {
+    return new Response("Image too large", { status: 413 });
   }
 
   const buf = await upstream.arrayBuffer();
-  if (buf.byteLength > effectiveMaxBytes) {
-    return new Response(tooLargeMessage, { status: 413 });
+  if (buf.byteLength > MAX_BYTES) {
+    return new Response("Image too large", { status: 413 });
   }
 
   return new Response(buf, {
