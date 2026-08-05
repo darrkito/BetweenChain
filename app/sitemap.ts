@@ -1,6 +1,7 @@
 import type { MetadataRoute } from "next";
 import { NFT_VENDOR_CLIENTS, VENDOR_FOR_FAMILY } from "@/lib/nft/vendorClients";
 import type { NftChainFamily } from "@/lib/nft/types";
+import { getAllBlogPosts } from "@/lib/content/blog";
 
 const SITE_URL = "https://blockchains.click";
 
@@ -31,17 +32,23 @@ async function nftCollectionEntries(): Promise<MetadataRoute.Sitemap> {
 }
 
 // 2026-08-05 (SEO foundation pass) — this app had no sitemap at all before
-// this. Static routes list intentionally only covers what actually EXISTS
-// today — /blog gets added here once it ships (Phase 4), not preemptively
-// (a sitemap entry for a route that 404s is worse than no entry at all).
-// /swap added in Phase 2, /faq added in Phase 3, alongside their routes.
+// this. /swap added in Phase 2, /faq in Phase 3, /blog + real post entries
+// in Phase 4 — each added alongside its own route, never preemptively (a
+// sitemap entry for a route that 404s is worse than no entry at all).
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const staticEntries: MetadataRoute.Sitemap = [
     { url: SITE_URL, changeFrequency: "daily", priority: 1 },
     { url: `${SITE_URL}/swap`, changeFrequency: "weekly", priority: 0.9 },
     { url: `${SITE_URL}/nft`, changeFrequency: "hourly", priority: 0.8 },
     { url: `${SITE_URL}/faq`, changeFrequency: "monthly", priority: 0.6 },
+    { url: `${SITE_URL}/blog`, changeFrequency: "weekly", priority: 0.7 },
   ];
+  const blogEntries: MetadataRoute.Sitemap = getAllBlogPosts().map((post) => ({
+    url: `${SITE_URL}/blog/${post.slug}`,
+    lastModified: post.date,
+    changeFrequency: "monthly",
+    priority: 0.6,
+  }));
   const collectionEntries = await nftCollectionEntries().catch(() => []);
-  return [...staticEntries, ...collectionEntries];
+  return [...staticEntries, ...blogEntries, ...collectionEntries];
 }

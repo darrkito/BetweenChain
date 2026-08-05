@@ -1,0 +1,31 @@
+---
+title: "How Cross-Chain Token Swaps Actually Work"
+description: "A plain-English look at what happens when you swap a token on one chain for a token on another — no bridging, no manual steps."
+date: "2026-07-15"
+category: "Guides"
+---
+
+If you've ever tried to move value between blockchains the "old" way, you know the drill: wrap a token, bridge it, wait for confirmations on two different networks, then swap again on the other side. It's slow, it's error-prone, and it's easy to send the wrong asset to the wrong address.
+
+Blockchains.Click collapses that into a single transaction from your perspective: you start with a token on one chain (say, SOL on Solana) and end with a token on another chain (say, an ERC-20 on Ethereum or Base) — one swap, one confirmation flow.
+
+## What's actually happening under the hood
+
+There are two independent legs to a cross-chain swap, and they're handled by two different pieces of infrastructure:
+
+- **The Solana leg** goes through Jupiter, Solana's dominant swap aggregator, which routes your source token into wrapped SOL (the bridge-ready asset).
+- **The cross-chain leg** goes through Relay, which moves that value to the destination chain and completes the swap into your chosen destination token.
+
+Both legs are quoted together up front, so the price you see before confirming is the price you actually get — not a rough estimate that gets revised as the transaction executes.
+
+## What it costs
+
+There's a flat 0.25% platform fee applied on each leg of the swap — no separate "hidden" fee beyond that, plus whatever network/gas fee the underlying chain itself charges (which varies by network congestion, not something Blockchains.Click controls or marks up).
+
+## Why the destination address can't change mid-swap
+
+One deliberate design choice: the address you're sending funds to is locked in the moment you get a quote, and it cannot be altered afterward — not from the frontend, not from the backend. Every completed swap is also independently re-verified against the real on-chain result before it's ever marked complete. That closes the door on a whole class of address-substitution attacks that plague less careful bridging setups.
+
+## Try it
+
+You don't need to connect a wallet to see what a swap would cost you — the [quote preview on our homepage](/) works without connecting anything. When you're ready to actually swap, head to [the swap page](/swap) and connect a Solana wallet (plus an EVM wallet, if you're swapping into an EVM chain).

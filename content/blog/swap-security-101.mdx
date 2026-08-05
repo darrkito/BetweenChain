@@ -1,0 +1,24 @@
+---
+title: "Swap Security 101: Why Your Destination Address Can't Be Changed Mid-Swap"
+description: "The specific address-substitution attack this protects against, and how every swap is re-verified against the real on-chain result."
+date: "2026-08-01"
+category: "Security"
+---
+
+Cross-chain swaps move value between systems that can't directly see each other — which is exactly the kind of gap an attacker looks for. One of the most common real-world exploits in bridging/swapping tools is address substitution: something in the pipeline (a compromised frontend, a man-in-the-middle on the request, a race condition in a backend) swaps out the destination address between the moment you approve a swap and the moment it actually executes.
+
+## How Blockchains.Click closes that gap
+
+The destination address you provide is locked in at the moment you get a quote — baked into the quote itself, not passed around as a separate mutable field later in the flow. It cannot be altered afterward on either the frontend or the backend. There's no code path, intentional or accidental, that lets a later step in the pipeline substitute a different address than the one you approved.
+
+## Verification doesn't stop at "the transaction was sent"
+
+A lot of swap tools consider their job done once a transaction hash comes back from the client. That's not enough — a client can lie, or a transaction can partially fail in a way that still returns a hash. Every buy transaction on Blockchains.Click is independently re-verified against the real, on-chain result before it's ever marked complete. If what actually landed on-chain doesn't match what was quoted, it isn't silently accepted as a success.
+
+## What this means for you practically
+
+You don't need to do anything differently — this protection is structural, not a setting you opt into. The one thing worth double-checking yourself: make sure the destination wallet address *you* enter is correct before confirming, since that's the one part of the flow that's genuinely under your control and can't be verified by the system on your behalf.
+
+## Read more
+
+Curious about the fee structure, or how points and referrals work? Check [our FAQ](/faq) — every answer there is grounded in how the app actually behaves today, not aspirational copy.
