@@ -163,6 +163,22 @@ function toNftCollectionFromStats(c: RawMagicEdenTopCollection): NftCollection {
   };
 }
 
+// 2026-08-05 (real user report: "Invalid request" quoting a Magic Eden
+// NFT, reproduced on collection "player2_") — Magic Eden's listings
+// endpoint returns `auctionHouse: ""` (empty string, not the field being
+// absent — the docs' "required" claim just means the key is always
+// present, not non-empty) for listings that use ME's own default
+// marketplace rather than a collection-specific one. Confirmed live across
+// multiple collections: Claynosaurz/Okay Bears/etc. all return this exact
+// same address when it's non-empty, so it's a genuine, generic default —
+// not something specific to any one collection — and belongs here at the
+// normalization boundary, not hardcoded per-collection anywhere upstream.
+// Every consumer of `raw.auctionHouse` (getMagicEdenBuyInstructions below,
+// and the client echoing it back through the quote route's zod schema,
+// which requires a non-empty string) needs this filled in or the buy flow
+// 400s for any collection that happens to use the default auction house.
+const MAGICEDEN_DEFAULT_AUCTION_HOUSE = "E8cU1WiRWjanGxmn96ewBgk9vPTcL6AEZ1t6F6fkgUWe";
+
 interface RawMagicEdenListing {
   pdaAddress: string;
   auctionHouse: string;
@@ -571,7 +587,7 @@ export async function getMagicEdenListings(symbol: string, offset = 0, limit = 2
       price: l.price.toString(),
       priceCurrency: "SOL",
       seller: l.seller,
-      raw: l,
+      raw: { ...l, auctionHouse: l.auctionHouse || MAGICEDEN_DEFAULT_AUCTION_HOUSE },
     }));
   });
 }
@@ -675,7 +691,11 @@ export async function getMagicEdenBuyInstructions(params: {
   const url = new URL(`${MAGICEDEN_API}/instructions/buy_now`);
   url.searchParams.set("buyer", params.buyer);
   url.searchParams.set("seller", raw.seller);
-  url.searchParams.set("auctionHouseAddress", raw.auctionHouse);
+  // Same fallback as getMagicEdenListings' own normalization — defense in
+  // depth in case this is ever called with an empty auctionHouse from
+  // somewhere that bypassed that normalization (e.g. cached data from
+  // before this fix).
+  url.searchParams.set("auctionHouseAddress", raw.auctionHouse || MAGICEDEN_DEFAULT_AUCTION_HOUSE);
   url.searchParams.set("tokenMint", raw.tokenMint);
   url.searchParams.set("tokenATA", raw.tokenAddress);
   url.searchParams.set("price", raw.price.toString());
