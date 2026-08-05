@@ -170,31 +170,7 @@ interface RawMagicEdenListing {
   // response, used by fetchPinnedCollection below (a pinned collection has
   // no other working source for its display name, see that function's
   // comment).
-  //
-  // properties.files added 2026-08-05 (real bug, user report: "only like 2
-  // images loading" on /nft/magiceden/saga) — for that collection, `image`
-  // is a 5MB *animated* GIF. Confirmed live against this app's own deployed
-  // /_next/image endpoint: Next.js's image optimizer explicitly skips
-  // resizing/compressing animated images and passes them through completely
-  // untouched (requested w=256 still returned the exact original 5,043,509
-  // bytes) — 20 of those loading at once on one grid is ~100MB, easily
-  // enough to stall/timeout most of them on a normal connection. A static
-  // `avatar_url` file at the SAME source resolution (also ~5MB, Claynosaurz
-  // just ships huge source art for both) DOES get properly optimized by the
-  // same endpoint (confirmed live: 24KB after resize) since it isn't
-  // animated. toNftListing below prefers this over `image` when present.
-  token?: {
-    name?: string;
-    image?: string;
-    collectionName?: string;
-    attributes?: Array<{ trait_type: string; value: string }>;
-    properties?: { files?: Array<{ id?: string; uri?: string; type?: string }> };
-  };
-}
-
-function pickListingImage(token: NonNullable<RawMagicEdenListing["token"]> | undefined, extraImg: string | undefined): string | undefined {
-  const avatarFile = token?.properties?.files?.find((f) => f.id === "avatar_url");
-  return avatarFile?.uri ?? token?.image ?? extraImg;
+  token?: { name?: string; image?: string; collectionName?: string; attributes?: Array<{ trait_type: string; value: string }> };
 }
 
 // floorPrice/listedCount/volume are populated here ONLY when the base
@@ -316,7 +292,7 @@ async function fetchPinnedCollection(symbol: string): Promise<NftCollection | un
       slug: symbol,
       name: token.collectionName ?? symbol,
       description: "",
-      imageUrl: pickListingImage(token, undefined) ?? "",
+      imageUrl: token.image ?? "",
       floorPrice: stats.floorPrice,
       floorPriceCurrency: stats.floorPriceCurrency,
       listedCount: stats.listedCount,
@@ -549,7 +525,7 @@ export async function getMagicEdenListings(symbol: string, offset = 0, limit = 2
       collectionSlug: symbol,
       tokenId: l.tokenMint,
       name: l.token?.name,
-      imageUrl: pickListingImage(l.token, l.extra?.img),
+      imageUrl: l.token?.image ?? l.extra?.img,
       traits: l.token?.attributes?.map((a) => ({ traitType: a.trait_type, value: a.value })),
       listed: true, // this endpoint only ever returns currently-listed items
       price: l.price.toString(),
