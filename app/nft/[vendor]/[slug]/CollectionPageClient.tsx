@@ -496,7 +496,14 @@ export function CollectionPageClient({
         )
       )}
 
-      {collection && <NftCollectionStats collection={collection} listedCountInfo={listedCountInfo} totalSupplyInfo={totalSupplyInfo} />}
+      {collection && (
+        <NftCollectionStats
+          collection={collection}
+          listedCountInfo={listedCountInfo}
+          totalSupplyInfo={totalSupplyInfo}
+          magicEdenRoyaltyBps={listings.find((l) => l.royaltyBps != null)?.royaltyBps}
+        />
+      )}
 
       {supportsAllView && (
         <div className="flex w-fit gap-1 rounded-xl border border-hairline bg-surface p-1 shadow-sm">

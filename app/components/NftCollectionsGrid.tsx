@@ -5,6 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { NftImage } from "@/app/components/NftImage";
 import { TRADEPORT_FEE_SAFETY_MARGIN } from "@/lib/nft/tradeportFee";
+import { magicEdenBuyerTotal } from "@/lib/nft/magicedenFee";
 import { roundUpTo3Decimals } from "@/lib/client/amount";
 import { proxiedImageUrl } from "@/lib/client/imageProxy";
 import type { NftCollection } from "@/lib/nft/types";
@@ -32,18 +33,25 @@ function hasRealVolume(c: NftCollection): boolean {
   return c.volume24hr != null && Number(c.volume24hr) > 0;
 }
 
-// Real bug found live 2026-07-22: this table showed Tradeport's raw
-// floorPrice while the collection detail page (NftCollectionStats.tsx) and
-// the listings grid (app/nft/[vendor]/[slug]/page.tsx's
-// displayedListingPrice) both apply TRADEPORT_FEE_SAFETY_MARGIN — the same
-// collection showed two different floor numbers depending on which page you
-// were on. Applied here too, Tradeport-only, both for the displayed value
-// AND the sort order (so cross-vendor floor sorting compares real,
-// comparable costs, not raw-vs-fee-inclusive numbers).
+// Real bug found live 2026-07-22 (Tradeport), extended 2026-08-05 (Magic
+// Eden, real user report): this table showed each vendor's raw floorPrice
+// while the collection detail page (NftCollectionStats.tsx) and the
+// listings grid (CollectionPageClient.tsx's displayedListingPrice) both
+// show fee-inclusive totals — the same collection showed different floor
+// numbers depending on which page you were on. Applied here too, both for
+// the displayed value AND the sort order (so cross-vendor floor sorting
+// compares real, comparable costs, not raw-vs-fee-inclusive numbers).
+// Magic Eden has no per-listing royalty data at this browse-all-collections
+// level (no listings are loaded here, just aggregate stats) — falls back to
+// magicEdenBuyerTotal's own default rate rather than fetching a live
+// listing per card just for this, which would reintroduce the exact N+1
+// this file's own earlier passes worked to eliminate.
 function displayFloorPrice(c: NftCollection): number | undefined {
   if (c.floorPrice == null) return undefined;
   const raw = Number(c.floorPrice);
-  return c.vendor === "tradeport" ? raw * (1 + TRADEPORT_FEE_SAFETY_MARGIN) : raw;
+  if (c.vendor === "tradeport") return raw * (1 + TRADEPORT_FEE_SAFETY_MARGIN);
+  if (c.vendor === "magiceden") return magicEdenBuyerTotal(raw, undefined);
+  return raw;
 }
 
 /**

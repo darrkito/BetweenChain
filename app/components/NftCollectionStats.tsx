@@ -1,4 +1,5 @@
 import { TRADEPORT_FEE_SAFETY_MARGIN } from "@/lib/nft/tradeportFee";
+import { magicEdenBuyerTotal } from "@/lib/nft/magicedenFee";
 import { roundUpTo3Decimals } from "@/lib/client/amount";
 import type { NftCollection } from "@/lib/nft/types";
 
@@ -58,10 +59,17 @@ export function NftCollectionStats({
   collection,
   listedCountInfo,
   totalSupplyInfo,
+  magicEdenRoyaltyBps,
 }: {
   collection: NftCollection;
   listedCountInfo?: ListedCountInfo;
   totalSupplyInfo?: TotalSupplyInfo;
+  // Real royalty rate (sellerFeeBasisPoints) from a currently-loaded
+  // listing in this same collection — Metaplex sets this per-collection,
+  // so any loaded listing's rate is representative, not just the exact
+  // floor listing's. Undefined falls back to magicEdenBuyerTotal's own
+  // default (see that function's doc).
+  magicEdenRoyaltyBps?: number;
 }) {
   const totalSupply = totalSupplyInfo?.value ?? collection.totalSupply;
   const listedCount = listedCountInfo?.count ?? collection.listedCount;
@@ -93,21 +101,22 @@ export function NftCollectionStats({
   // collection.floorPrice has no such discrepancy — untouched here.
   const floorPrice = listedCountInfo?.floorPrice ?? collection.floorPrice;
   const floorPriceCurrency = listedCountInfo?.floorPriceCurrency ?? collection.floorPriceCurrency;
-  // Real bug found live 2026-07-22: Tradeport's raw floor field is accurate
-  // against its own listings table (confirmed directly — matches the
-  // cheapest active listing exactly for every collection checked), but the
-  // listing GRID cards were changed to show a fee-inclusive price (×1.10,
-  // see app/nft/[vendor]/[slug]/page.tsx's displayedListingPrice) while
-  // this stat kept showing the raw, un-marked-up number — the two no
-  // longer agreed on "the price of the cheapest asset," reading as a wrong
-  // floor. Apply the same margin here, Tradeport-only (other vendors
-  // already include their own fees in the displayed price).
+  // Real bug found live 2026-07-22 (Tradeport), extended 2026-08-05 (Magic
+  // Eden, real user report): the raw floor field is accurate against each
+  // vendor's own listings table, but the listing GRID cards show a
+  // fee-inclusive price (displayedListingPrice) while this stat kept
+  // showing the raw, un-marked-up number — the two no longer agreed on
+  // "the price of the cheapest asset," reading as a wrong floor. Apply the
+  // same total here for both vendors that need it — OpenSea's raw price
+  // genuinely already is the full cost, untouched.
   const floorPriceDisplay =
-    floorPrice != null && collection.vendor === "tradeport"
-      ? roundUpTo3Decimals(Number(floorPrice) * (1 + TRADEPORT_FEE_SAFETY_MARGIN))
-      : floorPrice != null
-        ? Number(floorPrice).toFixed(3)
-        : null;
+    floorPrice == null
+      ? null
+      : collection.vendor === "tradeport"
+        ? roundUpTo3Decimals(Number(floorPrice) * (1 + TRADEPORT_FEE_SAFETY_MARGIN))
+        : collection.vendor === "magiceden"
+          ? roundUpTo3Decimals(magicEdenBuyerTotal(Number(floorPrice), magicEdenRoyaltyBps))
+          : Number(floorPrice).toFixed(3);
 
   // listedCountInfo.volume (Magic Eden, 7d) takes priority when present,
   // same override pattern as floorPrice above — collection.volume24hr is
