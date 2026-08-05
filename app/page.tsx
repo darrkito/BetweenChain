@@ -1,13 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { AppHeader } from "@/app/components/AppHeader";
-import { TrendingBar } from "@/app/components/TrendingBar";
 import { QuotePreviewWidget } from "@/app/components/QuotePreviewWidget";
 import { Reveal } from "@/app/components/Reveal";
 import { HeroVisual } from "@/app/components/HeroVisual";
 import { JsonLd, faqPageSchema } from "@/lib/seo/jsonld";
 import { FAQ_ITEMS } from "@/lib/content/faq";
-import { SOLANA_CHAIN_ID_CLIENT } from "@/lib/client/constants";
 
 // 2026-08-05 (landing-page overhaul, Phase 2) — `/` used to BE the swap
 // tool (now relocated to /swap, see that route's own history). This is a
@@ -63,10 +61,6 @@ export default function LandingPage() {
         </p>
         <QuotePreviewWidget />
       </section>
-
-      <Reveal>
-        <TrendingBar chainId={SOLANA_CHAIN_ID_CLIENT} />
-      </Reveal>
 
       {/* Features */}
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-3">

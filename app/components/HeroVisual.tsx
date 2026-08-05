@@ -1,6 +1,7 @@
 "use client";
 
-import { motion, useReducedMotion } from "motion/react";
+import { motion } from "motion/react";
+import { usePrefersReducedMotion } from "@/lib/client/usePrefersReducedMotion";
 
 // 2026-08-05 (Phase 5, visual polish) — the one hero visual this pass adds,
 // deliberately staying lightweight: a bigger version of the existing
@@ -14,7 +15,7 @@ import { motion, useReducedMotion } from "motion/react";
 const LINE_LENGTH = 10; // approx length of each connecting line segment, for strokeDasharray
 
 export function HeroVisual() {
-  const reduceMotion = useReducedMotion();
+  const reduceMotion = usePrefersReducedMotion();
 
   if (reduceMotion) {
     return (
