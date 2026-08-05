@@ -3,6 +3,8 @@ import Link from "next/link";
 import { AppHeader } from "@/app/components/AppHeader";
 import { TrendingBar } from "@/app/components/TrendingBar";
 import { QuotePreviewWidget } from "@/app/components/QuotePreviewWidget";
+import { Reveal } from "@/app/components/Reveal";
+import { HeroVisual } from "@/app/components/HeroVisual";
 import { JsonLd, faqPageSchema } from "@/lib/seo/jsonld";
 import { FAQ_ITEMS } from "@/lib/content/faq";
 import { SOLANA_CHAIN_ID_CLIENT } from "@/lib/client/constants";
@@ -48,8 +50,10 @@ export default function LandingPage() {
     <main className="mx-auto flex w-full max-w-5xl flex-col gap-16 p-6">
       <AppHeader />
 
-      {/* Hero */}
+      {/* Hero — not scroll-revealed (already in view on load; animating
+          from opacity:0 here would delay the LCP text's first paint). */}
       <section className="flex flex-col items-center gap-6 pt-8 text-center sm:pt-14">
+        <HeroVisual />
         <h1 className="max-w-2xl text-4xl font-bold tracking-tight text-ink sm:text-5xl">
           All the blockchains, <span className="text-accent">in just one click.</span>
         </h1>
@@ -60,27 +64,30 @@ export default function LandingPage() {
         <QuotePreviewWidget />
       </section>
 
-      <TrendingBar chainId={SOLANA_CHAIN_ID_CLIENT} />
+      <Reveal>
+        <TrendingBar chainId={SOLANA_CHAIN_ID_CLIENT} />
+      </Reveal>
 
       {/* Features */}
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        {FEATURES.map((f) => (
-          <Link
-            key={f.title}
-            href={f.href}
-            className="group flex flex-col gap-2 rounded-2xl border border-hairline bg-surface p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-accent/40 hover:shadow-lg"
-          >
-            <h2 className="text-base font-semibold text-ink">{f.title}</h2>
-            <p className="flex-1 text-sm text-ink-muted">{f.description}</p>
-            <span className="text-sm font-medium text-accent">
-              {f.cta} <span aria-hidden="true">→</span>
-            </span>
-          </Link>
+        {FEATURES.map((f, i) => (
+          <Reveal key={f.title} delay={i * 0.08}>
+            <Link
+              href={f.href}
+              className="group flex h-full flex-col gap-2 rounded-2xl border border-hairline bg-surface p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-accent/40 hover:shadow-lg"
+            >
+              <h2 className="text-base font-semibold text-ink">{f.title}</h2>
+              <p className="flex-1 text-sm text-ink-muted">{f.description}</p>
+              <span className="text-sm font-medium text-accent">
+                {f.cta} <span aria-hidden="true">→</span>
+              </span>
+            </Link>
+          </Reveal>
         ))}
       </section>
 
       {/* FAQ preview */}
-      <section className="flex flex-col gap-4">
+      <Reveal className="flex flex-col gap-4">
         <div className="flex items-center justify-between">
           <h2 className="text-xl font-semibold text-ink">Frequently asked questions</h2>
           <Link href="/faq" className="text-sm font-medium text-accent hover:underline">
@@ -95,7 +102,7 @@ export default function LandingPage() {
             </div>
           ))}
         </div>
-      </section>
+      </Reveal>
 
       <JsonLd data={faqPageSchema(FAQ_ITEMS)} />
     </main>
