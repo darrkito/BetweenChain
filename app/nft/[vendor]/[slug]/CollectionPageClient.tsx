@@ -35,7 +35,7 @@ import { isOnchainPunkListing } from "@/lib/nft/cryptopunksShared";
 import { nftChainFamilyLabel, nftFamilyForVendor } from "@/lib/nft/labels";
 import { TRADEPORT_FEE_SAFETY_MARGIN } from "@/lib/nft/tradeportFee";
 import { magicEdenBuyerTotal } from "@/lib/nft/magicedenFee";
-import { roundUpTo2Decimals } from "@/lib/client/amount";
+import { roundUpTo3Decimals } from "@/lib/client/amount";
 import type { NftCollection, NftListing } from "@/lib/nft/types";
 
 type View = "listed" | "all";
@@ -76,8 +76,8 @@ function dedupeListings(listings: NftListing[]): NftListing[] {
  */
 function displayedListingPrice(l: NftListing): string {
   const raw = Number(l.price);
-  if (l.vendor === "tradeport") return roundUpTo2Decimals(raw * (1 + TRADEPORT_FEE_SAFETY_MARGIN));
-  if (l.vendor === "magiceden") return roundUpTo2Decimals(magicEdenBuyerTotal(raw, l.royaltyBps));
+  if (l.vendor === "tradeport") return roundUpTo3Decimals(raw * (1 + TRADEPORT_FEE_SAFETY_MARGIN));
+  if (l.vendor === "magiceden") return roundUpTo3Decimals(magicEdenBuyerTotal(raw, l.royaltyBps));
   return raw.toFixed(3);
 }
 

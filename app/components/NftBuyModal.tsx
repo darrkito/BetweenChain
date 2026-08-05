@@ -362,7 +362,7 @@ export function NftBuyModal({ listing, onClose }: { listing: NftListing; onClose
             <div className="flex items-center justify-between rounded-xl border border-hairline bg-surface-hover px-3 py-2">
               <span className="text-xs text-ink-muted">You pay</span>
               <span className="num text-sm font-semibold text-ink">
-                {Number(quote.originAmountFormatted).toFixed(4)} {quote.sameChain ? "ETH" : "SOL"}{" "}
+                {Number(quote.originAmountFormatted).toFixed(3)} {quote.sameChain ? "ETH" : "SOL"}{" "}
                 <span className="text-ink-faint">(${Number(quote.originAmountUsd).toFixed(2)})</span>
               </span>
             </div>

@@ -10,7 +10,7 @@ import { SOLANA_CHAIN_ID } from "@/lib/chains/relay";
 import { SuiInsufficientBalanceError } from "@/lib/chains/sui";
 import { TRADEPORT_FEE_SAFETY_MARGIN, CROSS_CHAIN_BRIDGE_BUFFER } from "@/lib/nft/tradeportFee";
 import { isPlausibleEvmAddress } from "@/lib/validation";
-import { roundUpTo2Decimals } from "@/lib/client/amount";
+import { roundUpTo3Decimals } from "@/lib/client/amount";
 import { rateLimit, clientKey } from "@/lib/rate-limit";
 import { safeErrorResponse } from "@/lib/apiError";
 
@@ -92,7 +92,7 @@ export async function POST(req: Request) {
           // this much" figure, clearly labeled as an estimate.
           const roughEstimate = Number(input.listingPriceSui) * (1 + TRADEPORT_FEE_SAFETY_MARGIN);
           return NextResponse.json(
-            { error: `Your wallet doesn't have enough SUI for this purchase (needs roughly ${roundUpTo2Decimals(roughEstimate)} SUI).` },
+            { error: `Your wallet doesn't have enough SUI for this purchase (needs roughly ${roundUpTo3Decimals(roughEstimate)} SUI).` },
             { status: 400 },
           );
         }
@@ -207,7 +207,7 @@ export async function POST(req: Request) {
       const minAmountSui = (err.minAmount * originUsdPrice) / suiUsdPrice;
       return NextResponse.json(
         {
-          error: `This listing is too small to bridge via ${symbol} right now — ChangeNOW requires at least ${roundUpTo2Decimals(err.minAmount)} ${symbol} per exchange (≈${roundUpTo2Decimals(minAmountSui)} SUI). Try "Pay with SUI" instead, or a higher-priced listing.`,
+          error: `This listing is too small to bridge via ${symbol} right now — ChangeNOW requires at least ${roundUpTo3Decimals(err.minAmount)} ${symbol} per exchange (≈${roundUpTo3Decimals(minAmountSui)} SUI). Try "Pay with SUI" instead, or a higher-priced listing.`,
         },
         { status: 400 },
       );

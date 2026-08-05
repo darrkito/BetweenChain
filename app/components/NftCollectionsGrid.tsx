@@ -5,7 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { NftImage } from "@/app/components/NftImage";
 import { TRADEPORT_FEE_SAFETY_MARGIN } from "@/lib/nft/tradeportFee";
-import { roundUpTo2Decimals } from "@/lib/client/amount";
+import { roundUpTo3Decimals } from "@/lib/client/amount";
 import { proxiedImageUrl } from "@/lib/client/imageProxy";
 import type { NftCollection } from "@/lib/nft/types";
 
@@ -168,7 +168,7 @@ export function NftCollectionsGrid({ collections }: { collections: NftCollection
                   <span className="text-[10px] uppercase tracking-wide text-ink-faint">Floor</span>
                   {floor != null ? (
                     <span className="num font-semibold text-ink">
-                      {roundUpTo2Decimals(floor)} <span className="text-ink-faint">{c.floorPriceCurrency}</span>
+                      {roundUpTo3Decimals(floor)} <span className="text-ink-faint">{c.floorPriceCurrency}</span>
                     </span>
                   ) : (
                     <span className="text-ink-faint">—</span>
@@ -245,7 +245,7 @@ export function NftCollectionsGrid({ collections }: { collections: NftCollection
                     <span className="text-[10px] uppercase tracking-wide text-ink-faint">Floor</span>
                     {floor != null ? (
                       <span className="num font-semibold text-ink">
-                        {roundUpTo2Decimals(floor)} <span className="text-ink-faint">{c.floorPriceCurrency}</span>
+                        {roundUpTo3Decimals(floor)} <span className="text-ink-faint">{c.floorPriceCurrency}</span>
                       </span>
                     ) : (
                       <span className="text-ink-faint">—</span>

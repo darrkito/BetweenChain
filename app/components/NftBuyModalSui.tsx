@@ -8,7 +8,7 @@ import { Transaction } from "@mysten/sui/transactions";
 import { useEvmWallet } from "@/lib/client/EvmWalletProvider";
 import { useAuth } from "@/lib/client/AuthProvider";
 import { buildSolTransferTransaction } from "@/lib/client/solanaTransfer";
-import { roundUpTo2Decimals } from "@/lib/client/amount";
+import { roundUpTo3Decimals } from "@/lib/client/amount";
 import { TRADEPORT_FEE_SAFETY_MARGIN } from "@/lib/nft/tradeportFee";
 import { NftImage } from "@/app/components/NftImage";
 import { EvmWalletButton } from "@/app/components/EvmWalletButton";
@@ -217,7 +217,7 @@ export function NftBuyModalSui({ listing, onClose }: { listing: NftListing; onCl
       }
       if (execBody.status === "insufficient_funds") {
         setMessage(
-          `This purchase needs ${roundUpTo2Decimals(Number(execBody.requiredSui))} SUI — your wallet has ${roundUpTo2Decimals(Number(execBody.balanceSui))} SUI. Add more SUI and try again.`,
+          `This purchase needs ${roundUpTo3Decimals(Number(execBody.requiredSui))} SUI — your wallet has ${roundUpTo3Decimals(Number(execBody.balanceSui))} SUI. Add more SUI and try again.`,
         );
         setStep("failed");
         return;
@@ -253,7 +253,7 @@ export function NftBuyModalSui({ listing, onClose }: { listing: NftListing; onCl
       }
       if (body.status === "insufficient_funds") {
         setMessage(
-          `The bridged amount wasn't enough — this purchase needs ${roundUpTo2Decimals(Number(body.requiredSui))} SUI, your wallet has ${roundUpTo2Decimals(Number(body.balanceSui))} SUI. Your bridged SUI is safely in your wallet — add a bit more and retry the purchase.`,
+          `The bridged amount wasn't enough — this purchase needs ${roundUpTo3Decimals(Number(body.requiredSui))} SUI, your wallet has ${roundUpTo3Decimals(Number(body.balanceSui))} SUI. Your bridged SUI is safely in your wallet — add a bit more and retry the purchase.`,
         );
         setStep("failed");
         return;
@@ -318,7 +318,7 @@ export function NftBuyModalSui({ listing, onClose }: { listing: NftListing; onCl
           <div className="flex min-w-0 flex-col">
             <span className="truncate text-sm font-medium text-ink">{listing.name ?? `#${listing.tokenId}`}</span>
             <span className="num text-sm font-semibold text-ink">
-              {roundUpTo2Decimals(Number(listing.price) * (1 + TRADEPORT_FEE_SAFETY_MARGIN))}{" "}
+              {roundUpTo3Decimals(Number(listing.price) * (1 + TRADEPORT_FEE_SAFETY_MARGIN))}{" "}
               <span className="text-ink-muted">{listing.priceCurrency}</span>
             </span>
           </div>
@@ -443,7 +443,7 @@ export function NftBuyModalSui({ listing, onClose }: { listing: NftListing; onCl
             <div className="flex items-center justify-between rounded-xl border border-hairline bg-surface-hover px-3 py-2">
               <span className="text-xs text-ink-muted">You pay</span>
               <span className="num text-sm font-semibold text-ink">
-                {roundUpTo2Decimals(Number(quote.originAmountFormatted))} {quote.originCurrencySymbol}{" "}
+                {roundUpTo3Decimals(Number(quote.originAmountFormatted))} {quote.originCurrencySymbol}{" "}
                 <span className="text-ink-faint">(${Number(quote.originAmountUsd).toFixed(2)})</span>
               </span>
             </div>

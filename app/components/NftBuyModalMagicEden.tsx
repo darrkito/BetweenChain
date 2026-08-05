@@ -6,7 +6,7 @@ import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { VersionedTransaction } from "@solana/web3.js";
 import { useEvmWallet } from "@/lib/client/EvmWalletProvider";
 import { useAuth } from "@/lib/client/AuthProvider";
-import { roundUpTo2Decimals } from "@/lib/client/amount";
+import { roundUpTo3Decimals } from "@/lib/client/amount";
 import { NftImage } from "@/app/components/NftImage";
 import { EvmWalletButton } from "@/app/components/EvmWalletButton";
 import { EvmConnectPicker } from "@/app/components/EvmConnectPicker";
@@ -163,7 +163,7 @@ export function NftBuyModalMagicEden({ listing, onClose }: { listing: NftListing
       if (!execRes.ok) throw new Error(execBody.error ?? "Failed to prepare purchase");
       if (execBody.status === "insufficient_funds") {
         setMessage(
-          `This purchase needs ${roundUpTo2Decimals(Number(execBody.requiredSol))} SOL — your wallet has ${roundUpTo2Decimals(Number(execBody.balanceSol))} SOL. Add more SOL and try again.`,
+          `This purchase needs ${roundUpTo3Decimals(Number(execBody.requiredSol))} SOL — your wallet has ${roundUpTo3Decimals(Number(execBody.balanceSol))} SOL. Add more SOL and try again.`,
         );
         setStep("failed");
         return;
@@ -199,7 +199,7 @@ export function NftBuyModalMagicEden({ listing, onClose }: { listing: NftListing
       }
       if (body.status === "insufficient_funds") {
         setMessage(
-          `The bridged amount wasn't enough — this purchase needs ${roundUpTo2Decimals(Number(body.requiredSol))} SOL, your wallet has ${roundUpTo2Decimals(Number(body.balanceSol))} SOL. Your bridged SOL is safely in your wallet — add a bit more and retry the purchase.`,
+          `The bridged amount wasn't enough — this purchase needs ${roundUpTo3Decimals(Number(body.requiredSol))} SOL, your wallet has ${roundUpTo3Decimals(Number(body.balanceSol))} SOL. Your bridged SOL is safely in your wallet — add a bit more and retry the purchase.`,
         );
         setStep("failed");
         return;
@@ -272,7 +272,7 @@ export function NftBuyModalMagicEden({ listing, onClose }: { listing: NftListing
           <div className="flex min-w-0 flex-col">
             <span className="truncate text-sm font-medium text-ink">{listing.name ?? `#${listing.tokenId.slice(0, 8)}`}</span>
             <span className="num text-sm font-semibold text-ink">
-              {roundUpTo2Decimals(Number(listing.price))} <span className="text-ink-muted">{listing.priceCurrency}</span>
+              {roundUpTo3Decimals(Number(listing.price))} <span className="text-ink-muted">{listing.priceCurrency}</span>
             </span>
           </div>
         </div>
@@ -396,7 +396,7 @@ export function NftBuyModalMagicEden({ listing, onClose }: { listing: NftListing
             <div className="flex items-center justify-between rounded-xl border border-hairline bg-surface-hover px-3 py-2">
               <span className="text-xs text-ink-muted">You pay{!quote.sameChain && ` (on ${evmOriginChain.label})`}</span>
               <span className="num text-sm font-semibold text-ink">
-                {roundUpTo2Decimals(Number(quote.originAmountFormatted))} {quote.originCurrencySymbol}{" "}
+                {roundUpTo3Decimals(Number(quote.originAmountFormatted))} {quote.originCurrencySymbol}{" "}
                 <span className="text-ink-faint">(${Number(quote.originAmountUsd).toFixed(2)})</span>
               </span>
             </div>

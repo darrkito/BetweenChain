@@ -1,5 +1,5 @@
 import { TRADEPORT_FEE_SAFETY_MARGIN } from "@/lib/nft/tradeportFee";
-import { roundUpTo2Decimals } from "@/lib/client/amount";
+import { roundUpTo3Decimals } from "@/lib/client/amount";
 import type { NftCollection } from "@/lib/nft/types";
 
 function Stat({ label, value, title, emphasize }: { label: string; value: string; title?: string; emphasize?: boolean }) {
@@ -104,9 +104,9 @@ export function NftCollectionStats({
   // already include their own fees in the displayed price).
   const floorPriceDisplay =
     floorPrice != null && collection.vendor === "tradeport"
-      ? roundUpTo2Decimals(Number(floorPrice) * (1 + TRADEPORT_FEE_SAFETY_MARGIN))
+      ? roundUpTo3Decimals(Number(floorPrice) * (1 + TRADEPORT_FEE_SAFETY_MARGIN))
       : floorPrice != null
-        ? Number(floorPrice).toFixed(2)
+        ? Number(floorPrice).toFixed(3)
         : null;
 
   // listedCountInfo.volume (Magic Eden, 7d) takes priority when present,
