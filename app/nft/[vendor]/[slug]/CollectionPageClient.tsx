@@ -34,6 +34,7 @@ import { NftBuyModalMagicEden } from "@/app/components/NftBuyModalMagicEden";
 import { isOnchainPunkListing } from "@/lib/nft/cryptopunksShared";
 import { nftChainFamilyLabel, nftFamilyForVendor } from "@/lib/nft/labels";
 import { TRADEPORT_FEE_SAFETY_MARGIN } from "@/lib/nft/tradeportFee";
+import { magicEdenBuyerTotal } from "@/lib/nft/magicedenFee";
 import { roundUpTo2Decimals } from "@/lib/client/amount";
 import type { NftCollection, NftListing } from "@/lib/nft/types";
 
@@ -63,20 +64,20 @@ function dedupeListings(listings: NftListing[]): NftListing[] {
 }
 
 /**
- * Tradeport's raw `listings.price` field is NOT the real total cost — it
- * charges its own fee/royalty on top that never appears anywhere in the
- * GraphQL data (confirmed live 2026-07-22 against a real completed
- * purchase, and separately corroborated against Tradeport's own website's
- * displayed "Buy" price). A real user report caught this: the grid was
- * showing the bare, un-fee'd price with no indication a real purchase
- * would cost more. Applies the same TRADEPORT_FEE_SAFETY_MARGIN the buy
- * flow itself uses, so a browsing user sees the same number they'd be
- * quoted a moment later — other vendors (OpenSea, Magic Eden) already
- * include their own fees in the displayed price, so this is Tradeport-only.
+ * Neither Tradeport's nor Magic Eden's raw `listings.price` is the real
+ * total cost — both charge fees on top that never appear in the bare price
+ * field. Tradeport: confirmed live 2026-07-22 against a real completed
+ * purchase (TRADEPORT_FEE_SAFETY_MARGIN). Magic Eden: confirmed 2026-08-05
+ * (real user report) against ME's own published fee model — buyer pays
+ * list price + 2% taker fee + full creator royalty
+ * (lib/nft/magicedenFee.ts) — OpenSea remains the one vendor whose listings
+ * price genuinely already is the full cost (Seaport orders are filled at
+ * exactly their stated price, no separate marketplace/royalty add-on here).
  */
 function displayedListingPrice(l: NftListing): string {
   const raw = Number(l.price);
   if (l.vendor === "tradeport") return roundUpTo2Decimals(raw * (1 + TRADEPORT_FEE_SAFETY_MARGIN));
+  if (l.vendor === "magiceden") return roundUpTo2Decimals(magicEdenBuyerTotal(raw, l.royaltyBps));
   return raw.toFixed(3);
 }
 

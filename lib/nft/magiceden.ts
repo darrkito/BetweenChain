@@ -196,7 +196,18 @@ interface RawMagicEdenListing {
   // response, used by fetchPinnedCollection below (a pinned collection has
   // no other working source for its display name, see that function's
   // comment).
-  token?: { name?: string; image?: string; collectionName?: string; attributes?: Array<{ trait_type: string; value: string }> };
+  // sellerFeeBasisPoints added 2026-08-05 — the creator royalty rate (e.g.
+  // 500 = 5%), confirmed present on this same response. Needed to compute
+  // the real buyer-facing total price (see lib/nft/magicedenFee.ts) — the
+  // Metaplex standard sets this per-collection/mint, so it's consistent
+  // across every listing in a given collection.
+  token?: {
+    name?: string;
+    image?: string;
+    collectionName?: string;
+    attributes?: Array<{ trait_type: string; value: string }>;
+    sellerFeeBasisPoints?: number;
+  };
 }
 
 // floorPrice/listedCount/volume are populated here ONLY when the base
@@ -587,6 +598,7 @@ export async function getMagicEdenListings(symbol: string, offset = 0, limit = 2
       price: l.price.toString(),
       priceCurrency: "SOL",
       seller: l.seller,
+      royaltyBps: l.token?.sellerFeeBasisPoints,
       raw: { ...l, auctionHouse: l.auctionHouse || MAGICEDEN_DEFAULT_AUCTION_HOUSE },
     }));
   });

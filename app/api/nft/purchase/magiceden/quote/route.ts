@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireSession, SessionError } from "@/lib/auth/session";
 import { supabaseAdmin } from "@/lib/supabase/server";
 import { getMagicEdenBuyInstructions } from "@/lib/nft/magiceden";
+import { magicEdenBuyerTotal } from "@/lib/nft/magicedenFee";
 import { getRelayCallQuote, SOLANA_CHAIN_ID, RELAY_NATIVE_SOL_SENTINEL, RELAY_NATIVE_EVM_SENTINEL } from "@/lib/chains/relay";
 import { getSolUsdPrice } from "@/lib/pricing";
 import { isPlausibleEvmAddress } from "@/lib/validation";
@@ -36,6 +37,12 @@ const bodySchema = z.object({
   seller: z.string().min(1),
   tokenATA: z.string().min(1),
   listingPriceSol: z.string().min(1),
+  // Creator royalty rate (sellerFeeBasisPoints) from the listing the client
+  // already has — same "replay what was already fetched" trust model as
+  // listingPriceSol/pdaAddress/etc above (the real authority is still
+  // getMagicEdenBuyInstructions' fresh call right below). Missing/omitted
+  // falls back to MAGICEDEN_ROYALTY_BPS_FALLBACK inside magicEdenBuyerTotal.
+  royaltyBps: z.number().int().min(0).optional(),
   payWith: z.enum(["sol", "eth"]),
   originChainId: z.number().int().optional(), // EVM origin chain id for the "eth" path — see MAGICEDEN_EVM_ORIGIN_CHAIN_IDS
   sourceAddress: z.string().min(1).optional(), // EVM signer for the "eth" origin deposit
@@ -130,9 +137,18 @@ export async function POST(req: Request) {
     let originChainId: number;
     let originAddress: string | null;
 
+    // Real buyer-facing total — list price + Magic Eden's 2% taker fee +
+    // creator royalty (see lib/nft/magicedenFee.ts). Real user report
+    // 2026-08-05: both branches below used to quote/bridge the bare
+    // listingPriceSol, which undercharged same-chain buyers' displayed
+    // total and, worse, bridged too LITTLE for cross-chain buyers — Relay
+    // would deliver exactly the listing price in SOL, leaving the wallet
+    // short of what Magic Eden's own buy_now transaction actually pulls.
+    const buyerTotalSol = magicEdenBuyerTotal(Number(input.listingPriceSol), input.royaltyBps);
+
     if (isSameChain) {
-      originAmountFormatted = input.listingPriceSol;
-      originAmountUsd = (Number(input.listingPriceSol) * (await getSolUsdPrice())).toString();
+      originAmountFormatted = buyerTotalSol.toString();
+      originAmountUsd = (buyerTotalSol * (await getSolUsdPrice())).toString();
       originCurrencySymbol = "SOL";
       originChainId = SOLANA_CHAIN_ID;
       originAddress = null;
@@ -143,7 +159,7 @@ export async function POST(req: Request) {
         userOriginAddress: input.sourceAddress!,
         destChainId: SOLANA_CHAIN_ID,
         destCurrency: RELAY_NATIVE_SOL_SENTINEL,
-        destAmount: Math.round(Number(input.listingPriceSol) * 1e9).toString(),
+        destAmount: Math.round(buyerTotalSol * 1e9).toString(),
         recipient: input.destAddress,
       });
       relayQuote = quote.quote;

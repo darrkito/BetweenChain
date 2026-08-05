@@ -97,6 +97,7 @@ export function NftBuyModalMagicEden({ listing, onClose }: { listing: NftListing
           seller: raw.seller,
           tokenATA: raw.tokenAddress,
           listingPriceSol: listing.price,
+          royaltyBps: listing.royaltyBps,
           payWith,
           originChainId: payWith === "eth" ? evmOriginChain.chainId : undefined,
           sourceAddress: payWith === "eth" ? evmWallet.address : undefined,

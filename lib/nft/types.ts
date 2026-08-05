@@ -76,6 +76,11 @@ export interface NftListing {
   price?: string; // formatted amount, present only when listed
   priceCurrency?: string;
   seller?: string;
+  // Creator royalty rate in basis points, when the vendor exposes it
+  // per-listing (currently: Magic Eden only, from sellerFeeBasisPoints —
+  // see lib/nft/magicedenFee.ts for why display code needs this to show
+  // the real buyer-facing total, not just the bare listing price).
+  royaltyBps?: number;
   // Raw vendor listing payload — MUST be replayed verbatim into that vendor's
   // buy-execution call, never reconstructed from these display fields (same
   // "replay the quote, don't rebuild it" rule already enforced for Jupiter/Relay
