@@ -7,6 +7,7 @@ import { VersionedTransaction } from "@solana/web3.js";
 import { useEvmWallet } from "@/lib/client/EvmWalletProvider";
 import { useAuth } from "@/lib/client/AuthProvider";
 import { roundUpTo3Decimals } from "@/lib/client/amount";
+import { magicEdenBuyerTotal } from "@/lib/nft/magicedenFee";
 import { NftImage } from "@/app/components/NftImage";
 import { EvmWalletButton } from "@/app/components/EvmWalletButton";
 import { EvmConnectPicker } from "@/app/components/EvmConnectPicker";
@@ -272,7 +273,8 @@ export function NftBuyModalMagicEden({ listing, onClose }: { listing: NftListing
           <div className="flex min-w-0 flex-col">
             <span className="truncate text-sm font-medium text-ink">{listing.name ?? `#${listing.tokenId.slice(0, 8)}`}</span>
             <span className="num text-sm font-semibold text-ink">
-              {roundUpTo3Decimals(Number(listing.price))} <span className="text-ink-muted">{listing.priceCurrency}</span>
+              {roundUpTo3Decimals(magicEdenBuyerTotal(Number(listing.price), listing.royaltyBps))}{" "}
+              <span className="text-ink-muted">{listing.priceCurrency}</span>
             </span>
           </div>
         </div>
