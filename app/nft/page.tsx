@@ -89,6 +89,33 @@ export default async function NftBrowsePage({
         <div className="flex flex-col items-center gap-1 rounded-2xl border border-dashed border-hairline py-16 text-center">
           <p className="text-sm font-medium text-ink">{query ? `No collections found for "${query}"` : "No collections found"}</p>
           <p className="text-sm text-ink-muted">{query ? "Try a different search term." : "Try a different chain."}</p>
+          {/*
+            2026-08-05 (real user report — "Claynosaurz: The Call of Saga",
+            symbol "saga") — Magic Eden's Solana search here draws from a
+            fixed, internally-curated pool of ~394 "tracked" collections
+            (confirmed live: raising our fetch limit past that returns
+            nothing more — it's not a cutoff we control, Magic Eden's own
+            data has a hard ceiling there). A real collection with a real
+            floor price can be entirely absent from that pool if it doesn't
+            clear whatever activity/liquidity threshold Magic Eden applies
+            internally. No public API exists to search beyond it (confirmed
+            via extensive doc research this session) — this link is the
+            only honest way to help a user past that gap. Treats `query` as
+            an exact-slug guess (confirmed live: magiceden.io/marketplace/
+            {slug} works for a real slug, e.g. "saga") — labeled plainly as
+            an external link/guess, not presented as guaranteed to work or
+            as equivalent to our own in-app search.
+          */}
+          {query && vendor === "magiceden" && (
+            <a
+              href={`https://magiceden.io/marketplace/${encodeURIComponent(query.toLowerCase().replace(/\s+/g, "-"))}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-2 text-xs font-medium text-accent hover:underline"
+            >
+              Try &quot;{query}&quot; on magiceden.io directly ↗
+            </a>
+          )}
         </div>
       )}
 
