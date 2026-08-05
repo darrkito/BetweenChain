@@ -322,11 +322,41 @@ export async function searchMagicEdenCollections(query: string, limit = 20): Pro
  * effect (app/nft/[vendor]/[slug]/page.tsx) still exists as a fallback and
  * only fires when this call's collection object comes back without
  * listedCount — so this is safe either way the doc-vs-live conflict
- * resolves: if the docs are right, this collapses 2 calls into 1 (halving
- * Magic Eden's per-page-load request count); if the earlier live test was
- * right, nothing changes, the fallback just always fires like before.
+ * resolves.
+ *
+ * 2026-08-05 (real user request — genuinely different host, not just a
+ * different endpoint): `api-mainnet.magiceden.dev` (this function's host)
+ * has been sitewide rate-limited for hours this session, confirmed live.
+ * `stats-mainnet.magiceden.io` (a SEPARATE host, already used by
+ * browseMagicEdenCollections/searchMagicEdenCollections) is a genuinely
+ * independent rate-limit bucket — confirmed live 2026-08-05: api-mainnet
+ * 429, stats-mainnet 200, at the same moment. Now tries stats-mainnet
+ * FIRST via resolveFromStatsPool below (same working host the browse/search
+ * paths already depend on), only falling back to this api-mainnet call when
+ * the symbol isn't found there (a collection outside the top ~300 by
+ * volume/floor — genuinely needs the direct lookup, no way around it).
+ * Bonus: a stats-pool hit already carries floorPrice/listedCount/volume (a
+ * real 24h figure this time, via stats-mainnet's own `window=1d` — more
+ * accurate than api-mainnet's 7d field), so it also skips the separate
+ * listed-count fallback call same as the docs-driven merge above. The one
+ * real gap: stats-mainnet has no `description` field at all — a stats-pool
+ * hit always has an empty description, honestly, not fabricated.
  */
+async function resolveFromStatsPool(symbol: string): Promise<NftCollection | undefined> {
+  return cached(`magiceden:collection-viastats:${symbol}`, COLLECTIONS_TTL_MS, async () => {
+    const [byVolume, byFloor] = await Promise.all([
+      fetchMagicEdenTopCollectionsBySort("volume", SEARCH_POOL_SIZE),
+      fetchMagicEdenTopCollectionsBySort("floorPrice", SEARCH_POOL_SIZE),
+    ]);
+    const match = [...byVolume, ...byFloor].find((c) => c.collectionSymbol === symbol);
+    return match ? toNftCollectionFromStats(match) : undefined;
+  });
+}
+
 export async function getMagicEdenCollection(symbol: string): Promise<NftCollection | undefined> {
+  const viaStats = await resolveFromStatsPool(symbol).catch(() => undefined);
+  if (viaStats) return viaStats;
+
   return cached(`magiceden:collection:${symbol}`, COLLECTIONS_TTL_MS, async () => {
     const res = await fetchMagicEden(`${MAGICEDEN_API}/collections/${encodeURIComponent(symbol)}`);
     // Only a real 404 means "no such collection" — any other non-ok status
