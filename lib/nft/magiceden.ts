@@ -166,7 +166,11 @@ interface RawMagicEdenListing {
   // and attributes — confirmed live 2026-07-20 against a real okay_bears
   // listing. No separate per-token metadata call needed, unlike OpenSea's
   // listings endpoint (see lib/nft/opensea.ts).
-  token?: { name?: string; image?: string; attributes?: Array<{ trait_type: string; value: string }> };
+  // collectionName added 2026-08-05 — confirmed live present on this same
+  // response, used by fetchPinnedCollection below (a pinned collection has
+  // no other working source for its display name, see that function's
+  // comment).
+  token?: { name?: string; image?: string; collectionName?: string; attributes?: Array<{ trait_type: string; value: string }> };
 }
 
 // floorPrice/listedCount/volume are populated here ONLY when the base
@@ -244,17 +248,95 @@ async function fetchMagicEdenTopCollectionsBySort(sort: "volume" | "floorPrice",
  * outright fabricated prices). A small number of legitimate but unbadged
  * collections will no longer appear — accepted trade-off per the request.
  */
+// 2026-08-05 (real user report — "Claynosaurz: The Call of Saga", symbol
+// "saga") — stats-mainnet's collection_stats/search endpoint draws from a
+// fixed, internally-curated pool of real, actively-tracked collections
+// (confirmed live: raising the fetch limit past ~394 returns nothing more —
+// a hard ceiling on Magic Eden's own data, not a cutoff we control). A real
+// collection with a real floor price can be excluded from that pool if it
+// doesn't clear whatever activity/liquidity threshold Magic Eden applies
+// internally — "saga" has a genuine 16.5 SOL floor and real listings
+// (confirmed live via its own /stats and /listings endpoints) but zero
+// presence in the tracked pool. No public API exists to discover
+// collections like this (confirmed via extensive doc research) — the only
+// way to include one is knowing its exact symbol ahead of time and pinning
+// it here by hand. Small and manually maintained on purpose: this is a
+// workaround for a real gap in Magic Eden's own data, not a general
+// mechanism, and should stay short.
+const MAGICEDEN_PINNED_SYMBOLS: readonly string[] = ["saga"];
+
+// Deliberately does NOT use getMagicEdenCollection (the base
+// /v2/collections/{symbol} endpoint) — confirmed live 2026-08-05 that this
+// specific sub-path has its own, independently-exhausted rate-limit bucket
+// separate from /stats and /listings (both confirmed working at the same
+// moment this one 429'd). A pinned collection is by definition NOT in the
+// stats-mainnet pool, so getMagicEdenCollection would always fall through
+// to exactly the struggling endpoint — the one path guaranteed to defeat
+// the whole point of pinning. Name/image instead come from a single real
+// listing (`/listings?limit=1`, confirmed working) — Magic Eden's listing
+// payload already embeds `token.collectionName`/`token.image`, no separate
+// call needed.
+async function fetchPinnedCollection(symbol: string): Promise<NftCollection | undefined> {
+  return cached(`magiceden:pinned:${symbol}`, COLLECTIONS_TTL_MS, async () => {
+    const [stats, listingRes] = await Promise.all([
+      getMagicEdenCollectionStats(symbol),
+      fetchMagicEden(`${MAGICEDEN_API}/collections/${encodeURIComponent(symbol)}/listings?offset=0&limit=1`),
+    ]);
+    if (!listingRes.ok) return undefined;
+    const listings = (await listingRes.json()) as RawMagicEdenListing[];
+    const token = listings[0]?.token;
+    if (!token) return undefined;
+    return {
+      vendor: "magiceden" as const,
+      chainFamily: "solana" as const,
+      slug: symbol,
+      name: token.collectionName ?? symbol,
+      description: "",
+      imageUrl: token.image ?? "",
+      floorPrice: stats.floorPrice,
+      floorPriceCurrency: stats.floorPriceCurrency,
+      listedCount: stats.listedCount,
+      volume24hr: stats.volume7d,
+      volume24hrCurrency: stats.volume7dCurrency,
+      volumePeriodDays: stats.volume7d != null ? 7 : undefined,
+    };
+  }).catch(() => undefined);
+}
+
 export async function browseMagicEdenCollections(limit = 20): Promise<NftCollection[]> {
   return cached(`magiceden:top-collections:${limit}`, COLLECTIONS_TTL_MS, async () => {
-    const [byVolume, byFloor] = await Promise.all([
+    // 2026-08-05 (real bug, found live): stats-mainnet.magiceden.io (byVolume/
+    // byFloor's host) and api-mainnet.magiceden.dev (pinned's host) are
+    // independent — confirmed live one can be down while the other works.
+    // A plain Promise.all here meant a stats-mainnet failure threw before
+    // pinned's own already-successful result was ever used, discarding
+    // fully-working data for an unrelated reason. Promise.allSettled +
+    // per-source fallback to [] keeps each source's failure contained to
+    // itself. Pre-existing gap, not introduced by pinned collections — this
+    // also fixes browse throwing entirely on any single stats-mainnet
+    // hiccup, which was already true before today.
+    const [byVolumeResult, byFloorResult, ...pinned] = await Promise.allSettled([
       fetchMagicEdenTopCollectionsBySort("volume", limit),
       fetchMagicEdenTopCollectionsBySort("floorPrice", limit),
+      ...MAGICEDEN_PINNED_SYMBOLS.map(fetchPinnedCollection),
     ]);
+    const byVolume = byVolumeResult.status === "fulfilled" ? byVolumeResult.value : [];
+    const byFloor = byFloorResult.status === "fulfilled" ? byFloorResult.value : [];
     const bySymbol = new Map<string, RawMagicEdenTopCollection>();
     for (const row of [...byVolume, ...byFloor]) {
       if (row.isVerified && !bySymbol.has(row.collectionSymbol)) bySymbol.set(row.collectionSymbol, row);
     }
-    return Array.from(bySymbol.values()).map(toNftCollectionFromStats);
+    const result = Array.from(bySymbol.values()).map(toNftCollectionFromStats);
+    // Client-side sort (NftCollectionsGrid, by floor/volume) repositions
+    // these correctly regardless of insertion order — appending is fine.
+    // fetchPinnedCollection already catches its own errors internally
+    // (never rejects), so every entry here is "fulfilled" — .value can
+    // still be undefined on a real failure, which is what's actually checked.
+    for (const settled of pinned) {
+      const p = settled.status === "fulfilled" ? settled.value : undefined;
+      if (p && !result.some((r) => r.slug === p.slug)) result.push(p);
+    }
+    return result;
   });
 }
 
@@ -277,22 +359,37 @@ const SEARCH_TTL_MS = 60_000;
  * (unlike browse) — a user searching a specific name wants that exact
  * collection even if unbadged, same reasoning as the OpenSea/Tradeport
  * search functions not applying browse's trust filter either.
+ *
+ * MAGICEDEN_PINNED_SYMBOLS are also checked here (real name match against
+ * the query) — the manual workaround above for collections Magic Eden's own
+ * pool excludes, see that constant's comment for the full "saga" story.
  */
 export async function searchMagicEdenCollections(query: string, limit = 20): Promise<NftCollection[]> {
   const trimmed = query.trim().toLowerCase();
   if (!trimmed) return [];
   return cached(`magiceden:search:${trimmed}:${limit}`, SEARCH_TTL_MS, async () => {
-    const [byVolume, byFloor] = await Promise.all([
+    // See browseMagicEdenCollections's identical comment — stats-mainnet and
+    // pinned's api-mainnet calls are independent sources, allSettled keeps
+    // one source's failure from discarding the other's real result.
+    const [byVolumeResult, byFloorResult, ...pinned] = await Promise.allSettled([
       fetchMagicEdenTopCollectionsBySort("volume", SEARCH_POOL_SIZE),
       fetchMagicEdenTopCollectionsBySort("floorPrice", SEARCH_POOL_SIZE),
+      ...MAGICEDEN_PINNED_SYMBOLS.map(fetchPinnedCollection),
     ]);
+    const byVolume = byVolumeResult.status === "fulfilled" ? byVolumeResult.value : [];
+    const byFloor = byFloorResult.status === "fulfilled" ? byFloorResult.value : [];
     const bySymbol = new Map<string, RawMagicEdenTopCollection>();
     for (const row of [...byVolume, ...byFloor]) {
       if (!bySymbol.has(row.collectionSymbol) && row.name.toLowerCase().includes(trimmed)) {
         bySymbol.set(row.collectionSymbol, row);
       }
     }
-    return Array.from(bySymbol.values()).slice(0, limit).map(toNftCollectionFromStats);
+    const result = Array.from(bySymbol.values()).map(toNftCollectionFromStats);
+    for (const settled of pinned) {
+      const p = settled.status === "fulfilled" ? settled.value : undefined;
+      if (p && p.name.toLowerCase().includes(trimmed) && !result.some((r) => r.slug === p.slug)) result.push(p);
+    }
+    return result.slice(0, limit);
   });
 }
 
