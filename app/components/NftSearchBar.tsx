@@ -38,17 +38,25 @@ export function NftSearchBar({ family, chain, initialQuery }: { family: string; 
       }}
       className="relative flex-1"
     >
-      <svg
-        width="15"
-        height="15"
-        viewBox="0 0 24 24"
-        fill="none"
-        className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-faint"
-        aria-hidden="true"
+      {/*
+        2026-08-05 (real bug, user report: "the search bar is not working at
+        all") — this was a plain decorative <svg> with pointer-events-none;
+        the ONLY way to trigger a search was pressing Enter inside the input,
+        with zero visible affordance suggesting that. A user clicking the
+        icon (the obvious, expected thing to click) got nothing. Now a real
+        type="submit" button — Enter still works too (unchanged), this adds
+        the click path that was missing entirely.
+      */}
+      <button
+        type="submit"
+        aria-label="Search"
+        className="absolute left-2.5 top-1/2 -translate-y-1/2 rounded-lg p-1 text-ink-faint transition-colors hover:text-ink"
       >
-        <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="2" />
-        <path d="m21 21-4.3-4.3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-      </svg>
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="2" />
+          <path d="m21 21-4.3-4.3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+        </svg>
+      </button>
       <input
         value={value}
         onChange={(e) => setValue(e.target.value)}
