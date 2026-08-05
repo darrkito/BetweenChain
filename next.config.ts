@@ -23,6 +23,30 @@ const nextConfig: NextConfig = {
       // source like TokenIcon/NftImage.
       { protocol: "https", hostname: "coin-images.coingecko.com" },
     ],
+    // 2026-08-05 (real cost issue: Vercel's free-tier Image Optimization
+    // "Cache Writes" quota, 100K/month, exceeded at 124K) — neither of these
+    // had ever been set, so both were on Next's defaults, which are wrong
+    // for this app's actual usage:
+    //
+    // minimumCacheTTL defaults to 60s. NFT/collection images are
+    // effectively immutable (an NFT's image essentially never changes
+    // post-mint — see NftImage.tsx's own comment on this) but were being
+    // treated as if they could change every minute, forcing a fresh
+    // optimization ("cache write") on every re-request past that window.
+    // Raised to 1 year — the correct value for genuinely-static content,
+    // not a workaround.
+    //
+    // deviceSizes/imageSizes default to 8+8=16 breakpoints each, up to
+    // 3840px — this app's actual `sizes` hints (grep for `sizes=` across
+    // app/components/) never request anything above 768px (the collection
+    // hero banner) or below ~64px; every listing/browse thumbnail sits in
+    // the 96-256px range. Every unused breakpoint was its own separate
+    // cache-write cost per unique image, for widths this app never
+    // actually serves. Trimmed to the set that covers real usage
+    // (including ~2x device-pixel-ratio headroom on the 768px hero).
+    minimumCacheTTL: 31536000,
+    deviceSizes: [640, 750, 828, 1080],
+    imageSizes: [64, 96, 128, 220, 256, 384],
     // 2026-08-04 — next/image also allowlists LOCAL (same-origin) image
     // paths, separate from remotePatterns above. Its default local pattern
     // only matches an empty query string (`search: ''`), which silently
