@@ -12,8 +12,10 @@ const ConnectWalletMenu = dynamic(
   { ssr: false },
 );
 
+// 2026-08-05 (landing-page overhaul) — Swap moved off `/` (now the marketing
+// landing page) to its own /swap route.
 const NAV: Array<{ href: string; label: string; shortLabel?: string }> = [
-  { href: "/", label: "Token Swap", shortLabel: "Swap" },
+  { href: "/swap", label: "Token Swap", shortLabel: "Swap" },
   { href: "/nft", label: "NFTs" },
 ];
 

@@ -32,13 +32,14 @@ async function nftCollectionEntries(): Promise<MetadataRoute.Sitemap> {
 
 // 2026-08-05 (SEO foundation pass) — this app had no sitemap at all before
 // this. Static routes list intentionally only covers what actually EXISTS
-// today (Phase 1 of the larger SEO/landing-page pass) — /swap, /faq, /blog
-// get added here in their own respective phases as each one actually
-// ships, not preemptively (a sitemap entry for a route that 404s is worse
-// than no entry at all).
+// today — /faq and /blog get added here in their own respective phases as
+// each one actually ships, not preemptively (a sitemap entry for a route
+// that 404s is worse than no entry at all). /swap added in Phase 2
+// alongside the route itself (see app/swap/page.tsx).
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const staticEntries: MetadataRoute.Sitemap = [
     { url: SITE_URL, changeFrequency: "daily", priority: 1 },
+    { url: `${SITE_URL}/swap`, changeFrequency: "weekly", priority: 0.9 },
     { url: `${SITE_URL}/nft`, changeFrequency: "hourly", priority: 0.8 },
   ];
   const collectionEntries = await nftCollectionEntries().catch(() => []);

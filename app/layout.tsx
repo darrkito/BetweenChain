@@ -5,6 +5,7 @@ import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
 import { Providers } from "./providers";
 import { JsonLd, siteGraphSchema } from "@/lib/seo/jsonld";
+import { Footer } from "@/app/components/Footer";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -138,6 +139,7 @@ export default function RootLayout({
       </head>
       <body className="min-h-full flex flex-col">
         <Providers>{children}</Providers>
+        <Footer />
         {/* 2026-08-04 (reliability/observability pass) — this app had zero
             real-user visibility before this: no error tracking, no
             performance monitoring, console.log/warn only. These two are
