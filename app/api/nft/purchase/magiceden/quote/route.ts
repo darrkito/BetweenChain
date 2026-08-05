@@ -68,8 +68,23 @@ export async function POST(req: Request) {
   const rl = await rateLimit(clientKey(req, "nft:purchase:magiceden:quote"), 15, 60_000);
   if (!rl.ok) return NextResponse.json({ error: "Too many requests" }, { status: 429 });
 
-  const parsed = bodySchema.safeParse(await req.json().catch(() => null));
-  if (!parsed.success) return NextResponse.json({ error: "Invalid request" }, { status: 400 });
+  const rawBody = await req.json().catch(() => null);
+  const parsed = bodySchema.safeParse(rawBody);
+  if (!parsed.success) {
+    // 2026-08-05 (real user report: "Invalid request" when quoting a
+    // Magic Eden NFT) — this branch previously told the client nothing
+    // more than a flat 400, and logged nothing server-side either, so a
+    // real failure here was undiagnosable after the fact. Logs the actual
+    // zod issues (which field, why) plus the raw body shape (keys only,
+    // not values — a listing/wallet payload isn't secret, but there's no
+    // reason to echo full addresses into logs either) so the next
+    // occurrence is actually debuggable.
+    console.error("[nft/purchase/magiceden/quote] validation failed", {
+      issues: parsed.error.issues,
+      bodyKeys: rawBody && typeof rawBody === "object" ? Object.keys(rawBody) : rawBody,
+    });
+    return NextResponse.json({ error: "Invalid request" }, { status: 400 });
+  }
   const input = parsed.data;
 
   const isSameChain = input.payWith === "sol";
