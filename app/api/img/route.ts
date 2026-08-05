@@ -41,7 +41,16 @@ const ALLOWED_PROTOCOLS = new Set(["http:", "https:"]);
 const MAX_BYTES = 15 * 1024 * 1024; // generous for NFT art, still bounded
 const FETCH_TIMEOUT_MS = 8_000;
 const MAX_REDIRECTS = 3;
-const CACHE_CONTROL = "public, max-age=86400, s-maxage=604800, stale-while-revalidate=604800";
+// 2026-08-05 (real cost issue: Vercel Image Optimization "Cache Writes"
+// quota exceeded) — raised from max-age=86400 (1 day). Confirmed live:
+// next/image's `minimumCacheTTL` (next.config.ts, set to 1 year the same
+// pass) takes the SHORTER of its own configured value and this upstream
+// response's max-age — a 1-day cap here was silently overriding the whole
+// point of that change, forcing re-optimization ("cache write") on every
+// image once a day regardless. NFT images are effectively immutable (an
+// NFT's image essentially never changes post-mint), so both should agree
+// on the same long duration now.
+const CACHE_CONTROL = "public, max-age=31536000, s-maxage=31536000, immutable";
 
 function isBlockedHostname(hostname: string): boolean {
   const h = hostname.toLowerCase();
