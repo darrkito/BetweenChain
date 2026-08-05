@@ -1,4 +1,5 @@
 import "server-only";
+import sharp from "sharp";
 import { rateLimit, clientKey } from "@/lib/rate-limit";
 
 // External-call budget for this route -- prevents Vercel's platform-level
@@ -50,14 +51,33 @@ const MAX_BYTES = 15 * 1024 * 1024; // generous for NFT art, still bounded
 // — have no static alternative at all, so picking a different field can't
 // help them) turns one 20-item grid into ~100MB of simultaneous unoptimized
 // downloads — this is why "only 2 images load" for a user on a normal
-// connection. A real fix (decode + re-encode just the first frame as a
-// static image) needs a new dependency (sharp isn't installed) — deferred
-// as bigger/riskier than a same-session fix. This is the safe default:
-// animated GIFs over a much stricter cap are rejected outright (NftImage's
-// existing broken-image fallback state already handles a failed image
-// gracefully) instead of passed through at whatever size the source
-// happens to be. Small/legitimate animated GIFs stay completely unaffected.
+// connection.
+//
+// Real fix, same day follow-up: sharp (already a direct dependency here,
+// not newly added — confirmed via `npm install sharp` reporting "up to
+// date") decodes just the FIRST FRAME of a multi-frame GIF by default when
+// called without `{animated: true}` — exactly what's needed to turn an
+// animated GIF into a real static thumbnail server-side, which next/image
+// (sitting in front of this route) can then optimize normally same as any
+// other format. `convertAnimatedGifToStaticPng` below does this; this
+// constant is now only the LAST-RESORT safety net for when that conversion
+// itself fails (a genuinely corrupt/unusual file) — not the primary
+// mitigation anymore.
 const MAX_ANIMATED_BYTES = 800 * 1024;
+
+/**
+ * Returns a static PNG buffer for the first frame of `gifBuf`, or null if
+ * sharp can't decode it (caller falls back to the size-cap rejection below
+ * — never throws out to the caller, a conversion failure must degrade
+ * gracefully, not 500 the whole request).
+ */
+async function convertAnimatedGifToStaticPng(gifBuf: Buffer): Promise<Buffer | null> {
+  try {
+    return await sharp(gifBuf).png().toBuffer();
+  } catch {
+    return null;
+  }
+}
 const FETCH_TIMEOUT_MS = 8_000;
 const MAX_REDIRECTS = 3;
 const CACHE_CONTROL = "public, max-age=86400, s-maxage=604800, stale-while-revalidate=604800";
@@ -146,21 +166,42 @@ export async function GET(req: Request) {
     return new Response("Not an image", { status: 415 });
   }
 
-  // See MAX_ANIMATED_BYTES's comment above — a stricter cap for animated
-  // GIFs specifically, since next/image can't shrink them like every other
-  // format here.
   const isAnimatedGif = contentType.toLowerCase() === "image/gif";
-  const effectiveMaxBytes = isAnimatedGif ? MAX_ANIMATED_BYTES : MAX_BYTES;
-  const tooLargeMessage = isAnimatedGif ? "Animated image too large" : "Image too large";
+  // GIFs get the full MAX_BYTES budget here (not the stricter
+  // MAX_ANIMATED_BYTES) — that budget applies to what we're willing to
+  // DOWNLOAD and attempt to convert, not the final response size. The
+  // stricter cap only kicks in below, as the fallback when conversion
+  // itself fails.
+  const downloadMaxBytes = MAX_BYTES;
+  const tooLargeMessage = "Image too large";
 
   const contentLength = upstream.headers.get("content-length");
-  if (contentLength && Number(contentLength) > effectiveMaxBytes) {
+  if (contentLength && Number(contentLength) > downloadMaxBytes) {
     return new Response(tooLargeMessage, { status: 413 });
   }
 
   const buf = await upstream.arrayBuffer();
-  if (buf.byteLength > effectiveMaxBytes) {
+  if (buf.byteLength > downloadMaxBytes) {
     return new Response(tooLargeMessage, { status: 413 });
+  }
+
+  if (isAnimatedGif) {
+    const staticPng = await convertAnimatedGifToStaticPng(Buffer.from(buf));
+    if (staticPng) {
+      return new Response(new Uint8Array(staticPng), {
+        status: 200,
+        headers: {
+          "Content-Type": "image/png",
+          "Cache-Control": CACHE_CONTROL,
+        },
+      });
+    }
+    // Conversion failed (genuinely corrupt/unusual file, not the common
+    // case) — same last-resort size cap as before this fix, so a giant
+    // unconvertable GIF still can't stall a whole grid.
+    if (buf.byteLength > MAX_ANIMATED_BYTES) {
+      return new Response("Animated image too large", { status: 413 });
+    }
   }
 
   return new Response(buf, {
