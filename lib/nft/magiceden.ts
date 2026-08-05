@@ -10,16 +10,25 @@ const MAGICEDEN_API = "https://api-mainnet.magiceden.dev/v2";
 // "Popular collections" ranking. See browseMagicEdenCollections below for
 // why the documented v2 /collections endpoint can't be used for this.
 const MAGICEDEN_STATS_API = "https://stats-mainnet.magiceden.io";
-// 2026-08-04 (reliability pass) — raised 5min -> 15min. Name/description/
-// image/floor/volume/listedCount all change slowly enough that showing them
-// up to 15min stale is a non-issue (the buy flow always re-verifies a
-// listing is still live immediately before execution — this cache only ever
-// affects DISPLAY freshness, never what a purchase actually executes
-// against). The real payoff is fewer upstream calls hitting Magic Eden's
-// tight, apparently key-agnostic ~120 QPM/2 QPS limit (see
-// getMagicEdenCollection's doc comment) — directly cuts how often the
-// collection header 503s with "temporarily busy".
-const COLLECTIONS_TTL_MS = 15 * 60_000;
+// 2026-08-04 (reliability pass) — raised 5min -> 15min on the theory that
+// name/description/image/floor/volume/listedCount all change slowly enough
+// that showing them up to 15min stale is a non-issue.
+//
+// 2026-08-05 (real user report, corrected) — floor price specifically does
+// NOT change slowly enough for that to hold: confirmed live, our displayed
+// floor for a real, actively-traded collection (Claynosaurz) was 16.987 SOL
+// while the actual current floor (matching the real cheapest listing, and
+// agreed on by BOTH api-mainnet's /stats and the stats-mainnet pool at the
+// same moment) was 16.973 — a real, user-visible discrepancy caused by this
+// cache being stale, not a calculation bug. Lowered back down to 3min — the
+// original 15min reasoning (avoid the struggling base-collection endpoint,
+// see getMagicEdenCollection's doc comment) still holds for the STATIC
+// fields via resolveFromStatsPool/fetchPinnedCollection's separate paths,
+// but this constant's actual traffic mostly flows through stats-mainnet and
+// api-mainnet's /stats now, both confirmed healthy through most of this
+// session unlike the base endpoint — a shorter TTL here is a safe trade,
+// not a return to the original rate-limit problem.
+const COLLECTIONS_TTL_MS = 3 * 60_000;
 
 // Only strictly required for the buy-instruction endpoints (see
 // getMagicEdenBuyInstructions below) — collection browse/listings/stats
