@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { AppHeader } from "@/app/components/AppHeader";
 import { Breadcrumb } from "@/app/components/Breadcrumb";
 import { NftChainTabs } from "@/app/components/NftChainTabs";
@@ -7,6 +8,17 @@ import { NftSearchBar } from "@/app/components/NftSearchBar";
 import { nftChainFamilyLabel } from "@/lib/nft/labels";
 import { NFT_VENDOR_CLIENTS, VENDOR_FOR_FAMILY } from "@/lib/nft/vendorClients";
 import type { NftChainFamily, NftCollection } from "@/lib/nft/types";
+
+type NftBrowseSearchParams = { family?: string; chain?: string; q?: string };
+
+export async function generateMetadata({ searchParams }: { searchParams: Promise<NftBrowseSearchParams> }): Promise<Metadata> {
+  const params = await searchParams;
+  const family = (params.family as NftChainFamily | null) ?? "solana";
+  const label = nftChainFamilyLabel(family);
+  const title = params.q ? `"${params.q}" — ${label} NFTs` : `${label} NFT Collections`;
+  const description = `Browse and buy ${label} NFT collections across Solana, Ethereum, and Sui — cross-chain, pay from any wallet.`;
+  return { title, description, alternates: { canonical: "/nft" } };
+}
 
 /**
  * 2026-08-04 (performance pass) — converted from a client component that

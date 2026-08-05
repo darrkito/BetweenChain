@@ -4,6 +4,7 @@ import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
 import { Providers } from "./providers";
+import { JsonLd, siteGraphSchema } from "@/lib/seo/jsonld";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -15,15 +16,58 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+// 2026-08-05 (SEO foundation pass) — this app had almost no metadata before
+// this: title/description/manifest only, no metadataBase (so any relative
+// OG/canonical URL Next tried to resolve would have been wrong), no OG/
+// Twitter defaults, no title template for child pages. Ported from
+// /home/darrkito/luvory-genius-generator's real, working SEO setup (a full
+// audit this session confirmed its actual techniques, not just its stack) —
+// ITS mechanism (Vite + a custom prerender script + react-helmet-async) is
+// Next-irrelevant, but the CONTENT pattern (title template, full OG/Twitter
+// blocks, a permissive robots directive opting into full search-result
+// previews) carries over directly onto Next's native Metadata API.
+const SITE_URL = "https://blockchains.click";
+const SITE_DESCRIPTION = "All the blockchains, in just one click. Swap meme coins across chains, starting from Solana.";
+
 export const metadata: Metadata = {
-  title: "Blockchains.Click",
-  description: "All the blockchains, in just one click. Swap meme coins across chains, starting from Solana.",
+  metadataBase: new URL(SITE_URL),
+  title: { default: "Blockchains.Click", template: "%s | Blockchains.Click" },
+  description: SITE_DESCRIPTION,
   manifest: "/manifest.json",
   // apple-icon.png / icon.svg are picked up automatically from app/ by
   // Next.js's file-based icon convention — no explicit `icons` entry needed
   // here for those. public/manifest.json carries the PWA install icon set
   // (192/512/maskable) separately, since that's a distinct spec from the
   // favicon/apple-touch-icon Next.js's own convention covers.
+  openGraph: {
+    type: "website",
+    siteName: "Blockchains.Click",
+    title: "Blockchains.Click",
+    description: SITE_DESCRIPTION,
+    url: SITE_URL,
+    // app/opengraph-image.tsx (same directory, Next's file convention) is
+    // picked up automatically — no explicit `images` entry needed here.
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Blockchains.Click",
+    description: SITE_DESCRIPTION,
+    // app/twitter-image.tsx is picked up the same way as opengraph-image.tsx.
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      // Opts into full-content previews in search results (snippet length,
+      // image preview size, video preview length) instead of Google's
+      // default truncated ones — same directive Luvory's real setup uses.
+      "max-snippet": -1,
+      "max-image-preview": "large",
+      "max-video-preview": -1,
+    },
+  },
 };
 
 // Added 2026-08-03 — this app had no viewport export at all before (Next's
@@ -86,6 +130,11 @@ export default function RootLayout({
     >
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+        {/* Site-wide Organization+WebSite JSON-LD — every other page's own
+            JSON-LD (breadcrumbs, FAQPage, BlogPosting) cross-links to these
+            @id values rather than repeating them, same @graph pattern
+            lib/seo/jsonld.tsx ports from Luvory's real SEO setup. */}
+        <JsonLd data={siteGraphSchema()} />
       </head>
       <body className="min-h-full flex flex-col">
         <Providers>{children}</Providers>

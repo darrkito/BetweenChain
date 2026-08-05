@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { getMagicEdenListings } from "@/lib/nft/magiceden";
 import { getOpenSeaListings } from "@/lib/nft/opensea";
 import { getCryptoPunksOnchainListings } from "@/lib/nft/cryptopunksOnchain";
@@ -41,6 +42,37 @@ async function fetchInitialListings(vendor: NftVendor, slug: string): Promise<In
     return { listings, nextCursor: undefined };
   }
   return { listings: [], nextCursor: undefined };
+}
+
+/**
+ * 2026-08-05 (SEO foundation pass) — real collection name/description/image
+ * become the page's actual title/OG image instead of the generic site
+ * default, for every collection this app lists. Calls the same
+ * client.getCollection(slug) the page body below also calls — NOT a
+ * duplicate upstream API request: every vendor client's getCollection is
+ * already wrapped in lib/cache.ts's Redis-backed cached() (see lib/nft/
+ * magiceden.ts's getMagicEdenCollection etc.), and generateMetadata always
+ * runs before the page body in Next's render flow, so the second call hits
+ * a warm cache — one extra Redis round-trip, not a second real fetch.
+ */
+export async function generateMetadata({ params }: { params: Promise<{ vendor: string; slug: string }> }): Promise<Metadata> {
+  const { vendor: rawVendor, slug: rawSlug } = await params;
+  const vendor = rawVendor as NftVendor;
+  const slug = decodeURIComponent(rawSlug);
+  const client = NFT_VENDOR_CLIENTS[vendor];
+  const collection = client ? await client.getCollection(slug).catch(() => undefined) : undefined;
+  if (!collection) return { title: "Collection", robots: { index: false } };
+  const title = collection.name;
+  const description = collection.description?.trim()
+    ? collection.description
+    : `Browse and buy ${collection.name} NFTs on Blockchains.Click — pay from any supported chain.`;
+  return {
+    title,
+    description,
+    alternates: { canonical: `/nft/${vendor}/${encodeURIComponent(slug)}` },
+    openGraph: collection.imageUrl ? { images: [collection.imageUrl] } : undefined,
+    twitter: collection.imageUrl ? { images: [collection.imageUrl] } : undefined,
+  };
 }
 
 /**
