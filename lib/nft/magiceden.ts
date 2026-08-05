@@ -454,6 +454,19 @@ export async function getMagicEdenCollection(symbol: string): Promise<NftCollect
   const viaStats = await resolveFromStatsPool(symbol).catch(() => undefined);
   if (viaStats) return viaStats;
 
+  // 2026-08-05 (real bug, found live: /nft/magiceden/saga's header always
+  // 503'd) — a pinned collection (see MAGICEDEN_PINNED_SYMBOLS) is by
+  // definition NOT in the stats pool above, so without this check every
+  // single request for it would fall through to exactly the struggling
+  // api-mainnet base endpoint below (the same one browseMagicEdenCollections/
+  // searchMagicEdenCollections were already fixed to avoid — see
+  // fetchPinnedCollection's doc comment). The collection DETAIL PAGE header
+  // calls this function directly and had no equivalent fix yet.
+  if (MAGICEDEN_PINNED_SYMBOLS.includes(symbol)) {
+    const viaPinned = await fetchPinnedCollection(symbol);
+    if (viaPinned) return viaPinned;
+  }
+
   return cached(`magiceden:collection:${symbol}`, COLLECTIONS_TTL_MS, async () => {
     const res = await fetchMagicEden(`${MAGICEDEN_API}/collections/${encodeURIComponent(symbol)}`);
     // Only a real 404 means "no such collection" — any other non-ok status
