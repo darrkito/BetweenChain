@@ -50,14 +50,11 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid or missing EVM source address" }, { status: 400 });
   }
 
-  // Same-chain EVM-to-EVM (e.g. USDC->ETH both on Ethereum, no bridging) is
-  // explicitly out of scope — untested against Relay's same-chain routing
-  // and not what SwapPanel.tsx's Buy-side filter allows. Reject server-side
-  // too, not just in the UI, since the UI filter is bypassable via a direct
-  // API call. See STATE.md 2026-07-18i.
-  if (!isSolanaOrigin && input.sourceChainId === input.destChainId) {
-    return NextResponse.json({ error: "Same-chain swaps on this chain aren't supported yet" }, { status: 400 });
-  }
+  // 2026-08-06: same-chain EVM-to-EVM (e.g. USDC->ETH both on Arbitrum) used
+  // to be rejected here — confirmed live it works fine against Relay's own
+  // /quote (real single-step "swap" response, same settlement mechanism as
+  // a real bridge). See app/components/SwapPanel.tsx's isBuyTokenAllowed
+  // doc for the full finding.
 
   // Destination address validation is the security-critical step: this is
   // the value that gets bound immutably below and can never change again for

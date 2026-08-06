@@ -69,6 +69,15 @@ export function SwapPageClient() {
   // inside runSwap as a local) so every gate below can share one source of
   // truth instead of some checking the right wallet and some not.
   const sellIsSolana = sellToken?.chainId === SOLANA_CHAIN_ID_CLIENT;
+
+  // Whether a Relay leg (the "leg2_pending" phase below) is needed at all —
+  // broader than isCrossChain since 2026-08-06 (same-chain EVM support):
+  // same-chain Solana needs no Relay leg (pure Jupiter, unchanged); every
+  // other combination — cross-chain from either origin, AND same-chain EVM,
+  // new — routes through Relay. See app/components/SwapPanel.tsx's
+  // isBuyTokenAllowed doc for why same-chain EVM is real and supported now.
+  const needsRelayLeg2 = isCrossChain || !sellIsSolana;
+
   const { balance: sellBalance, loading: sellBalanceLoading } = useSolanaBalance(
     connection,
     sellIsSolana ? publicKey : null,
@@ -194,13 +203,23 @@ export function SwapPageClient() {
           sourceMint,
           sourceAddress: sellIsSolana ? undefined : evmWallet.address,
           sourceAmount: toAtomicAmount(sellAmount, sellToken.decimals),
-          destChainId: isCrossChain ? buyToken.chainId : SOLANA_CHAIN_ID_CLIENT,
-          destToken: isCrossChain ? buyToken.address : "SOL",
-          // Only reached when !isCrossChain, which (given isBuyTokenAllowed
-          // blocks same-chain EVM-to-EVM) can only mean both sides are
-          // Solana — publicKey is guaranteed non-null here by the sellIsSolana
-          // guard above.
-          destAddress: isCrossChain ? destAddress : publicKey!.toBase58(),
+          // Both driven by buyToken's own chain, not by isCrossChain — that
+          // ternary used to hardcode Solana whenever !isCrossChain, which was
+          // harmless before 2026-08-06 (the only way to reach !isCrossChain
+          // was same-chain Solana, where buyToken.chainId already equals
+          // SOLANA_CHAIN_ID_CLIENT anyway) but was silently wrong for the new
+          // same-chain-EVM case (would send Solana as the destination for an
+          // EVM->EVM swap). buyToken.chainId is correct unconditionally.
+          destChainId: buyToken.chainId,
+          destToken: buyToken.chainId === SOLANA_CHAIN_ID_CLIENT ? "SOL" : buyToken.address,
+          // Cross-chain uses the explicit destAddress field. Same-chain
+          // Solana has no such field — defaults to the connected Solana
+          // wallet (publicKey guaranteed non-null here by the sellIsSolana
+          // guard above). Same-chain EVM (new) is likewise a self-swap with
+          // no destAddress field — defaults to the connected EVM wallet
+          // (evmWallet.address guaranteed non-null by the !sellIsSolana
+          // guard above).
+          destAddress: isCrossChain ? destAddress : sellIsSolana ? publicKey!.toBase58() : evmWallet.address!,
           slippageBps,
         }),
       });
@@ -246,22 +265,24 @@ export function SwapPageClient() {
         return;
       }
 
-      if (isCrossChain) {
+      if (needsRelayLeg2) {
         phase = "leg2_pending";
         setStep(phase);
-        setMessage("Preparing bridge deposit…");
+        setMessage(isCrossChain ? "Preparing bridge deposit…" : "Preparing swap…");
         const bridgeRes = await fetch("/api/bridge", {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ swapId: newSwapId }),
         });
-        if (!bridgeRes.ok) throw new Error((await bridgeRes.json()).error ?? "Bridge init failed");
+        if (!bridgeRes.ok) throw new Error((await bridgeRes.json()).error ?? (isCrossChain ? "Bridge init failed" : "Swap init failed"));
         const { steps } = await bridgeRes.json();
 
         if (sellIsSolana) {
           // This "deposit" step is a Solana transaction even though it
           // bridges to another chain — same connected Solana wallet, no
-          // EVM signature needed. See lib/chains/relay.ts.
+          // EVM signature needed. See lib/chains/relay.ts. Only reachable
+          // when isCrossChain (needsRelayLeg2 is false for same-chain
+          // Solana), so "bridge" copy here is always accurate.
           const depositItem = steps?.[0]?.items?.[0];
           if (!depositItem?.data?.instructions) {
             throw new Error("Bridge step did not include deposit instructions");
@@ -280,23 +301,28 @@ export function SwapPageClient() {
           const signedDeposit = await signTransaction!(depositTx);
           await connection.sendRawTransaction(signedDeposit.serialize());
         } else {
-          // Non-Solana origin: one or more real EVM transactions — an ERC20
-          // origin returns a separate leading "approve" step before
-          // "deposit"; a native-currency origin (ETH, MATIC, ...) returns
-          // just "deposit". Iterate whatever comes back, in order, waiting
-          // for each to confirm before sending the next. See STATE.md
-          // 2026-07-18i and lib/client/useEvmWallet.ts.
+          // Non-Solana origin: one or more real EVM transactions. Cross-chain:
+          // an ERC20 origin returns a separate leading "approve" step before
+          // "deposit"; a native-currency origin (ETH, MATIC, ...) returns just
+          // "deposit". Same-chain (2026-08-06, new): a single "swap" step,
+          // same iterate-whatever-comes-back handling — this loop was already
+          // step-id-generic, only the display label needed a case for it. See
+          // STATE.md 2026-07-18i and lib/client/useEvmWallet.ts.
           await evmWallet.ensureChain(sellToken.chainId);
           for (let i = 0; i < steps.length; i++) {
             const item = steps[i]?.items?.[0];
-            if (!item?.data) throw new Error(`Bridge step "${steps[i]?.id}" did not include transaction data`);
-            const label = steps[i].id === "approve" ? "Approve token spend" : "Confirm deposit";
+            if (!item?.data) throw new Error(`Swap step "${steps[i]?.id}" did not include transaction data`);
+            const label = steps[i].id === "approve" ? "Approve token spend" : isCrossChain ? "Confirm deposit" : "Confirm swap";
             setMessage(`Step ${i + 1} of ${steps.length}: ${label} in your wallet…`);
             await evmWallet.sendStepAndWait(item.data);
           }
         }
 
-        setMessage("Deposit submitted — waiting for the bridge to settle (usually a few seconds)…");
+        setMessage(
+          isCrossChain
+            ? "Deposit submitted — waiting for the bridge to settle (usually a few seconds)…"
+            : "Swap submitted — waiting for it to confirm (usually a few seconds)…",
+        );
         for (let attempt = 0; attempt < 40; attempt++) {
           await sleep(3000);
           const confirmRes = await fetch("/api/bridge/confirm", {
@@ -304,7 +330,7 @@ export function SwapPageClient() {
             headers: { "content-type": "application/json" },
             body: JSON.stringify({ swapId: newSwapId }),
           });
-          if (!confirmRes.ok) throw new Error((await confirmRes.json()).error ?? "Bridge confirm failed");
+          if (!confirmRes.ok) throw new Error((await confirmRes.json()).error ?? "Confirm failed");
           const confirmed = await confirmRes.json();
           if (confirmed.status === "complete") {
             setStep("done");
@@ -313,13 +339,19 @@ export function SwapPageClient() {
           }
           if (confirmed.status === "leg2_failed") {
             throw new Error(
-              sellIsSolana
-                ? "Bridge settlement failed — funds remain as SOL in your wallet, safe to retry."
-                : "Bridge settlement failed — your deposit did not complete, safe to retry.",
+              isCrossChain
+                ? sellIsSolana
+                  ? "Bridge settlement failed — funds remain as SOL in your wallet, safe to retry."
+                  : "Bridge settlement failed — your deposit did not complete, safe to retry."
+                : "Swap failed — your funds were not moved, safe to retry.",
             );
           }
         }
-        throw new Error("Bridge is taking longer than expected — check back shortly, it may still settle.");
+        throw new Error(
+          isCrossChain
+            ? "Bridge is taking longer than expected — check back shortly, it may still settle."
+            : "Swap is taking longer than expected — check back shortly, it may still settle.",
+        );
       } else {
         setStep("done");
         setMessage("Swap complete.");
@@ -339,7 +371,7 @@ export function SwapPageClient() {
     { key: "quoting", label: "Quote" },
     { key: "leg1_signing", label: "Sign" },
     { key: "leg1_confirming", label: "Confirm" },
-    ...(isCrossChain ? [{ key: "leg2_pending", label: "Bridge" }] : []),
+    ...(needsRelayLeg2 ? [{ key: "leg2_pending", label: isCrossChain ? "Bridge" : "Swap" }] : []),
     { key: "done", label: "Done" },
   ];
   const currentStepIndex = stepDefs.findIndex((s) => s.key === (isError ? erroredAtStep : step));

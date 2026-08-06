@@ -39,21 +39,24 @@ function TokenPill({ token, onClick }: { token: SelectedToken | null; onClick: (
 
 /**
  * Whether a token is a valid Buy-side pick given the current Sell-side
- * chain. Two independent rules, both enforced here so page.tsx's flip() can
- * reuse the exact same check rather than duplicating the logic:
+ * chain. Enforced here so page.tsx's flip() can reuse the exact same check
+ * rather than duplicating the logic.
  *
- * 1. Execution only ever produces native SOL for a same-chain (Solana) leg
- *    (see AGENTS.md) — a non-native Solana token can never be a Buy target.
- * 2. Same-chain EVM-to-EVM (e.g. USDC→ETH both on Ethereum, no bridging) is
- *    explicitly out of scope for the non-Solana-origin work in this pass
- *    (see STATE.md 2026-07-18i) — block picking the same non-Solana chain
- *    as the current Sell side, rather than let it silently misbehave against
- *    an execution path that was never built/tested for that case.
+ * Execution only ever produces native SOL for a same-chain (Solana) leg
+ * (see AGENTS.md) — a non-native Solana token can never be a Buy target.
+ *
+ * 2026-08-06: same-chain EVM-to-EVM (e.g. USDC→ETH both on Arbitrum) used to
+ * be blocked here too, on the theory that it was "untested against Relay's
+ * same-chain routing." Confirmed live it isn't — Relay's /quote returns a
+ * real, valid single-step "swap" for originChainId === destinationChainId,
+ * using the same /intents/status settlement mechanism as a real cross-chain
+ * bridge. Real user report: this filter was producing an empty, unexplained
+ * Buy-token list for anyone trying to swap within a single EVM chain. Now
+ * enabled — see app/swap/SwapPageClient.tsx's needsRelayLeg2 for the
+ * execution side.
  */
 export function isBuyTokenAllowed(sellChainId: number | undefined, t: { chainId: number; isNative: boolean }): boolean {
-  if (t.chainId === SOLANA_CHAIN_ID && !t.isNative) return false;
-  if (sellChainId !== undefined && sellChainId !== SOLANA_CHAIN_ID && t.chainId === sellChainId) return false;
-  return true;
+  return !(t.chainId === SOLANA_CHAIN_ID && !t.isNative);
 }
 
 export function SwapPanel({
@@ -95,9 +98,17 @@ export function SwapPanel({
   const [previewLoading, setPreviewLoading] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
 
+  // Same-token exclusion (2026-08-06, added alongside enabling same-chain
+  // EVM buys): picking the exact same token as both Sell and Buy is a
+  // meaningless no-op that would still generate a real Relay quote and burn
+  // real gas — worth filtering out client-side rather than letting someone
+  // accidentally "swap" ETH for ETH. Address compared case-insensitively —
+  // EVM addresses aren't guaranteed consistent casing across sources.
   const filterBuyTokens = useCallback(
-    (t: TokenListItem) => isBuyTokenAllowed(sellToken?.chainId, t),
-    [sellToken?.chainId],
+    (t: TokenListItem) =>
+      isBuyTokenAllowed(sellToken?.chainId, t) &&
+      !(sellToken && t.chainId === sellToken.chainId && t.address.toLowerCase() === sellToken.address.toLowerCase()),
+    [sellToken],
   );
 
   const amount = Number(sellAmount);
