@@ -28,9 +28,17 @@ export function Callout({ href, cta, children }: { href: string; cta: string; ch
   return (
     <div className="my-2 flex flex-col gap-3 rounded-2xl border border-accent/30 bg-accent-soft p-4 sm:flex-row sm:items-center sm:justify-between">
       <p className="text-sm text-ink">{children}</p>
+      {/* Real bug found live 2026-08-06 (screenshot-verified, not visible in
+          curl'd SSR HTML — the text was always there, just invisible): the
+          article wrapper's own [&_a]:text-accent rule (app/blog/[slug]/page.tsx,
+          meant for plain inline markdown links inside the prose) was
+          overriding this link's text-accent-ink, making the button's text
+          color match its own bg-accent background exactly — literally
+          invisible, same color on same color. `!` forces this component's
+          own color to win regardless of which ancestor [&_a] rule matches. */}
       <Link
         href={href}
-        className="shrink-0 rounded-xl bg-accent px-4 py-2 text-center text-sm font-semibold text-accent-ink transition-all hover:brightness-110"
+        className="!text-accent-ink shrink-0 rounded-xl bg-accent px-4 py-2 text-center text-sm font-semibold transition-all hover:brightness-110"
       >
         {cta} →
       </Link>

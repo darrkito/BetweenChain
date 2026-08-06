@@ -213,6 +213,7 @@ export function ConnectWalletMenu() {
   return (
     <>
       <button
+        id="app-header-connect-wallet"
         onClick={() => setOpen(true)}
         className="num shrink-0 rounded-full bg-accent px-3 py-2 text-sm font-semibold text-accent-ink shadow-sm transition-all hover:brightness-110 sm:px-4"
       >

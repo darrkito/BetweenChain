@@ -396,7 +396,20 @@ export function SwapPageClient() {
   const erroredIndex = isError ? stepDefs.findIndex((s) => s.key === erroredAtStep) : null;
 
   function handleMainButtonClick() {
-    if (!sellWalletReady) return; // button is a plain label in this state, ConnectWalletMenu lives in the header
+    if (!sellWalletReady) {
+      // Real user report 2026-08-06 (screenshot-verified): this button used
+      // to be html-disabled + opacity-40 in this state, reading as a
+      // broken/unreadable dead button rather than a clear instruction — the
+      // actual Connect Wallet control lives in the header (ConnectWalletMenu),
+      // a page-agnostic global component this button can't open directly.
+      // Scrolls it into view and briefly pulses it so it's obvious where to
+      // go, rather than leaving the click as a silent no-op.
+      const headerButton = document.getElementById("app-header-connect-wallet");
+      headerButton?.scrollIntoView({ behavior: "smooth", block: "center" });
+      headerButton?.classList.add("animate-pulse");
+      setTimeout(() => headerButton?.classList.remove("animate-pulse"), 1500);
+      return;
+    }
     if (step === "error" || step === "done") {
       // Retry / start over — resets the flow instead of re-opening review
       // on top of a finished/failed one.
@@ -442,7 +455,17 @@ export function SwapPageClient() {
 
         <button
           onClick={handleMainButtonClick}
-          disabled={!sellWalletReady || busy || (!canOpenReview && step === "idle")}
+          // 2026-08-06 (screenshot-verified real bug): !sellWalletReady used
+          // to be part of this disabled condition too, which combined with
+          // disabled:opacity-40 below made the PRIMARY call-to-action on
+          // this page render nearly unreadable — a washed-out, ~40%-opacity
+          // accent purple, exactly when a first-time visitor most needs a
+          // clear "do this next" signal. Not disabled in that state anymore
+          // (handleMainButtonClick now does something useful there instead
+          // of nothing) — stays fully solid/legible; the other two
+          // conditions (mid-flow, or ready-but-invalid-input) still
+          // genuinely can't proceed and keep the disabled treatment.
+          disabled={sellWalletReady && (busy || (!canOpenReview && step === "idle"))}
           className="rounded-2xl bg-accent px-4 py-3.5 text-[15px] font-semibold text-accent-ink shadow-sm transition-all hover:brightness-110 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
         >
           {!sellWalletReady
