@@ -96,6 +96,43 @@ export default async function LandingPage() {
         <QuotePreviewWidget />
       </section>
 
+      {/* Trending NFT collections — real, live Magic Eden data (see
+          getTrendingCollections above), placed right under the swap widget
+          (2026-08-06, real user request: "swap, nft trend and then the
+          other" — moved above the Features tiles) so it doubles as an
+          immediate, genuine trust signal (real floor prices / 24h volume,
+          not invented copy) before a visitor even reaches the feature
+          list. */}
+      {trending.length > 0 && (
+        <Reveal className="flex flex-col gap-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-semibold text-ink">Trending NFT collections</h2>
+            <Link href="/nft" className="text-sm font-medium text-accent hover:underline">
+              Browse all →
+            </Link>
+          </div>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-6">
+            {trending.map((c) => (
+              <Link
+                key={`${c.vendor}-${c.slug}`}
+                href={`/nft/${c.vendor}/${encodeURIComponent(c.slug)}`}
+                className="group flex flex-col gap-2 rounded-2xl border border-hairline bg-surface p-2.5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-accent/40 hover:shadow-lg"
+              >
+                <NftImage src={c.imageUrl} alt={c.name} className="aspect-square w-full rounded-xl" />
+                <div className="flex flex-col gap-0.5 px-0.5">
+                  <p className="truncate text-xs font-semibold text-ink">{c.name}</p>
+                  {c.floorPrice && (
+                    <p className="num truncate text-xs text-ink-muted">
+                      {c.floorPrice} {c.floorPriceCurrency}
+                    </p>
+                  )}
+                </div>
+              </Link>
+            ))}
+          </div>
+        </Reveal>
+      )}
+
       {/* Features — 2026-08-06: added real depth (layered gradient
           background + stronger shadow-on-hover + an accent-tinted icon
           chip) in place of the previous flat white-bordered box, per real
@@ -128,40 +165,6 @@ export default async function LandingPage() {
           </Reveal>
         ))}
       </section>
-
-      {/* Trending NFT collections — real, live Magic Eden data (see
-          getTrendingCollections above), fills what used to be a large empty
-          gap before the FAQ preview and doubles as a genuine trust signal
-          (real floor prices / 24h volume, not invented copy). */}
-      {trending.length > 0 && (
-        <Reveal className="flex flex-col gap-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xl font-semibold text-ink">Trending NFT collections</h2>
-            <Link href="/nft" className="text-sm font-medium text-accent hover:underline">
-              Browse all →
-            </Link>
-          </div>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-6">
-            {trending.map((c) => (
-              <Link
-                key={`${c.vendor}-${c.slug}`}
-                href={`/nft/${c.vendor}/${encodeURIComponent(c.slug)}`}
-                className="group flex flex-col gap-2 rounded-2xl border border-hairline bg-surface p-2.5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-accent/40 hover:shadow-lg"
-              >
-                <NftImage src={c.imageUrl} alt={c.name} className="aspect-square w-full rounded-xl" />
-                <div className="flex flex-col gap-0.5 px-0.5">
-                  <p className="truncate text-xs font-semibold text-ink">{c.name}</p>
-                  {c.floorPrice && (
-                    <p className="num truncate text-xs text-ink-muted">
-                      {c.floorPrice} {c.floorPriceCurrency}
-                    </p>
-                  )}
-                </div>
-              </Link>
-            ))}
-          </div>
-        </Reveal>
-      )}
 
       {/* FAQ preview */}
       <Reveal className="flex flex-col gap-4">
