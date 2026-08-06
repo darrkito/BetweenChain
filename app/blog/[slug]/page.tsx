@@ -47,11 +47,21 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
   const coverImageUrl = `${postUrl}/opengraph-image`;
 
   return (
-    <main className="mx-auto flex w-full max-w-2xl flex-col gap-8 p-6">
+    // 2026-08-06 (real user report: blog "looks mobile-only" even on
+    // desktop) — this main used to be max-w-2xl, which meant AppHeader
+    // (rendered as its first child, same as every other page) rendered at
+    // 672px wide here vs. 1024px (max-w-5xl) on the landing/swap/NFT
+    // pages — the site's own nav visibly changed width depending which
+    // page you were on. Widened to match that same max-w-5xl convention;
+    // the article body below gets its own narrower max-w-3xl wrapper for
+    // readability instead of constraining the whole page to it.
+    <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 p-6">
       <AppHeader />
-      <Breadcrumb items={breadcrumbItems} />
+      <div className="mx-auto w-full max-w-3xl">
+        <Breadcrumb items={breadcrumbItems} />
+      </div>
 
-      <article className="flex flex-col gap-6">
+      <article className="mx-auto flex w-full max-w-3xl flex-col gap-6">
         {/* eslint-disable-next-line @next/next/no-img-element -- same-origin, Next-generated ImageResponse PNG, not worth next/image's remote-pattern machinery for a route this app already controls */}
         <img src={coverImageUrl} alt="" className="aspect-[1200/630] w-full rounded-2xl border border-hairline object-cover" />
 

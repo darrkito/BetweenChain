@@ -36,42 +36,47 @@ export default function DashboardPage() {
   }
 
   return (
-    <main className="mx-auto flex w-full max-w-lg flex-col gap-4 p-6">
+    // Widened to match the same max-w-5xl AppHeader convention every other
+    // page uses (same fix as blog/faq — real user report: some pages
+    // rendered a visibly narrower header/nav than others).
+    <main className="mx-auto flex w-full max-w-5xl flex-col gap-4 p-6">
       <AppHeader />
-      <h1 className="px-1 text-xl font-semibold text-ink">Dashboard</h1>
+      <div className="mx-auto flex w-full max-w-lg flex-col gap-4">
+        <h1 className="px-1 text-xl font-semibold text-ink">Dashboard</h1>
 
-      <section className="flex flex-col gap-3 rounded-2xl border border-hairline bg-surface p-5 shadow-sm">
-        <p className="text-sm text-ink-muted">Points balance <span className="text-ink-faint">($1 volume = 1 point)</span></p>
-        <p className="num text-4xl font-semibold text-ink">{balance ?? "—"}</p>
-        <p className="num text-sm text-ink-muted">{referralCount ?? "—"} referrals</p>
-      </section>
+        <section className="flex flex-col gap-3 rounded-2xl border border-hairline bg-surface p-5 shadow-sm">
+          <p className="text-sm text-ink-muted">Points balance <span className="text-ink-faint">($1 volume = 1 point)</span></p>
+          <p className="num text-4xl font-semibold text-ink">{balance ?? "—"}</p>
+          <p className="num text-sm text-ink-muted">{referralCount ?? "—"} referrals</p>
+        </section>
 
-      <section className="flex flex-col gap-2 rounded-2xl border border-hairline bg-surface p-5 shadow-sm">
-        <p className="text-sm text-ink-muted">Your invite code</p>
-        <p className="num text-lg font-medium text-accent">{inviteCode ?? "—"}</p>
-        <p className="text-xs text-ink-faint">Referrals earn you 20% of their swap volume as points; they get a 10% bonus.</p>
-      </section>
+        <section className="flex flex-col gap-2 rounded-2xl border border-hairline bg-surface p-5 shadow-sm">
+          <p className="text-sm text-ink-muted">Your invite code</p>
+          <p className="num text-lg font-medium text-accent">{inviteCode ?? "—"}</p>
+          <p className="text-xs text-ink-faint">Referrals earn you 20% of their swap volume as points; they get a 10% bonus.</p>
+        </section>
 
-      <section className="flex flex-col gap-3 rounded-2xl border border-hairline bg-surface p-5 shadow-sm">
-        <label className="flex flex-col gap-1.5 text-sm text-ink-muted">
-          Have an invite code?
-          <input
-            className="rounded-lg border border-hairline bg-surface px-3 py-2 text-sm text-ink outline-none transition-colors focus:border-accent"
-            value={redeemCode}
-            onChange={(e) => setRedeemCode(e.target.value)}
-          />
-        </label>
-        <button
-          onClick={redeem}
-          className="self-start rounded-full bg-accent px-4 py-2 text-sm font-semibold text-accent-ink transition-all hover:brightness-110 active:scale-[0.98]"
-        >
-          Apply code
-        </button>
-      </section>
+        <section className="flex flex-col gap-3 rounded-2xl border border-hairline bg-surface p-5 shadow-sm">
+          <label className="flex flex-col gap-1.5 text-sm text-ink-muted">
+            Have an invite code?
+            <input
+              className="rounded-lg border border-hairline bg-surface px-3 py-2 text-sm text-ink outline-none transition-colors focus:border-accent"
+              value={redeemCode}
+              onChange={(e) => setRedeemCode(e.target.value)}
+            />
+          </label>
+          <button
+            onClick={redeem}
+            className="self-start rounded-full bg-accent px-4 py-2 text-sm font-semibold text-accent-ink transition-all hover:brightness-110 active:scale-[0.98]"
+          >
+            Apply code
+          </button>
+        </section>
 
-      {message && (
-        <p className="rounded-xl border border-hairline bg-surface px-3 py-2 text-sm text-ink-muted">{message}</p>
-      )}
+        {message && (
+          <p className="rounded-xl border border-hairline bg-surface px-3 py-2 text-sm text-ink-muted">{message}</p>
+        )}
+      </div>
     </main>
   );
 }
