@@ -1,0 +1,46 @@
+---
+title: "The $116M Coldcard Hack — And the Wallet Habits That Actually Matter"
+description: "A firmware bug from 2021 quietly weakened seed randomness on some Coldcard hardware wallets. In August 2026, attackers started draining them. Here's what actually happened, and what to take from it."
+date: "2026-08-06"
+category: "Security"
+---
+
+<QuickFacts items='["Root cause: a March 2021 firmware bug in Coldcard (made by Coinkite) weakened seed-phrase randomness on affected devices — in the worst cases, key strength dropped from 128 bits down to as little as 40", "Attackers began draining affected wallets on July 30, 2026, in four waves", "By early August: ~1,816 BTC (~$116M) stolen from over 5,200 addresses", "Part of a brutal year — $1.2B+ lost across 276 separate crypto hacks in 2026 alone", "Anyone who generated a seed on a Coldcard between March 2021 and the patch should treat it as compromised"]' />
+
+On July 30, 2026, attackers started systematically draining Bitcoin from Coldcard hardware wallets — devices whose entire selling point is that they're *offline*, air-gapped, supposedly immune to exactly this kind of theft. Within days it was one of the largest hardware-wallet exploits ever recorded.
+
+## What actually went wrong
+
+This wasn't a hack in the "someone broke the encryption" sense. It was worse, in a quieter way: a code change shipped in Coldcard's firmware back in **March 2021** caused some devices to silently fall back to a software-based random number generator instead of the dedicated hardware one — for seed phrase generation specifically, the single most security-critical operation a hardware wallet performs.
+
+The practical effect: instead of the full 128 bits of entropy a Bitcoin seed is supposed to have, some affected wallets generated seeds with as little as **40 bits** of real randomness. That's not a small degradation — it's the difference between "computationally impossible to guess, ever" and "brute-forceable by anyone with enough patience and compute, with no need to ever physically touch the device."
+
+<StatBar title="Coldcard exploit, by the numbers" data='[{"label": "Addresses affected", "value": 5200, "display": "5,200+"}, {"label": "BTC drained", "value": 1816, "display": "~1,816 BTC"}, {"label": "USD value (approx.)", "value": 116, "display": "~$116M"}]' />
+
+## Who's affected, and why this is scarier than a normal exploit
+
+Standard advice for crypto security has always been some version of "keep your keys offline, in cold storage, away from any internet-connected device." Coldcard is one of the more respected names in exactly that category. The lesson here isn't "don't trust hardware wallets" — it's that **the weak point was never the hardware being online or offline. It was the quality of the randomness used to generate the key in the first place**, five years before anyone noticed.
+
+At least a dozen different attackers are reportedly involved, independently exploiting the same weakness once it became known. Investigators haven't tied it to a specific state-backed group, unlike several other major 2026 incidents — this one looks more like "the vulnerability became public knowledge and a lot of people rushed to exploit it before affected holders could move funds."
+
+## What this actually means for you
+
+If none of your funds ever touched a Coldcard, this specific incident doesn't touch you directly. But the underlying lesson generalizes to every wallet, every chain, every platform:
+
+- **Randomness quality is invisible until it isn't.** You can't eyeball whether a seed phrase was generated with real entropy — you're trusting the device's implementation, full stop. This is exactly why re-using a wallet across many chains for years, without ever rotating, quietly compounds risk you can't see.
+- **"Offline" and "safe" aren't the same claim.** Cold storage protects against remote attackers who need network access. It does nothing against a flaw baked into the key generation itself.
+- **Verification matters more than trust.** The Coldcard bug sat undiscovered for five years. The only real defense against a five-year-old bug you don't know about yet is *systems that verify outcomes independently*, not systems that just assume good faith.
+
+That last point is the same principle behind how [swaps on this platform actually get confirmed](/blog/swap-security-101) — every buy is independently re-verified against the real on-chain result before it's ever marked complete, precisely because "the client said it worked" and "the device generated a secure key" are both claims, not proof.
+
+<Callout href="/faq" cta="Read our FAQ">
+  Curious how we handle the parts of security we *do* control directly — destination-address locking, on-chain re-verification, fee transparency? It's all in the FAQ.
+</Callout>
+
+## Sources
+
+- [TRM Labs — The Largest Hardware Wallet Exploit of 2026: Inside the $116M Coldcard Hack](https://www.trmlabs.com/resources/blog/the-largest-hardware-wallet-exploit-of-2026-inside-the-usd-116-million-coldcard-hack)
+- [Bloomberg — Hackers Target Bitcoin's Safest Hiding Place in Ongoing Attack](https://www.bloomberg.com/news/articles/2026-08-03/hackers-target-bitcoin-s-safest-hiding-place-in-ongoing-attack)
+- [TechCrunch — Hackers steal over $130M by exploiting bug in offline hardware wallets](https://techcrunch.com/2026/08/04/hackers-steal-over-130-million-by-exploiting-bug-in-offline-hardware-wallets/)
+- [CoinDesk — Bitcoin cold-wallet attack spreads to 4,500 addresses as losses near $89 million](https://www.coindesk.com/tech/2026/08/02/bitcoin-cold-wallet-attack-spreads-to-4-500-addresses-as-losses-near-usd89-million)
+- [Fortune — Bitcoin owners rocked by $116 million hack: what we know about the Coldcard exploit](https://fortune.com/2026/08/03/bitcoin-owners-116-million-hack-coldcard-coinkite-exploit/)

@@ -7,8 +7,17 @@ import { SOLANA_CHAIN_ID } from "@/lib/chains/relay";
 import { getConnection } from "@/lib/solana";
 import { getSolUsdPrice, getEthUsdPrice, getEvmTokenUsdPrices } from "@/lib/pricing";
 import { rateLimit, clientKey } from "@/lib/rate-limit";
+import { cached } from "@/lib/cache";
 import { safeErrorResponse } from "@/lib/apiError";
 import type { TokenListItem } from "@/lib/chains/types";
+
+// 2026-08-06 (security review hardening) — balance lookups were previously
+// uncached, so repeated identical requests (e.g. a picker re-opened a few
+// times in quick succession) hit Solana/EVM RPC directly up to the rate
+// limit ceiling. Not a vulnerability on its own, but real cost/availability
+// exposure under abuse. Short TTL — long enough to absorb bursts, short
+// enough that a balance change still shows up almost immediately.
+const BALANCES_TTL_MS = 15_000;
 
 // External-call budget for this route -- prevents Vercel's platform-level
 // function timeout from killing the request with an empty/non-JSON body
@@ -64,10 +73,11 @@ export async function GET(req: Request) {
   }
 
   try {
-    const tokens = await getTokenListForChain(chainId);
-    if (tokens.length === 0) return NextResponse.json({ balances: [] });
-
-    const balances = chainId === SOLANA_CHAIN_ID ? await getSolanaBalances(owner, tokens) : await getEvmBalances(chainId, owner, tokens);
+    const balances = await cached(`tokens-balances:${chainId}:${owner.toLowerCase()}`, BALANCES_TTL_MS, async () => {
+      const tokens = await getTokenListForChain(chainId);
+      if (tokens.length === 0) return [];
+      return chainId === SOLANA_CHAIN_ID ? getSolanaBalances(owner, tokens) : getEvmBalances(chainId, owner, tokens);
+    });
 
     return NextResponse.json({ balances: balances.sort(sortByUsdDesc) });
   } catch (err) {

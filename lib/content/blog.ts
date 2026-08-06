@@ -19,10 +19,22 @@ export interface BlogPostMeta {
   date: string; // ISO 8601 (YYYY-MM-DD)
   category: string;
   image?: string;
+  readingTimeMinutes: number;
 }
 
 export interface BlogPost extends BlogPostMeta {
   content: string; // raw MDX body, compiled by the caller (next-mdx-remote/rsc)
+}
+
+const WORDS_PER_MINUTE = 200;
+
+// Rough estimate off the raw MDX source's word count — deliberately not
+// trying to strip JSX/component tags out first (a <Callout>/<StatBar>
+// block's own words are still real reading content), just a ballpark
+// figure like every blog's "N min read" badge already is.
+function estimateReadingTimeMinutes(content: string): number {
+  const words = content.trim().split(/\s+/).filter(Boolean).length;
+  return Math.max(1, Math.round(words / WORDS_PER_MINUTE));
 }
 
 function readPostFile(slug: string): { meta: BlogPostMeta; content: string } {
@@ -36,6 +48,7 @@ function readPostFile(slug: string): { meta: BlogPostMeta; content: string } {
       date: String(data.date),
       category: String(data.category),
       image: data.image ? String(data.image) : undefined,
+      readingTimeMinutes: estimateReadingTimeMinutes(content),
     },
     content,
   };

@@ -55,6 +55,19 @@ export async function POST(req: Request) {
   // /quote (real single-step "swap" response, same settlement mechanism as
   // a real bridge). See app/components/SwapPanel.tsx's isBuyTokenAllowed
   // doc for the full finding.
+  //
+  // Same-token exclusion, added server-side here alongside enabling the
+  // above (security review, 2026-08-06) — SwapPanel.tsx's filterBuyTokens
+  // already blocks picking the identical token as both sides in the UI, but
+  // that's client-only and this route is directly callable. Only meaningful
+  // for the EVM same-chain case: a Solana-origin sourceMint that's already
+  // native SOL with a Solana destination never reaches Jupiter/Relay at all
+  // (see the isSolanaOrigin branch below — it's already a free no-op), so
+  // it doesn't need blocking. An EVM same-chain, same-token quote WOULD
+  // generate a real Relay transaction and burn real gas for no effect.
+  if (!isSolanaOrigin && input.sourceChainId === input.destChainId && input.sourceMint.toLowerCase() === input.destToken.toLowerCase()) {
+    return NextResponse.json({ error: "Sell and Buy can't be the same token" }, { status: 400 });
+  }
 
   // Destination address validation is the security-critical step: this is
   // the value that gets bound immutably below and can never change again for
