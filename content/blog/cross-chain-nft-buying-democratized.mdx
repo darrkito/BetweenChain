@@ -1,0 +1,49 @@
+---
+title: "Buy Any NFT With Any Wallet: Why We Killed the Bridge-Then-Buy Flow"
+description: "Most NFT marketplaces still assume you already hold the 'right' chain's token. We built ours so you don't have to — pick up a Solana, EVM, or Sui NFT and pay from whichever wallet you actually have funded."
+date: "2026-08-06"
+category: "Product"
+---
+
+<QuickFacts items='["The default NFT-buying flow on most marketplaces still assumes you already hold the collection’s native token", "That forces a detour: find a bridge or CEX, move funds to the right chain, wait for confirmation, THEN go buy the NFT before it sells or the price moves", "Blockchains.Click NFT listings accept payment from a different chain than the NFT itself, in the same purchase flow, on the same page", "Sui-listed NFTs (e.g. Popkins, Claynosaurz) can be paid for in SUI, SOL, or ETH", "EVM-listed and Solana-listed NFTs can be paid for in SOL or native ETH", "The destination NFT and its final on-chain sale are independently re-verified before a purchase is ever marked complete"]' />
+
+Pick almost any NFT marketplace and try to buy something on a chain you don't already hold funds on. You'll hit the same wall every time: connect wallet, see the NFT, see the price — and then discover you need to go somewhere else first. A centralized exchange. A bridge. Sometimes both, in sequence, before you're even allowed to click "buy."
+
+That detour is where most people actually give up. Not because they don't want the NFT — because the number of apps, tabs, and waiting periods between "I want this" and "I own this" is high enough that momentum dies somewhere in the middle.
+
+## The old path
+
+Say you're holding SOL and you find a Sui collectible you want. The traditional path looks like this:
+
+1. Find a bridge or CEX that supports Solana → Sui.
+2. Send SOL there, wait for confirmations.
+3. Receive SUI on the other side (minus bridge/exchange fees, and minus whatever the market moved while you waited).
+4. Open a Sui-native marketplace, connect a *separate* Sui wallet.
+5. Finally attempt the purchase — assuming the listing is still there and the price hasn't changed.
+
+Every one of those steps is a place to lose money to fees, lose time to confirmations, or lose the item entirely to someone who didn't have to do any of this.
+
+## What we built instead
+
+A listing page on Blockchains.Click doesn't ask "do you hold the right token?" — it asks "which wallet do you want to pay from?" and quotes the purchase across chains in the same flow:
+
+- **Buying a Sui NFT?** Pay in SUI directly, or pay in SOL, or pay in ETH — pick whichever wallet you've actually got connected and funded.
+- **Buying a Solana or EVM-listed NFT?** Pay in SOL, or pay in native ETH on the NFT's own chain — same idea, same single page.
+
+Under the hood this uses the same cross-chain quoting engine that powers [token swaps on this platform](/blog/how-cross-chain-swaps-work) — one quote, covering both the currency conversion and the chain transfer, shown to you before you commit to anything. No separate bridge step to babysit, no second wallet connection halfway through, no second app.
+
+## Why this matters more for NFTs than for token swaps
+
+A token is fungible — if a price moves 2% while you're bridging, you're annoyed but you still get the token. An NFT listing is not fungible: it can simply be gone, sold to someone else, by the time you've finished bridging. Every extra step between "I found it" and "I bought it" is a chance for someone with the "right" chain already funded to beat you to it. Collapsing that gap isn't a nice-to-have UX polish — it's the difference between actually being able to compete for a listing and not.
+
+## The trust question that comes with it
+
+Letting people pay in a different asset than the one they're receiving only works if the mechanics are verifiable, not just convenient. Every cross-chain NFT purchase here follows the same discipline [covered in our swap security writeup](/blog/swap-security-101): the destination is locked in at quote time and can't be silently altered, and the actual on-chain outcome is independently re-verified before a purchase is ever marked complete — the same standard that applies to a token swap applies to an NFT you're paying for from another chain.
+
+<Callout href="/nft" cta="Browse NFTs">
+  See it for yourself — open any Sui, Solana, or EVM listing and check the "pay with" options before you connect a single wallet.
+</Callout>
+
+## Where this goes next
+
+Right now the supported payment legs are SOL, ETH, and SUI (matching the chains this platform already trades). Extending the same "pay with whatever you're holding" model to more chains, and to a broader set of destination tokens, is the direction — not a one-off feature but the actual design principle behind how buying should work here. If you're new to the difference in how NFTs work across these ecosystems in the first place, [our Solana vs. Ethereum NFTs guide](/blog/solana-vs-ethereum-nfts) is a good next read.
