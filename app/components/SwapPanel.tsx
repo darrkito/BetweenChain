@@ -14,7 +14,7 @@ function TokenPill({ token, onClick }: { token: SelectedToken | null; onClick: (
     return (
       <button
         onClick={onClick}
-        className="flex shrink-0 items-center gap-1 rounded-full bg-accent px-4 py-2 text-sm font-semibold text-accent-ink transition-colors hover:brightness-110"
+        className="flex shrink-0 items-center gap-1 rounded-full bg-accent px-4 py-2 text-sm font-semibold text-accent-ink transition-all hover:brightness-110 active:scale-[0.96]"
       >
         Select token <span aria-hidden="true">›</span>
       </button>
@@ -23,7 +23,7 @@ function TokenPill({ token, onClick }: { token: SelectedToken | null; onClick: (
   return (
     <button
       onClick={onClick}
-      className="flex shrink-0 items-center gap-2 rounded-full border border-hairline bg-surface-hover px-3 py-1.5 transition-colors hover:border-accent/40"
+      className="flex shrink-0 items-center gap-2 rounded-full border border-hairline bg-surface-hover px-3 py-1.5 transition-all hover:border-accent/40 active:scale-[0.96]"
     >
       <TokenIcon logoURI={token.logoURI} symbol={token.symbol} chainIconUrl={token.chainIconUrl} size={32} />
       <span className="text-left">
@@ -73,6 +73,7 @@ export function SwapPanel({
   onFlip,
   sellBalance,
   sellBalanceLoading,
+  onPreviewChange,
 }: {
   sellToken: SelectedToken | null;
   buyToken: SelectedToken | null;
@@ -86,9 +87,11 @@ export function SwapPanel({
   destAddressError?: string | null;
   isCrossChain: boolean;
   onFlip: () => void;
-  /** Solana-only for now (see lib/client/useSolanaBalance.ts) — null hides the balance row/Max button entirely rather than showing a misleading "0" for a chain this doesn't fetch. */
+  /** Balance for the current Sell token — Solana or EVM, source chosen by the caller. null hides the balance row/Max button entirely rather than showing a misleading "0" for a chain this doesn't fetch. */
   sellBalance?: number | null;
   sellBalanceLoading?: boolean;
+  /** Mirrors this panel's own live quote preview up to the parent — used for the Review modal's rate/minimum-received summary (2026-08-06 swap revamp), which lives outside this component. */
+  onPreviewChange?: (preview: { destAmountFormatted: string | null; destAmountUsd: string | null } | null) => void;
 }) {
   const [sellModalOpen, setSellModalOpen] = useState(false);
   const [buyModalOpen, setBuyModalOpen] = useState(false);
@@ -145,6 +148,17 @@ export function SwapPanel({
     return () => clearTimeout(handle);
   }, [sellToken, buyToken, sellAmount, hasValidInput]);
 
+  // Mirrors `preview` up to the parent whenever it changes — see
+  // onPreviewChange's own doc above for why.
+  useEffect(() => {
+    onPreviewChange?.(hasValidInput ? preview : null);
+    // onPreviewChange is a fresh closure every render in the current caller
+    // (not memoized) — omitted from deps deliberately, same "depend on the
+    // data, not a possibly-unstable callback identity" reasoning already
+    // used elsewhere in this file (see the balance-hook deps comment).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [preview, hasValidInput]);
+
   // Native SOL keeps a small reserve out of "Max" for network fees — an
   // exact-balance sell would otherwise leave nothing to pay gas with,
   // guaranteeing the transaction itself fails. SPL tokens need no reserve
@@ -186,7 +200,7 @@ export function SwapPanel({
       <div className="relative z-10 flex justify-center" style={{ marginTop: -18, marginBottom: -18 }}>
         <button
           onClick={onFlip}
-          className="group flex h-9 w-9 items-center justify-center rounded-xl border border-hairline bg-surface text-ink-muted shadow-sm transition-colors hover:border-accent/40 hover:text-accent"
+          className="group flex h-10 w-10 items-center justify-center rounded-xl border border-hairline bg-surface text-ink-muted shadow-sm transition-all hover:border-accent/40 hover:text-accent active:scale-90"
           aria-label="Flip sell/buy"
         >
           <span className="inline-block transition-transform duration-200 group-hover:rotate-180">↓</span>

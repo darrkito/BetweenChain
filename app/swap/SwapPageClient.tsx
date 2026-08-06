@@ -9,9 +9,11 @@ import { toAtomicAmount } from "@/lib/client/amount";
 import { buildRelayDepositTransaction } from "@/lib/client/relayTransaction";
 import { useEvmWallet } from "@/lib/client/EvmWalletProvider";
 import { useSolanaBalance } from "@/lib/client/useSolanaBalance";
+import { useEvmTokenBalance } from "@/lib/client/useEvmTokenBalance";
 import { isPlausibleEvmAddress } from "@/lib/validation";
 import { AppHeader } from "@/app/components/AppHeader";
 import { TrendingBar } from "@/app/components/TrendingBar";
+import { Reveal } from "@/app/components/Reveal";
 import { SwapPanel, isBuyTokenAllowed } from "@/app/components/SwapPanel";
 import { SlippageControl } from "@/app/components/SlippageControl";
 import { SwapStepper, type SwapStep } from "@/app/components/SwapStepper";
@@ -46,6 +48,10 @@ export function SwapPageClient() {
   const [destAddress, setDestAddress] = useState("");
   const [slippageBps, setSlippageBps] = useState(100); // 1% default, was hardcoded with no UI control before 2026-08-03
   const [reviewOpen, setReviewOpen] = useState(false);
+  // Mirrored up from SwapPanel's own live quote preview (see its
+  // onPreviewChange doc) — used below for the Review modal's rate/
+  // minimum-received summary, 2026-08-06 swap revamp.
+  const [preview, setPreview] = useState<{ destAmountFormatted: string | null; destAmountUsd: string | null } | null>(null);
 
   const [step, setStep] = useState<Step>("idle");
   const [erroredAtStep, setErroredAtStep] = useState<Step | null>(null);
@@ -78,11 +84,23 @@ export function SwapPageClient() {
   // isBuyTokenAllowed doc for why same-chain EVM is real and supported now.
   const needsRelayLeg2 = isCrossChain || !sellIsSolana;
 
-  const { balance: sellBalance, loading: sellBalanceLoading } = useSolanaBalance(
+  const { balance: solanaSellBalance, loading: solanaSellBalanceLoading } = useSolanaBalance(
     connection,
     sellIsSolana ? publicKey : null,
     sellIsSolana && sellToken ? { address: sellToken.address, decimals: sellToken.decimals, isNative: sellToken.isNative } : null,
   );
+  // 2026-08-06 (swap page revamp, real user request) — closes the
+  // Solana-only gap useSolanaBalance.ts's own comment used to flag: Max/
+  // balance now work for an EVM sell token too, reusing the same
+  // /api/tokens/balances endpoint the token picker's "Your tokens" section
+  // already calls (lib/client/useEvmTokenBalance.ts).
+  const { balance: evmSellBalance, loading: evmSellBalanceLoading } = useEvmTokenBalance(
+    !sellIsSolana && sellToken ? sellToken.chainId : null,
+    !sellIsSolana ? evmWallet.address : null,
+    !sellIsSolana && sellToken ? sellToken.address : null,
+  );
+  const sellBalance = sellIsSolana ? solanaSellBalance : evmSellBalance;
+  const sellBalanceLoading = sellIsSolana ? solanaSellBalanceLoading : evmSellBalanceLoading;
 
   // Real user report 2026-08-06: picking an Arbitrum (or any non-Ethereum
   // EVM) sell token and connecting a wallet still left the wallet on
@@ -400,70 +418,71 @@ export function SwapPageClient() {
     <main className="mx-auto flex w-full max-w-5xl flex-col gap-4 p-6">
       <AppHeader />
 
-      <div className="mx-auto flex w-full max-w-lg flex-col gap-4">
+      <Reveal className="mx-auto flex w-full max-w-lg flex-col gap-4">
         <TrendingBar chainId={SOLANA_CHAIN_ID_CLIENT} />
 
-      <SwapPanel
-        sellToken={sellToken}
-        buyToken={buyToken}
-        onSellTokenChange={setSellToken}
-        onBuyTokenChange={setBuyToken}
-        sellAmount={sellAmount}
-        onSellAmountChange={setSellAmount}
-        destAddress={destAddress}
-        onDestAddressChange={setDestAddress}
-        destAddressError={destAddressError}
-        isCrossChain={isCrossChain}
-        onFlip={flip}
-        sellBalance={sellIsSolana ? sellBalance : null}
-        sellBalanceLoading={sellIsSolana && sellBalanceLoading}
-      />
+        <SwapPanel
+          sellToken={sellToken}
+          buyToken={buyToken}
+          onSellTokenChange={setSellToken}
+          onBuyTokenChange={setBuyToken}
+          sellAmount={sellAmount}
+          onSellAmountChange={setSellAmount}
+          destAddress={destAddress}
+          onDestAddressChange={setDestAddress}
+          destAddressError={destAddressError}
+          isCrossChain={isCrossChain}
+          onFlip={flip}
+          sellBalance={sellBalance}
+          sellBalanceLoading={sellBalanceLoading}
+          onPreviewChange={setPreview}
+        />
 
-      <SlippageControl bps={slippageBps} onChange={setSlippageBps} />
+        <SlippageControl bps={slippageBps} onChange={setSlippageBps} />
 
-      <button
-        onClick={handleMainButtonClick}
-        disabled={!sellWalletReady || busy || (!canOpenReview && step === "idle")}
-        className="rounded-2xl bg-accent px-4 py-3.5 text-[15px] font-semibold text-accent-ink shadow-sm transition-all hover:brightness-110 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-40"
-      >
-        {!sellWalletReady
-          ? sellToken && !sellIsSolana
-            ? `Connect wallet to sell from ${sellToken.chainDisplayName}`
-            : "Connect wallet"
-          : busy
-            ? "Working…"
-            : isError
-              ? "Try again"
-              : isDone
-                ? "Swap again"
-                : "Review swap"}
-      </button>
-
-      {step !== "idle" && <SwapStepper steps={stepDefs} currentIndex={currentStepIndex} erroredIndex={erroredIndex} />}
-
-      {message && (
-        <p
-          className={`rounded-xl px-3 py-2 text-sm ${
-            isError
-              ? "border border-danger-soft bg-danger-soft text-danger"
-              : isDone
-                ? "border border-success-soft bg-success-soft text-success"
-                : "border border-hairline bg-surface text-ink-muted"
-          }`}
+        <button
+          onClick={handleMainButtonClick}
+          disabled={!sellWalletReady || busy || (!canOpenReview && step === "idle")}
+          className="rounded-2xl bg-accent px-4 py-3.5 text-[15px] font-semibold text-accent-ink shadow-sm transition-all hover:brightness-110 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
         >
-          {message}
-        </p>
-      )}
-      {swapId && <p className="num px-1 text-xs text-ink-faint">swap {swapId}</p>}
+          {!sellWalletReady
+            ? sellToken && !sellIsSolana
+              ? `Connect wallet to sell from ${sellToken.chainDisplayName}`
+              : "Connect wallet"
+            : busy
+              ? "Working…"
+              : isError
+                ? "Try again"
+                : isDone
+                  ? "Swap again"
+                  : "Review swap"}
+        </button>
 
-      <Link
-        href="/dashboard"
-        className="flex items-center gap-1.5 self-start text-sm font-medium text-ink-muted transition-colors hover:text-accent"
-      >
-        View points &amp; referrals
-        <span aria-hidden="true">→</span>
-      </Link>
-      </div>
+        {step !== "idle" && <SwapStepper steps={stepDefs} currentIndex={currentStepIndex} erroredIndex={erroredIndex} />}
+
+        {message && (
+          <p
+            className={`rounded-xl px-3 py-2 text-sm ${
+              isError
+                ? "border border-danger-soft bg-danger-soft text-danger"
+                : isDone
+                  ? "border border-success-soft bg-success-soft text-success"
+                  : "border border-hairline bg-surface text-ink-muted"
+            }`}
+          >
+            {message}
+          </p>
+        )}
+        {swapId && <p className="num px-1 text-xs text-ink-faint">swap {swapId}</p>}
+
+        <Link
+          href="/dashboard"
+          className="flex items-center gap-1.5 self-start text-sm font-medium text-ink-muted transition-colors hover:text-accent"
+        >
+          View points &amp; referrals
+          <span aria-hidden="true">→</span>
+        </Link>
+      </Reveal>
 
       {/*
         Real gap fixed 2026-08-03: clicking "Swap" used to go straight from
@@ -497,12 +516,42 @@ export function SwapPageClient() {
               <div className="flex items-center justify-between">
                 <span className="text-xs text-ink-faint">Buy (estimated)</span>
                 <span className="num text-sm font-semibold text-ink">
+                  {preview?.destAmountFormatted ? `${Number(preview.destAmountFormatted).toFixed(6)} ` : ""}
                   {buyToken.symbol} <span className="text-ink-faint">({buyToken.chainDisplayName})</span>
                 </span>
               </div>
+              {/* 2026-08-06 (swap revamp, real user request: "clearer swap
+                  summary before confirming") — rate/minimum-received were
+                  previously nowhere in the review step at all; a buyer only
+                  ever saw the bare estimated Buy amount with no sense of
+                  the actual exchange rate or the worst-case outcome if the
+                  market moved against them within their slippage
+                  tolerance. Both are estimates too (see the disclaimer
+                  below), same caveat as the Buy amount itself — the real
+                  quote is only locked in when runSwap() actually fires. */}
+              {preview?.destAmountFormatted && Number(sellAmount) > 0 && (
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-ink-faint">Rate</span>
+                  <span className="num text-xs text-ink-muted">
+                    1 {sellToken.symbol} ≈ {(Number(preview.destAmountFormatted) / Number(sellAmount)).toFixed(6)} {buyToken.symbol}
+                  </span>
+                </div>
+              )}
               <div className="flex items-center justify-between">
                 <span className="text-xs text-ink-faint">Slippage tolerance</span>
                 <span className="num text-sm text-ink">{slippageBps / 100}%</span>
+              </div>
+              {preview?.destAmountFormatted && (
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-ink-faint">Minimum received</span>
+                  <span className="num text-xs text-ink-muted">
+                    {(Number(preview.destAmountFormatted) * (1 - slippageBps / 10_000)).toFixed(6)} {buyToken.symbol}
+                  </span>
+                </div>
+              )}
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-ink-faint">Platform fee</span>
+                <span className="text-xs text-ink-muted">0.25% per leg</span>
               </div>
               {isCrossChain && (
                 // 2026-08-04 (security hardening pass) — was a single
