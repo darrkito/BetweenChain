@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 import { AppHeader } from "@/app/components/AppHeader";
 import { QuotePreviewWidget } from "@/app/components/QuotePreviewWidget";
@@ -8,6 +9,7 @@ import { NftImage } from "@/app/components/NftImage";
 import { JsonLd, faqPageSchema } from "@/lib/seo/jsonld";
 import { FAQ_ITEMS } from "@/lib/content/faq";
 import { NFT_VENDOR_CLIENTS } from "@/lib/nft/vendorClients";
+import { SUI_ICON_URL } from "@/lib/nft/labels";
 
 // 2026-08-05 (landing-page overhaul, Phase 2) — `/` used to BE the swap
 // tool (now relocated to /swap, see that route's own history). This is a
@@ -86,7 +88,7 @@ export default async function LandingPage() {
           style={{ background: "radial-gradient(ellipse 60% 100% at 50% 0%, var(--accent-soft), transparent 70%)" }}
         />
         <HeroVisual />
-        <h1 className="max-w-2xl text-4xl font-bold tracking-tight text-ink sm:text-5xl">
+        <h1 className="max-w-2xl font-display text-4xl font-normal tracking-tight text-ink sm:text-5xl">
           All the blockchains, <span className="text-accent">in just one click.</span>
         </h1>
         <p className="max-w-xl text-base text-ink-muted sm:text-lg">
@@ -106,7 +108,7 @@ export default async function LandingPage() {
       {trending.length > 0 && (
         <Reveal className="flex flex-col gap-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-xl font-semibold text-ink">Trending NFT collections</h2>
+            <h2 className="font-display text-2xl font-normal text-ink">Trending NFT collections</h2>
             <Link href="/nft" className="text-sm font-medium text-accent hover:underline">
               Browse all →
             </Link>
@@ -133,43 +135,100 @@ export default async function LandingPage() {
         </Reveal>
       )}
 
-      {/* Features — 2026-08-06: added real depth (layered gradient
-          background + stronger shadow-on-hover + an accent-tinted icon
-          chip) in place of the previous flat white-bordered box, per real
-          user feedback that cards/sections looked flat. */}
-      <section className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        {FEATURES.map((f, i) => (
-          <Reveal key={f.title} delay={i * 0.08}>
-            <Link
-              href={f.href}
-              className="group relative flex h-full flex-col gap-3 overflow-hidden rounded-2xl border border-hairline bg-surface p-5 shadow-sm transition-all hover:-translate-y-1 hover:border-accent/40 hover:shadow-xl"
-            >
-              <div
-                aria-hidden="true"
-                className="pointer-events-none absolute -right-8 -top-8 h-28 w-28 rounded-full bg-accent-soft opacity-0 blur-2xl transition-opacity duration-300 group-hover:opacity-100"
-              />
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-accent-soft text-accent">
-                <span aria-hidden="true" className="text-lg">
-                  {i === 0 ? "⇄" : i === 1 ? "◆" : "✦"}
-                </span>
+      {/* Features — 2026-08-06 (frontend audit, Impeccable detector:
+          "avoid cookie-cutter grids") — replaced the uniform 3-equal-column
+          grid with an intentionally asymmetric 7/5 split: the flagship
+          feature (swap) gets a wider, taller "hero" card with a bigger
+          display-font heading, and the other two stack in the narrower
+          column. Same underlying FEATURES data, no reusable abstraction
+          needed for a one-off, page-specific split — see FEATURES above. */}
+      <section className="grid grid-cols-1 gap-4 sm:grid-cols-12">
+        <Reveal className="sm:col-span-7">
+          <Link
+            href={FEATURES[0].href}
+            className="group relative flex h-full flex-col justify-between gap-6 overflow-hidden rounded-2xl border border-hairline bg-surface p-7 shadow-sm transition-all hover:-translate-y-1 hover:border-accent/40 hover:shadow-xl"
+          >
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute -right-12 -top-12 h-48 w-48 rounded-full bg-accent-soft opacity-0 blur-2xl transition-opacity duration-300 group-hover:opacity-100"
+            />
+            <div className="flex flex-col gap-3">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-accent-soft text-2xl text-accent">
+                <span aria-hidden="true">⇄</span>
               </div>
-              <h2 className="text-base font-semibold text-ink">{f.title}</h2>
-              <p className="flex-1 text-sm text-ink-muted">{f.description}</p>
-              <span className="text-sm font-medium text-accent">
-                {f.cta}{" "}
-                <span aria-hidden="true" className="inline-block transition-transform group-hover:translate-x-0.5">
-                  →
-                </span>
+              <h2 className="font-display text-2xl font-normal text-ink">{FEATURES[0].title}</h2>
+              <p className="max-w-md text-sm text-ink-muted">{FEATURES[0].description}</p>
+            </div>
+
+            {/* 2026-08-06 — this card sits in the same CSS-grid row as the
+                two stacked cards beside it, which stretch it to their combined
+                height. A real chain-path visual (real Relay/CoinGecko icon
+                URLs, same source app/nft/page.tsx's chain tabs already use —
+                see lib/nft/labels.ts) fills that space meaningfully instead
+                of leaving dead air between the description and the CTA. */}
+            <div className="flex items-center gap-3" aria-hidden="true">
+              {[
+                { label: "SOL", icon: "https://assets.relay.link/icons/792703809/light.png" },
+                { label: "ETH", icon: "https://assets.relay.link/icons/1/light.png" },
+                { label: "SUI", icon: SUI_ICON_URL },
+              ].map((chain, i, arr) => (
+                <div key={chain.label} className="flex items-center gap-3">
+                  <div className="flex flex-col items-center gap-1.5">
+                    <Image src={chain.icon} alt="" width={36} height={36} className="rounded-full ring-4 ring-accent-soft" />
+                    <span className="text-[11px] font-medium uppercase tracking-wide text-ink-faint">{chain.label}</span>
+                  </div>
+                  {i < arr.length - 1 && (
+                    <span className="mb-4 text-ink-faint" aria-hidden="true">
+                      ⇢
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            <span className="text-sm font-medium text-accent">
+              {FEATURES[0].cta}{" "}
+              <span aria-hidden="true" className="inline-block transition-transform group-hover:translate-x-0.5">
+                →
               </span>
-            </Link>
-          </Reveal>
-        ))}
+            </span>
+          </Link>
+        </Reveal>
+
+        <div className="flex flex-col gap-4 sm:col-span-5">
+          {FEATURES.slice(1).map((f, i) => (
+            <Reveal key={f.title} delay={(i + 1) * 0.08} className="flex-1">
+              <Link
+                href={f.href}
+                className="group relative flex h-full flex-col gap-2 overflow-hidden rounded-2xl border border-hairline bg-surface p-5 shadow-sm transition-all hover:-translate-y-1 hover:border-accent/40 hover:shadow-xl"
+              >
+                <div
+                  aria-hidden="true"
+                  className="pointer-events-none absolute -right-8 -top-8 h-28 w-28 rounded-full bg-accent-soft opacity-0 blur-2xl transition-opacity duration-300 group-hover:opacity-100"
+                />
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-accent-soft text-accent">
+                  <span aria-hidden="true" className="text-lg">
+                    {i === 0 ? "◆" : "✦"}
+                  </span>
+                </div>
+                <h2 className="text-base font-semibold text-ink">{f.title}</h2>
+                <p className="flex-1 text-sm text-ink-muted">{f.description}</p>
+                <span className="text-sm font-medium text-accent">
+                  {f.cta}{" "}
+                  <span aria-hidden="true" className="inline-block transition-transform group-hover:translate-x-0.5">
+                    →
+                  </span>
+                </span>
+              </Link>
+            </Reveal>
+          ))}
+        </div>
       </section>
 
       {/* FAQ preview */}
       <Reveal className="flex flex-col gap-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-xl font-semibold text-ink">Frequently asked questions</h2>
+          <h2 className="font-display text-2xl font-normal text-ink">Frequently asked questions</h2>
           <Link href="/faq" className="text-sm font-medium text-accent hover:underline">
             See all →
           </Link>
@@ -178,7 +237,7 @@ export default async function LandingPage() {
           {FAQ_ITEMS.slice(0, 4).map((item) => (
             <div key={item.question} className="flex flex-col gap-1.5 p-4">
               <h3 className="text-sm font-semibold text-ink">{item.question}</h3>
-              <p className="text-sm text-ink-muted">{item.answer}</p>
+              <p className="max-w-[65ch] text-sm text-ink-muted">{item.answer}</p>
             </div>
           ))}
         </div>

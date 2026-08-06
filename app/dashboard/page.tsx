@@ -42,7 +42,7 @@ export default function DashboardPage() {
     <main className="mx-auto flex w-full max-w-5xl flex-col gap-4 p-6">
       <AppHeader />
       <div className="mx-auto flex w-full max-w-lg flex-col gap-4">
-        <h1 className="px-1 text-xl font-semibold text-ink">Dashboard</h1>
+        <h1 className="font-display px-1 text-2xl font-normal text-ink">Dashboard</h1>
 
         <section className="flex flex-col gap-3 rounded-2xl border border-hairline bg-surface p-5 shadow-sm">
           <p className="text-sm text-ink-muted">Points balance <span className="text-ink-faint">($1 volume = 1 point)</span></p>

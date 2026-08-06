@@ -270,7 +270,7 @@ export function NftBuyModal({ listing, onClose }: { listing: NftListing; onClose
         </div>
 
         {sameChainAvailable && step === "idle" && (
-          <div className="flex rounded-xl border border-hairline bg-surface-hover p-1 text-xs font-medium">
+          <div className="flex rounded-xl bg-surface-hover p-1 text-xs font-medium">
             <button
               onClick={() => setPayWith("sol")}
               className={`flex-1 rounded-lg py-1.5 transition-colors ${payWith === "sol" ? "bg-accent text-accent-ink" : "text-ink-muted"}`}
@@ -287,7 +287,7 @@ export function NftBuyModal({ listing, onClose }: { listing: NftListing; onClose
         )}
 
         {!readyToQuote && payWith === "sol" && (
-          <div className="flex flex-col gap-2 rounded-xl border border-hairline bg-surface-hover p-3">
+          <div className="flex flex-col gap-2 rounded-xl bg-surface-hover p-3">
             <p className="text-xs text-ink-muted">
               Paying in SOL from Solana, buying an Ethereum NFT — connect and sign in with both wallets to continue.
             </p>
@@ -322,7 +322,7 @@ export function NftBuyModal({ listing, onClose }: { listing: NftListing; onClose
         )}
 
         {!readyToQuote && payWith === "eth" && (
-          <div className="flex flex-col gap-2 rounded-xl border border-hairline bg-surface-hover p-3">
+          <div className="flex flex-col gap-2 rounded-xl bg-surface-hover p-3">
             <p className="text-xs text-ink-muted">Paying directly in ETH on Ethereum — connect and sign in, one wallet.</p>
             <div className="flex flex-col gap-1">
               <span className="text-xs text-ink-faint">Ethereum (pays &amp; receives)</span>
@@ -359,7 +359,7 @@ export function NftBuyModal({ listing, onClose }: { listing: NftListing; onClose
 
         {step === "quoted" && quote && (
           <div className="flex flex-col gap-2">
-            <div className="flex items-center justify-between rounded-xl border border-hairline bg-surface-hover px-3 py-2">
+            <div className="flex items-center justify-between rounded-xl bg-surface-hover px-3 py-2">
               <span className="text-xs text-ink-muted">You pay</span>
               <span className="num text-sm font-semibold text-ink">
                 {Number(quote.originAmountFormatted).toFixed(3)} {quote.sameChain ? "ETH" : "SOL"}{" "}
@@ -381,7 +381,7 @@ export function NftBuyModal({ listing, onClose }: { listing: NftListing; onClose
         )}
 
         {busy && step !== "quoting" && (
-          <p className="rounded-xl border border-hairline bg-surface-hover px-3 py-2 text-sm text-ink-muted">{message}</p>
+          <p className="rounded-xl bg-surface-hover px-3 py-2 text-sm text-ink-muted">{message}</p>
         )}
 
         {step === "complete" && (

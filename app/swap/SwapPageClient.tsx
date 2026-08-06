@@ -430,6 +430,11 @@ export function SwapPageClient() {
       <AppHeader />
 
       <Reveal className="mx-auto flex w-full max-w-lg flex-col gap-4">
+        {/* 2026-08-06 (frontend audit, Impeccable detector: "flat-type-hierarchy")
+            — same gap as /nft: no page-level heading at all, straight into
+            the widget, so text sizes clustered with nothing bigger to anchor
+            a real scale. */}
+        <h1 className="font-display px-1 text-2xl font-normal text-ink">Swap</h1>
         <TrendingBar chainId={SOLANA_CHAIN_ID_CLIENT} />
 
         <SwapPanel

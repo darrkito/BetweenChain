@@ -51,7 +51,7 @@ export function SlippageControl({ bps, onChange }: { bps: number; onChange: (bps
               isCustomActive ? "border-accent text-accent" : "border-hairline text-ink-muted focus:border-accent"
             }`}
           />
-          <span className="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 text-[10px] text-ink-faint">%</span>
+          <span className="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 text-[11px] text-ink-faint">%</span>
         </div>
       </div>
     </div>

@@ -43,7 +43,7 @@ export function SwapStepper({
                 {isError ? "✕" : isDone ? "✓" : i + 1}
               </div>
               <span
-                className={`whitespace-nowrap text-[10px] font-medium ${
+                className={`whitespace-nowrap text-[11px] font-medium ${
                   isError ? "text-danger" : isActive ? "text-ink" : isDone ? "text-ink-muted" : "text-ink-faint"
                 }`}
               >

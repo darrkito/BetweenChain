@@ -30,7 +30,7 @@ export default function FaqPage() {
         <Breadcrumb items={BREADCRUMB_ITEMS} />
 
         <div className="flex flex-col gap-2">
-          <h1 className="text-3xl font-bold tracking-tight text-ink">Frequently asked questions</h1>
+          <h1 className="font-display text-3xl font-normal tracking-tight text-ink sm:text-4xl">Frequently asked questions</h1>
           <p className="text-base text-ink-muted">
             Everything you need to know about swapping and buying NFTs across chains.
           </p>
@@ -40,7 +40,7 @@ export default function FaqPage() {
           {FAQ_ITEMS.map((item) => (
             <div key={item.question} className="flex flex-col gap-2 p-5">
               <h2 className="text-base font-semibold text-ink">{item.question}</h2>
-              <p className="text-sm text-ink-muted">{item.answer}</p>
+              <p className="max-w-[65ch] text-sm text-ink-muted">{item.answer}</p>
             </div>
           ))}
         </div>

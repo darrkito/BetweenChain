@@ -3,13 +3,23 @@
 /*
   Design system for ChainBreak — "trading terminal calm."
   One confident accent (electric indigo-violet), hairline-bordered surfaces on
-  a softly tinted canvas, Geist Mono reserved for anything numeric (prices,
-  amounts, addresses) — a deliberate nod to how wallets/explorers already
-  present that data, not a generic mono-everywhere choice.
+  a softly tinted canvas, JetBrains Mono reserved for anything numeric
+  (prices, amounts, addresses) — a deliberate nod to how wallets/explorers
+  already present that data, not a generic mono-everywhere choice. Calistoga
+  (a warm display serif) is reserved for headings only, via the `font-display`
+  utility below — see app/layout.tsx's font-loading comment for why.
 
   Tokens are defined once here and mapped into Tailwind via @theme inline, so
   components use plain utilities (bg-canvas, text-ink, border-hairline, ...)
   that stay correct in both themes automatically.
+
+  2026-08-06 (frontend audit, Impeccable detector) — --ink-muted/--ink-faint
+  darkened in both themes. Old light-mode --ink-faint (#a5a2bb) was 2.3-2.5:1
+  against --surface/--surface-hover/--canvas, well under WCAG AA's 4.5:1 for
+  body text; old dark-mode --ink-faint (#605c78) was 2.7-3.1:1, same failure
+  in the other direction. New values clear 4.5:1+ against all three
+  same-theme backgrounds (verified via WCAG relative-luminance contrast
+  math, not eyeballed) while staying visibly a step lighter than --ink-muted.
 */
 
 :root {
@@ -17,8 +27,8 @@
   --surface: #ffffff;
   --surface-hover: #faf9ff;
   --ink: #15131f;
-  --ink-muted: #6e6b85;
-  --ink-faint: #a5a2bb;
+  --ink-muted: #5a5676;
+  --ink-faint: #6c678d;
   --accent: #5b4fe8;
   --accent-ink: #ffffff;
   --accent-soft: #ecebfc;
@@ -36,7 +46,7 @@
     --surface-hover: #1b1929;
     --ink: #eeedf7;
     --ink-muted: #9c98b5;
-    --ink-faint: #605c78;
+    --ink-faint: #8783a0;
     --accent: #8b7fff;
     --accent-ink: #0b0a13;
     --accent-soft: #221f3a;
@@ -64,7 +74,7 @@
   --surface-hover: #1b1929;
   --ink: #eeedf7;
   --ink-muted: #9c98b5;
-  --ink-faint: #605c78;
+  --ink-faint: #8783a0;
   --accent: #8b7fff;
   --accent-ink: #0b0a13;
   --accent-soft: #221f3a;
@@ -80,8 +90,8 @@
   --surface: #ffffff;
   --surface-hover: #faf9ff;
   --ink: #15131f;
-  --ink-muted: #6e6b85;
-  --ink-faint: #a5a2bb;
+  --ink-muted: #5a5676;
+  --ink-faint: #6c678d;
   --accent: #5b4fe8;
   --accent-ink: #ffffff;
   --accent-soft: #ecebfc;
@@ -93,8 +103,9 @@
 }
 
 @theme inline {
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-body-sans);
+  --font-mono: var(--font-data-mono);
+  --font-display: var(--font-display-serif), var(--font-body-sans), ui-sans-serif, system-ui, sans-serif;
   --color-canvas: var(--canvas);
   --color-surface: var(--surface);
   --color-surface-hover: var(--surface-hover);

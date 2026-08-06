@@ -36,7 +36,7 @@ export default function BlogIndexPage() {
         <Breadcrumb items={BREADCRUMB_ITEMS} />
 
         <div className="flex flex-col gap-2">
-          <h1 className="text-3xl font-bold tracking-tight text-ink">Blog</h1>
+          <h1 className="font-display text-3xl font-normal tracking-tight text-ink sm:text-4xl">Blog</h1>
           <p className="text-base text-ink-muted">Guides and updates on cross-chain swaps, NFTs, and how this all works.</p>
         </div>
 
@@ -60,7 +60,7 @@ export default function BlogIndexPage() {
                     <span aria-hidden="true">·</span>
                     <span>{post.readingTimeMinutes} min read</span>
                   </div>
-                  <h2 className="text-lg font-semibold text-ink">{post.title}</h2>
+                  <h2 className="font-display text-xl font-normal text-ink">{post.title}</h2>
                   <p className="text-sm text-ink-muted">{post.description}</p>
                 </div>
               </Link>

@@ -169,11 +169,11 @@ export function NftCollectionsGrid({ collections }: { collections: NftCollection
                 <span className="w-6 shrink-0 text-right text-xs text-ink-faint">{i + 1}</span>
                 <NftImage src={c.imageUrl} alt={c.name} className="h-9 w-9 shrink-0 rounded-full" />
                 <div className="flex min-w-0 flex-1 flex-col">
-                  <span className="truncate text-sm font-semibold text-ink">{c.name}</span>
-                  <span className="text-[10px] uppercase tracking-wide text-ink-faint">{c.vendor}</span>
+                  <span className="block truncate text-sm font-semibold text-ink">{c.name}</span>
+                  <span className="text-[11px] uppercase tracking-wide text-ink-faint">{c.vendor}</span>
                 </div>
                 <div className="flex w-24 shrink-0 flex-col items-end gap-0.5 text-xs">
-                  <span className="text-[10px] uppercase tracking-wide text-ink-faint">Floor</span>
+                  <span className="text-[11px] uppercase tracking-wide text-ink-faint">Floor</span>
                   {floor != null ? (
                     <span className="num font-semibold text-ink">
                       {roundUpTo3Decimals(floor)} <span className="text-ink-faint">{c.floorPriceCurrency}</span>
@@ -183,7 +183,7 @@ export function NftCollectionsGrid({ collections }: { collections: NftCollection
                   )}
                 </div>
                 <div className="hidden w-28 shrink-0 flex-col items-end gap-0.5 text-xs sm:flex">
-                  <span className="text-[10px] uppercase tracking-wide text-ink-faint">Volume</span>
+                  <span className="text-[11px] uppercase tracking-wide text-ink-faint">Volume</span>
                   {c.volume24hr != null ? (
                     <span className="num font-semibold text-ink">
                       {Number(c.volume24hr).toFixed(2)} <span className="text-ink-faint">{c.volume24hrCurrency}</span>
@@ -199,17 +199,25 @@ export function NftCollectionsGrid({ collections }: { collections: NftCollection
       )}
 
       {view === "grid" && (
+        // 2026-08-06 (frontend audit — "UI/UX Pro Max... breaking out of
+        // cookie-cutter card grid layouts to introduce intentional
+        // asymmetry") — the current #1 by whichever sort is active (real
+        // data, not a fixed pick) renders as a larger featured tile spanning
+        // 2 columns, with bigger imagery/type; the rest stay in the compact
+        // uniform grid. `sorted` already reorders on sort-key change, so
+        // "featured" always tracks the genuinely top-ranked collection.
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
           {sorted.map((c, i) => {
             const floor = displayFloorPrice(c);
+            const featured = i === 0;
             return (
               <Link
                 key={`${c.vendor}-${c.slug}`}
                 href={`/nft/${c.vendor}/${encodeURIComponent(c.slug)}`}
-                className="group flex flex-col overflow-hidden rounded-2xl border border-hairline bg-surface shadow-sm transition-all duration-200 hover:-translate-y-1 hover:border-accent/40 hover:shadow-lg"
+                className={`group flex flex-col overflow-hidden rounded-2xl border border-hairline bg-surface shadow-sm transition-all duration-200 hover:-translate-y-1 hover:border-accent/40 hover:shadow-lg ${featured ? "col-span-2" : ""}`}
                 style={{ animation: `fadeInUp 0.35s ease ${Math.min(i, 12) * 0.03}s both` }}
               >
-                <div className="relative h-16 w-full overflow-hidden bg-accent-soft">
+                <div className={`relative w-full overflow-hidden bg-accent-soft ${featured ? "h-28 sm:h-32" : "h-16"}`}>
                   {c.bannerImageUrl ? (
                     // Routed through /api/img (2026-08-04) — see lib/client/imageProxy.ts
                     <Image
@@ -217,7 +225,7 @@ export function NftCollectionsGrid({ collections }: { collections: NftCollection
                       alt=""
                       aria-hidden="true"
                       fill
-                      sizes="(max-width: 640px) 50vw, 25vw"
+                      sizes={featured ? "(max-width: 640px) 100vw, 50vw" : "(max-width: 640px) 50vw, 25vw"}
                       className="object-cover transition-transform duration-300 group-hover:scale-105"
                     />
                   ) : c.imageUrl ? (
@@ -226,31 +234,41 @@ export function NftCollectionsGrid({ collections }: { collections: NftCollection
                       alt=""
                       aria-hidden="true"
                       fill
-                      sizes="(max-width: 640px) 50vw, 25vw"
+                      sizes={featured ? "(max-width: 640px) 100vw, 50vw" : "(max-width: 640px) 50vw, 25vw"}
                       className="scale-125 object-cover blur-lg"
                     />
                   ) : null}
                   <div className="absolute inset-0 bg-gradient-to-t from-surface/80 via-transparent to-transparent" />
-                  <span className="absolute left-2 top-2 rounded-full bg-black/40 px-1.5 py-0.5 text-[10px] font-semibold text-white backdrop-blur-sm">
+                  <span
+                    className={`absolute left-2 top-2 rounded-full font-semibold text-white backdrop-blur-sm ${featured ? "bg-accent px-2 py-1 text-xs" : "bg-black/40 px-1.5 py-0.5 text-[11px]"}`}
+                  >
                     #{i + 1}
                   </span>
                 </div>
 
-                <div className="flex items-start gap-2.5 px-3 pt-0">
+                <div className={`flex items-start gap-2.5 px-3 pt-0 ${featured ? "sm:gap-3.5" : ""}`}>
                   <NftImage
                     src={c.imageUrl}
                     alt={c.name}
-                    className="-mt-6 h-12 w-12 shrink-0 rounded-full ring-4 ring-surface"
+                    className={`shrink-0 rounded-full ring-4 ring-surface ${featured ? "-mt-8 h-16 w-16 sm:-mt-9 sm:h-20 sm:w-20" : "-mt-6 h-12 w-12"}`}
                   />
-                  <div className="flex min-w-0 flex-1 flex-col pt-1.5">
-                    <span className="truncate text-sm font-semibold text-ink group-hover:text-accent">{c.name}</span>
-                    <span className="text-[10px] uppercase tracking-wide text-ink-faint">{c.vendor}</span>
+                  <div className={`flex min-w-0 flex-1 flex-col pt-1.5 ${featured ? "sm:pt-2.5" : ""}`}>
+                    <span
+                      className={`font-display block truncate font-normal text-ink group-hover:text-accent ${featured ? "text-lg sm:text-xl" : "text-sm font-semibold"}`}
+                    >
+                      {c.name}
+                    </span>
+                    <span
+                      className={`uppercase tracking-wide text-ink-faint ${featured ? "text-xs" : "text-[11px]"}`}
+                    >
+                      {c.vendor}
+                    </span>
                   </div>
                 </div>
 
-                <div className="mt-1 flex items-center gap-3 border-t border-hairline px-3 py-2 text-xs">
+                <div className={`mt-1 flex items-center gap-3 border-t border-hairline px-3 py-2 ${featured ? "text-sm" : "text-xs"}`}>
                   <div className="flex flex-1 flex-col gap-0.5">
-                    <span className="text-[10px] uppercase tracking-wide text-ink-faint">Floor</span>
+                    <span className={`uppercase tracking-wide text-ink-faint ${featured ? "text-xs" : "text-[11px]"}`}>Floor</span>
                     {floor != null ? (
                       <span className="num font-semibold text-ink">
                         {roundUpTo3Decimals(floor)} <span className="text-ink-faint">{c.floorPriceCurrency}</span>
@@ -260,7 +278,7 @@ export function NftCollectionsGrid({ collections }: { collections: NftCollection
                     )}
                   </div>
                   <div className="flex flex-1 flex-col gap-0.5">
-                    <span className="text-[10px] uppercase tracking-wide text-ink-faint">Volume</span>
+                    <span className={`uppercase tracking-wide text-ink-faint ${featured ? "text-xs" : "text-[11px]"}`}>Volume</span>
                     {c.volume24hr != null ? (
                       <span className="num font-semibold text-ink">
                         {Number(c.volume24hr).toFixed(2)} <span className="text-ink-faint">{c.volume24hrCurrency}</span>

@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Calistoga, IBM_Plex_Sans, JetBrains_Mono } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
@@ -7,13 +7,28 @@ import { Providers } from "./providers";
 import { JsonLd, siteGraphSchema } from "@/lib/seo/jsonld";
 import { Footer } from "@/app/components/Footer";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+// 2026-08-06 (frontend audit, Impeccable detector) — Geist/Geist Mono
+// replaced. Impeccable's "overused-font" rule calls out Geist by name (along
+// with Inter/Roboto/Fraunces/Plus Jakarta Sans/Space Grotesk) as common
+// enough across AI-generated sites to read as generic rather than
+// distinctive. Calistoga is a warm display serif reserved for headings only
+// (bodyPlexSans/JetBrains Mono cover everything else) so it reads as
+// intentional, not a wholesale "use a fancy font everywhere" swap.
+const displayFont = Calistoga({
+  variable: "--font-display-serif",
+  weight: "400",
   subsets: ["latin"],
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const bodySans = IBM_Plex_Sans({
+  variable: "--font-body-sans",
+  weight: ["400", "500", "600", "700"],
+  subsets: ["latin"],
+});
+
+const dataMono = JetBrains_Mono({
+  variable: "--font-data-mono",
+  weight: ["400", "500", "600"],
   subsets: ["latin"],
 });
 
@@ -110,7 +125,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${displayFont.variable} ${bodySans.variable} ${dataMono.variable} h-full antialiased`}
       // Real bug found live 2026-08-03: THEME_INIT_SCRIPT below intentionally
       // mutates this element's `data-theme` attribute BEFORE React hydrates
       // (that's the whole point — it prevents a flash of the wrong theme).

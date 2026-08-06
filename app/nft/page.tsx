@@ -81,6 +81,13 @@ export default async function NftBrowsePage({
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-col gap-4 p-6">
       <AppHeader />
+      {/* 2026-08-06 (frontend audit, Impeccable detector: "flat-type-hierarchy")
+          — this page previously jumped straight from AppHeader into the chain
+          tabs with no page-level heading at all, so every text size on the
+          page clustered in the 10-16px range with nothing bigger to anchor a
+          real scale. A real h1 fixes both the flagged hierarchy issue and a
+          genuine wayfinding gap (no page ever said what page you were on). */}
+      <h1 className="font-display px-1 text-2xl font-normal text-ink sm:text-3xl">NFT Marketplace</h1>
       <NftChainTabs active={family} />
       {family === "evm" && <EvmChainSubTabs active={evmChain} />}
       <Breadcrumb items={[{ label: "NFTs", href: "/nft" }, { label: nftChainFamilyLabel(family) }]} />

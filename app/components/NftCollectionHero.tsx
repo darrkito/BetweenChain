@@ -41,7 +41,7 @@ export function NftCollectionHero({ collection }: { collection: NftCollection })
         </div>
         <div className="flex min-w-0 flex-1 flex-col gap-1 pb-1 pt-2">
           <div className="flex items-center gap-2">
-            <h1 className="truncate text-xl font-bold tracking-tight text-ink sm:text-2xl">{collection.name}</h1>
+            <h1 className="font-display truncate text-xl font-normal tracking-tight text-ink sm:text-2xl">{collection.name}</h1>
             <span className="shrink-0 rounded-full bg-accent-soft px-2 py-0.5 text-[11px] font-medium uppercase tracking-wide text-accent">
               {collection.vendor}
             </span>

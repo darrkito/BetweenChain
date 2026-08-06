@@ -88,9 +88,14 @@ export function QuotePreviewWidget() {
     };
   }, [amount, sellToken, buyToken]);
 
+  // 2026-08-06 (frontend audit, Impeccable detector: "nested-cards") — the
+  // three inner rows below used to carry their own `border border-hairline`
+  // on top of this outer card's border, a literal card-in-card. Removed the
+  // inner borders; `bg-surface-hover` alone is enough to read as a distinct
+  // row inside the one outer card.
   return (
     <div className="flex w-full max-w-md flex-col gap-3 rounded-2xl border border-hairline bg-surface p-4 shadow-sm">
-      <div className="flex items-center justify-between rounded-xl border border-hairline bg-surface-hover px-3 py-2.5">
+      <div className="flex items-center justify-between rounded-xl bg-surface-hover px-3 py-2.5">
         <span className="text-xs font-medium text-ink-faint">Sell</span>
         <div className="flex items-center gap-2">
           <input
@@ -121,7 +126,7 @@ export function QuotePreviewWidget() {
 
       <button
         onClick={() => setBuyPickerOpen(true)}
-        className="flex items-center justify-between rounded-xl border border-hairline bg-surface-hover px-3 py-2.5 text-left transition-colors hover:bg-accent-soft"
+        className="flex items-center justify-between rounded-xl bg-surface-hover px-3 py-2.5 text-left transition-colors hover:bg-accent-soft"
       >
         <span className="text-xs font-medium text-ink-faint">Buy</span>
         {buyToken ? (
@@ -134,7 +139,7 @@ export function QuotePreviewWidget() {
         )}
       </button>
 
-      <div className="min-h-[52px] rounded-xl border border-hairline bg-surface-hover px-3 py-2.5">
+      <div className="min-h-[52px] rounded-xl bg-surface-hover px-3 py-2.5">
         {!sellToken || !buyToken ? (
           <p className="text-xs text-ink-faint">Pick a destination token to see an estimate.</p>
         ) : loading ? (
