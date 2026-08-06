@@ -4,6 +4,7 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ThemeToggle } from "@/lib/client/ThemeToggle";
+import { ActivityDrawer } from "@/app/components/ActivityDrawer";
 
 // ConnectWalletMenu reads live browser wallet state, so it must never be
 // part of SSR — same reasoning the old WalletMultiButton import here had.
@@ -17,6 +18,7 @@ const ConnectWalletMenu = dynamic(
 const NAV: Array<{ href: string; label: string; shortLabel?: string }> = [
   { href: "/swap", label: "Token Swap", shortLabel: "Swap" },
   { href: "/nft", label: "NFTs" },
+  { href: "/dashboard", label: "Rewards" },
 ];
 
 /**
@@ -76,7 +78,7 @@ export function AppHeader() {
               Blockchains<span className="text-accent">.Click</span>
             </span>
             <span className="hidden whitespace-nowrap text-[11px] font-medium leading-tight text-ink-faint lg:block">
-              All the blockchains, in just one click
+              0.25% per leg, zero manual bridging
             </span>
           </span>
           <span className="whitespace-nowrap text-[15px] font-semibold tracking-tight text-ink sm:hidden">
@@ -110,6 +112,7 @@ export function AppHeader() {
         </nav>
       </div>
       <div className="flex shrink-0 items-center gap-2">
+        <ActivityDrawer />
         <ThemeToggle />
         <ConnectWalletMenu />
       </div>

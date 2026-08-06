@@ -8,7 +8,28 @@ import { TRADEPORT_FEE_SAFETY_MARGIN } from "@/lib/nft/tradeportFee";
 import { magicEdenBuyerTotal } from "@/lib/nft/magicedenFee";
 import { roundUpTo3Decimals } from "@/lib/client/amount";
 import { proxiedImageUrl } from "@/lib/client/imageProxy";
+import { usePrefersReducedMotion } from "@/lib/client/usePrefersReducedMotion";
 import type { NftCollection } from "@/lib/nft/types";
+
+// 3D tilt on hover (2026-08-06 visual pass) — imperative DOM mutation
+// (no React state) so it doesn't fight the existing hover:-translate-y-1
+// Tailwind utility or cause a re-render per mousemove across a full grid of
+// cards. Combines the tilt with the same lift the CSS hover already applies
+// (inline style wins specificity over the utility class once set, so the
+// lift has to be folded in here too, not left to the CSS hover alone).
+const TILT_MAX_DEG = 7;
+
+function handleCardTilt(e: React.MouseEvent<HTMLElement>) {
+  const el = e.currentTarget;
+  const rect = el.getBoundingClientRect();
+  const px = (e.clientX - rect.left) / rect.width - 0.5; // -0.5..0.5
+  const py = (e.clientY - rect.top) / rect.height - 0.5;
+  el.style.transform = `perspective(800px) rotateX(${(-py * TILT_MAX_DEG).toFixed(2)}deg) rotateY(${(px * TILT_MAX_DEG).toFixed(2)}deg) translateY(-4px)`;
+}
+
+function resetCardTilt(e: React.MouseEvent<HTMLElement>) {
+  e.currentTarget.style.transform = "";
+}
 
 type SortKey = "volume" | "floor";
 
@@ -74,6 +95,8 @@ export function NftCollectionsGrid({ collections }: { collections: NftCollection
   // navigation, matches the existing sort toggle's UX rather than adding a
   // new ?view= param for a purely presentational preference.
   const [view, setView] = useState<ViewMode>("grid");
+  const reducedMotion = usePrefersReducedMotion();
+  const tiltHandlers = reducedMotion ? {} : { onMouseMove: handleCardTilt, onMouseLeave: resetCardTilt };
 
   const sorted = useMemo(() => {
     const withIndex = collections.map((c, i) => ({ c, i }));
@@ -215,7 +238,8 @@ export function NftCollectionsGrid({ collections }: { collections: NftCollection
                 key={`${c.vendor}-${c.slug}`}
                 href={`/nft/${c.vendor}/${encodeURIComponent(c.slug)}`}
                 className={`group flex flex-col overflow-hidden rounded-2xl border border-hairline bg-surface shadow-sm transition-all duration-200 hover:-translate-y-1 hover:border-accent/40 hover:shadow-lg ${featured ? "col-span-2" : ""}`}
-                style={{ animation: `fadeInUp 0.35s ease ${Math.min(i, 12) * 0.03}s both` }}
+                style={{ animation: `fadeInUp 0.35s ease ${Math.min(i, 12) * 0.03}s both`, willChange: reducedMotion ? undefined : "transform" }}
+                {...tiltHandlers}
               >
                 <div className={`relative w-full overflow-hidden bg-accent-soft ${featured ? "h-28 sm:h-32" : "h-16"}`}>
                   {c.bannerImageUrl ? (

@@ -414,6 +414,19 @@ actually active outside local dev.
 
 ## Not yet scheduled
 
+- **SEO/GEO follow-ups (deferred from the 2026-08-06 SEO pass, see `STATE.md`
+  2026-08-06c)** — the `llms.txt`/JSON-LD/robots.ts/copy-correction work from that
+  pass is done; these three are real, separate scope, not silently dropped:
+  - **Programmatic per-pair swap route pages** (`/swap/solana-to-ethereum`,
+    `/swap/bonk-to-eth`, etc.) — a real new feature (routing, live per-pair rate
+    data, real duplicate-content risk if any page is thin/templated-only). Needs its
+    own plan, not a copy-paste of the audit's page list.
+  - **Competitor comparison content** ("Blockchains.Click vs. Jumper vs. deBridge")
+    — needs real, sourced research into competitors' actual current fee structures
+    before writing anything; the audit's own assumptions about competitors aren't
+    verified and shouldn't be published as fact.
+  - **Third-party directory listings** (DefiLlama, DappRadar, CoinGecko) — needs
+    accounts/verification on the user's end; not something to create unprompted.
 - **NFT vendor API-dependency review (queued 2026-07-20, not started)** — bundles
   several related follow-ups, don't tackle piecemeal without checking this list:
   - **DONE (2026-07-21)**: ~~Helius DAS `getAssetsByGroup` for Magic Eden collection
@@ -481,3 +494,152 @@ actually active outside local dev.
 - EVM address validation is format-only, not EIP-55 checksum (SECURITY.md gap #3).
 - EVM-origin cross-chain swap path (built 2026-07-18i) still needs live verification
   with a real browser + real EVM wallet + real funds (STATE.md 2026-07-18i).
+- **External UX audit triage (added 2026-08-06) — IMPLEMENTED 2026-08-06, see
+  `STATE.md` 2026-08-06.** User supplied a general Web3/DEX UX audit (hero trust
+  signals, wallet UX, swap flow, NFT marketplace, navigation/gamification). Not all of
+  it applied to this app's actual architecture; triaged against current build state
+  before scheduling anything (kept below for the historical reasoning). All "Real
+  gaps" items from both Part 1 and Part 2 below were built: real fee/route breakdown
+  in the swap review step, a text-only trust bar, tagline rewrite, `/dashboard` nav
+  link + homepage CTA, an interactive points calculator, and display-only tier badges.
+  Not built (explicitly deferred per the triage, still open): manual dark-mode toggle
+  UI polish beyond what already exists, live volume/tx counters (still gated on real
+  traffic being large enough to be a credible signal), and the top-level
+  Swap/NFT/Rewards tab restructure (solved more cheaply instead — a plain nav link,
+  see above — the full IA overhaul was never actually necessary once `/dashboard` was
+  just made discoverable).
+
+  **Follow-up visual/motion audit — IMPLEMENTED 2026-08-06, see `STATE.md`
+  2026-08-06b.** Gradient chain-color accent, cross-chain bridging beam on
+  `SwapStepper`, tactile micro-feedback, 3D tilt on NFT cards, a points/referral
+  side-card on the swap page, and a persistent activity drawer (recent pairs, saved
+  addresses, session activity — localStorage-backed, not a server fetch). Rejected
+  from that audit: wallet-status split pill (architecture mismatch, same as the
+  dual-wallet indicator below), a tier-multiplier tracker (tiers stay display-only, no
+  perk — see below), real vendor logos on the trust bar (stays text-only, no asset
+  files exist), fabricated/PII-leaking "on-chain event toasts," and a full color-system
+  rewrite + font swap (out of the approved scope).
+
+  **New backlog item, not silently cut: real cross-device transaction-history
+  endpoint.** The activity drawer's "Recent activity" section is currently
+  session-local only (localStorage, persists across a reload but never synced across
+  devices) — no `GET` route reads `swap_transactions` back for display anywhere in
+  this app today, and building one means a new authenticated endpoint, a join against
+  `swap_quotes` (token symbols/chain names live there, not on `swap_transactions`
+  itself), and token-metadata resolution. Real feature, genuinely deferred as backend
+  work rather than folded into the visual pass under a different name.
+
+  **Already solved or reframed — don't build as described:**
+  - "Dual-wallet Source/Destination indicator" — doesn't map onto this app's model.
+    Identity is deliberately Solana-anchored with EVM as a linked-or-standalone
+    signer (SIWS/SIWE, see `STATE.md` 2026-07-21). NFT buys already do a real
+    two-signature flow (Relay delivers funds → wallet signs the buy directly). A
+    generic dual-wallet-bar UI would need custom design work to fit this shape, not
+    a drop-in.
+  - "Destination address guardrails / ENS resolution" — lower value than the audit
+    implies: this app doesn't have much manual-paste-destination-address flow (NFT
+    buys use connected wallets); scope down if ever built.
+  - "Progressive multi-step stepper for cross-chain latency" — cheap win, not a new
+    feature: the NFT purchase state machine (`nft_purchase_quotes`/`nft_purchases`:
+    deposit_pending → deposit_confirmed → ... ) already tracks every step this would
+    visualize. Pure UI layer on data already collected.
+
+  **Real gaps, priority order if picked up:**
+  1. Fee/route breakdown transparency (platform fee vs gas vs slippage) — the real
+     0.25%/same-chain-free fee logic exists but isn't well surfaced in the UI; this
+     is a trust/legitimacy issue, not just polish.
+  2. USD values + verified-token indicators in swap/NFT UI — cheap, no backend
+     changes, high trust impact.
+  3. Real stats counter (own tx/volume counts from the DB) — yes to real numbers,
+     explicit **no** to the audit's suggestion of "audit badges" (OtterSec/CertiK/
+     Trail of Bits logos) since this app has not been audited by anyone; don't
+     imply otherwise.
+  4. Points pill in header — points/referral system already exists server-side,
+     just needs a small persistent UI counter.
+
+  **Skip / defer, not worth building now:**
+  - Slippage gear icon / manual routing controls — Relay/Jupiter already abstract
+    this; exposing manual control adds support/risk surface without a clear ask.
+  - Account abstraction / passkey onboarding, batch cross-chain NFT buys — no
+    current signal these are needed, speculative scope.
+
+  Nothing here is scheduled yet — revisit and move items into "In progress" if the
+  user wants to act on the priority list above.
+
+  **Part 2 (same day, 2026-08-06) — second batch of notes: IA/positioning, swap
+  terminal mockup, trust signals, gamification, polish.** Same triage discipline —
+  check against real current state before accepting a recommendation at face value.
+
+  **Already solved, or the recommendation doesn't apply as stated:**
+  - "No monospace/JetBrains Mono for numeric data" — already done. The
+    2026-07-20g redesign added Geist Mono specifically for prices/amounts/
+    addresses/swap IDs via a `.num` utility class (tabular-nums), same rationale
+    the audit gives. No change needed; not worth swapping fonts without a reason.
+  - "No dark mode / contrast" — already done (2026-07-20g), dark isn't an
+    inverted light — accent was deliberately brightened for contrast on a
+    near-black ground. Real gap that *does* still stand from that same rollout:
+    no manual theme toggle exists, only `prefers-color-scheme`. Add one if a
+    manual override is actually wanted.
+  - "Security audit badges (CertiK/OtterSec/Trail of Bits)" — repeats Part 1's
+    rejected item. Still no. Don't fabricate audit claims for audits that never
+    happened.
+  - "Dual-wallet header status pill (Source/Dest)" — same architecture mismatch
+    as Part 1's version of this idea (SIWS/SIWE-anchored identity, not two
+    peer wallets). Applies again here, not re-litigating.
+  - "[1/3] → [2/3] → [3/3] loading stages during cross-chain execution" — same
+    conclusion as Part 1's stepper item, but note the scope is now wider: this
+    note is about the **swap terminal**, not just NFT purchases. The token-swap
+    side has its own existing status states (`swap_transactions`/`swap_quotes`)
+    that this can read from — still a UI layer on existing data, not new
+    plumbing, but it's a second, separate stepper build (swap flow) alongside
+    the NFT one already queued.
+
+  **Real, net-new items worth considering (not covered by Part 1):**
+  1. **"Powered by" trust bar with real routing-partner logos** (Jupiter, Relay
+     — the app's actual, real dependencies) — legitimate version of the trust-bar
+     idea, unlike audit badges. Don't list infra this app doesn't actually use
+     (Wormhole/deBridge/Li.Fi/Pyth aren't integrated — verify against
+     `AGENTS.md` before adding any logo, same "don't claim what isn't true"
+     rule as the audit-badge rejection).
+  2. **Route Details expandable panel** on the swap card (fee/gas/min-received
+     breakdown) — this is the concrete UI shape for Part 1's #1 priority item
+     (fee/route transparency), now with a real layout to build against instead
+     of an abstract goal.
+  3. **Tagline rewrite** — cheap copy-only change, no dependency on anything
+     else. Current: "All the blockchains, in just one click." Proposed:
+     something naming the fee + no-manual-bridging value explicitly. Worth
+     doing whenever the hero section is next touched; not worth a dedicated
+     pass on its own.
+  4. **Top-level Swap / Cross-Chain NFTs / Rewards tab structure** — a real
+     information-architecture question, not just styling: right now swap, NFT
+     browse, and dashboard are separate pages/routes without a unified
+     top-level switcher. Worth a real decision (not a silent adopt) since it
+     touches `AppHeader` and routing broadly, not a single component. Flag for
+     user decision before building.
+  5. **Points/rewards dashboard tab with tier progression (Bronze/Silver/
+     Diamond)** — net-new scope beyond Part 1's "points pill in header." The
+     pill is cheap (server data already exists); **tiers are not** — there is
+     no tier concept in the current points/referral schema
+     (`points_ledger`/`referrals`), this would need real schema + threshold
+     design work, not just a UI pass. Bigger than it looks.
+  6. **Interactive points calculator** (slider → preview points/rebate) — pure
+     frontend, can run entirely off the already-known 20%/10% referral split
+     and existing volume-to-points conversion rate. Cheap, no backend
+     dependency, fine to build independent of the tier-system item above.
+
+  **Skip / low priority:**
+  - EVM address format auto-detection (0x pasted into a Solana field) — same
+    reasoning as Part 1's destination-address item: this app's flows are
+    mostly connected-wallet-driven, not manual-paste-driven, so the failure
+    mode this guards against is rare here.
+  - Micro-interactions (pulse animation on route arrow, haptic feedback on
+    mobile swap button) — pure polish, do last if at all, no functional value.
+  - Live numeric counters ("$12.4M+ volume", "14s avg swap time") — legitimate
+    *if* backed by real DB aggregates (same "real numbers only" rule as trust
+    bar/badges above), but low priority until there's enough real volume for
+    the numbers to be a credible trust signal rather than an obviously-small
+    one.
+
+  Still nothing scheduled — Part 1 + Part 2 together are the full triage of the
+  external audit. Next real decision point is the IA/tab-structure question
+  (item 4 above), since it affects scope of everything else in this list.

@@ -16,6 +16,10 @@ export default function robots(): MetadataRoute.Robots {
     rules: [
       { userAgent: "*", allow: "/", disallow: "/api/" },
       { userAgent: "GPTBot", allow: "/" },
+      // OAI-SearchBot (2026-08-06 GEO pass) — a distinct OpenAI crawler from
+      // GPTBot: search-time retrieval for ChatGPT's live web search feature,
+      // not training-time crawling. Both are worth allowlisting explicitly.
+      { userAgent: "OAI-SearchBot", allow: "/" },
       { userAgent: "ChatGPT-User", allow: "/" },
       { userAgent: "Google-Extended", allow: "/" },
       { userAgent: "Anthropic-AI", allow: "/" },

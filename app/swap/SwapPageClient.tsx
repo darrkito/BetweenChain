@@ -17,8 +17,13 @@ import { TrendingBar } from "@/app/components/TrendingBar";
 import { Reveal } from "@/app/components/Reveal";
 import { SwapPanel, isBuyTokenAllowed } from "@/app/components/SwapPanel";
 import { SlippageControl } from "@/app/components/SlippageControl";
+import { TrustBar } from "@/app/components/TrustBar";
+import { PointsSummaryCard } from "@/app/components/PointsSummaryCard";
 import { SwapStepper, type SwapStep } from "@/app/components/SwapStepper";
 import type { SelectedToken } from "@/app/components/TokenSelectModal";
+import { useRecentPairs } from "@/lib/client/useRecentPairs";
+import { useSavedAddresses } from "@/lib/client/useSavedAddresses";
+import { useSessionActivity } from "@/lib/client/useSessionActivity";
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -53,11 +58,22 @@ export function SwapPageClient() {
   // Mirrored up from SwapPanel's own live quote preview (see its
   // onPreviewChange doc) — used below for the Review modal's rate/
   // minimum-received summary, 2026-08-06 swap revamp.
-  const [preview, setPreview] = useState<{ destAmountFormatted: string | null; destAmountUsd: string | null } | null>(null);
+  const [preview, setPreview] = useState<{
+    destAmountFormatted: string | null;
+    destAmountUsd: string | null;
+    feeBreakdown?: Array<{ label: string; bps: number; amountUsd: string | null }>;
+  } | null>(null);
 
   const [step, setStep] = useState<Step>("idle");
   const [erroredAtStep, setErroredAtStep] = useState<Step | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+
+  // Activity drawer data sources (2026-08-06 visual pass) — see
+  // app/components/ActivityDrawer.tsx and the three lib/client/use* hooks
+  // for the shared localStorage pattern.
+  const { addPair } = useRecentPairs();
+  const { addAddress } = useSavedAddresses();
+  const { addActivity } = useSessionActivity();
   const [swapId, setSwapId] = useState<string | null>(null);
 
   const evmWallet = useEvmWallet();
@@ -185,6 +201,23 @@ export function SwapPageClient() {
     (!isCrossChain || (Boolean(destAddress) && !destAddressError)) &&
     step === "idle";
 
+  // Records a terminal swap outcome into the activity drawer's local stores
+  // (2026-08-06 visual pass) — "done" also records the pair and, for a
+  // cross-chain swap, the destination address; "error" only records the
+  // activity-log entry. sellToken/buyToken are captured by reference at
+  // call time (both guaranteed non-null by runSwap's own top-of-function
+  // guard before any call site below can be reached).
+  function recordSwapResult(finalStatus: "done" | "error", swapIdForRecord: string) {
+    if (!sellToken || !buyToken) return;
+    addActivity({ swapId: swapIdForRecord, sellSymbol: sellToken.symbol, buySymbol: buyToken.symbol, status: finalStatus });
+    if (finalStatus === "done") {
+      addPair({ sellChainId: sellToken.chainId, sellSymbol: sellToken.symbol, buyChainId: buyToken.chainId, buySymbol: buyToken.symbol });
+      if (isCrossChain && destAddress) {
+        addAddress({ chainId: buyToken.chainId, chainDisplayName: buyToken.chainDisplayName, address: destAddress });
+      }
+    }
+  }
+
   async function runSwap() {
     if (!sellToken || !buyToken) {
       setMessage("Pick both tokens first.");
@@ -210,6 +243,7 @@ export function SwapPageClient() {
     // Needed so a mid-flow failure can mark the SPECIFIC stepper stage that
     // failed, not just "something failed somewhere".
     let phase: Step = "quoting";
+    let recordedSwapId = ""; // set once /api/swap returns a real swapId; used by recordSwapResult below
     setStep(phase);
     setErroredAtStep(null);
     setMessage(null);
@@ -256,6 +290,7 @@ export function SwapPageClient() {
       if (!swapRes.ok) throw new Error((await swapRes.json()).error ?? "Swap build failed");
       const { swapId: newSwapId, status, unsignedTransaction } = await swapRes.json();
       setSwapId(newSwapId);
+      recordedSwapId = newSwapId;
 
       if (unsignedTransaction) {
         // /api/swap only ever returns a non-null unsignedTransaction for a
@@ -276,11 +311,13 @@ export function SwapPageClient() {
         const confirmed = await confirmRes.json();
         if (confirmed.status === "complete") {
           setStep("done");
+          recordSwapResult("done", recordedSwapId);
           setMessage("Swap complete.");
           return;
         }
       } else if (status !== "leg1_confirmed") {
         setStep("done");
+        recordSwapResult("done", recordedSwapId);
         setMessage("Swap complete.");
         return;
       }
@@ -354,6 +391,7 @@ export function SwapPageClient() {
           const confirmed = await confirmRes.json();
           if (confirmed.status === "complete") {
             setStep("done");
+            recordSwapResult("done", recordedSwapId);
             setMessage("Swap complete.");
             return;
           }
@@ -374,11 +412,17 @@ export function SwapPageClient() {
         );
       } else {
         setStep("done");
+        recordSwapResult("done", recordedSwapId);
         setMessage("Swap complete.");
       }
     } catch (err) {
       setStep("error");
       setErroredAtStep(phase);
+      // recordedSwapId may still be "" if the failure happened before
+      // /api/swap ever returned one (e.g. the initial quote request) —
+      // recordSwapResult only needs sellToken/buyToken to be set, which
+      // runSwap's own top-of-function guard already guarantees.
+      recordSwapResult("error", recordedSwapId);
       setMessage((err as Error).message);
     }
   }
@@ -396,6 +440,10 @@ export function SwapPageClient() {
   ];
   const currentStepIndex = stepDefs.findIndex((s) => s.key === (isError ? erroredAtStep : step));
   const erroredIndex = isError ? stepDefs.findIndex((s) => s.key === erroredAtStep) : null;
+  // Beam only for a genuine cross-chain bridge leg, not the same-chain "Swap"
+  // label leg2_pending can also carry (see needsRelayLeg2's doc above) — -1
+  // when not applicable, which never matches a real step index.
+  const beamStepIndex = isCrossChain ? stepDefs.findIndex((s) => s.key === "leg2_pending") : -1;
 
   function handleMainButtonClick() {
     if (!sellWalletReady) {
@@ -429,6 +477,12 @@ export function SwapPageClient() {
     <main className="mx-auto flex w-full max-w-5xl flex-col gap-4 p-6">
       <AppHeader />
 
+      {/* Points/referral side-card (2026-08-06 visual pass) — the outer
+          `<main>` was already `max-w-5xl` with all of that width unused
+          beyond the narrow swap column; a real 2-col grid at `lg:` puts it
+          to use instead of adding a new width constraint. Single column
+          (side-card stacks below) under `lg:`, unchanged from before. */}
+      <div className="grid w-full gap-6 lg:grid-cols-[1fr_320px] lg:items-start">
       <Reveal className="mx-auto flex w-full max-w-lg flex-col gap-4">
         {/* 2026-08-06 (frontend audit, Impeccable detector: "flat-type-hierarchy")
             — same gap as /nft: no page-level heading at all, straight into
@@ -455,6 +509,7 @@ export function SwapPageClient() {
         />
 
         <SlippageControl bps={slippageBps} onChange={setSlippageBps} />
+        <TrustBar />
 
         <button
           onClick={handleMainButtonClick}
@@ -484,7 +539,9 @@ export function SwapPageClient() {
                   : "Review swap"}
         </button>
 
-        {step !== "idle" && <SwapStepper steps={stepDefs} currentIndex={currentStepIndex} erroredIndex={erroredIndex} />}
+        {step !== "idle" && (
+          <SwapStepper steps={stepDefs} currentIndex={currentStepIndex} erroredIndex={erroredIndex} beamIndex={beamStepIndex} />
+        )}
 
         {message && (
           <p
@@ -509,6 +566,11 @@ export function SwapPageClient() {
           <span aria-hidden="true">→</span>
         </Link>
       </Reveal>
+
+      <div className="mx-auto w-full max-w-lg lg:sticky lg:top-6 lg:mx-0">
+        <PointsSummaryCard />
+      </div>
+      </div>
 
       {/*
         Real gap fixed 2026-08-03: clicking "Swap" used to go straight from
@@ -575,9 +637,34 @@ export function SwapPageClient() {
                   </span>
                 </div>
               )}
+              {/* Route & fees — real per-leg breakdown (2026-08-06), not a
+                  static "0.25% per leg" string. `feeBreakdown` comes straight
+                  from GET /api/quote/preview via SwapPanel's onPreviewChange
+                  (see lib/fees.ts's feeBreakdownWithAmounts) — it only lists
+                  legs that actually apply to this swap's shape AND are
+                  actually active (fee env var set), so an empty array here
+                  correctly means "no platform fee on this swap" rather than
+                  being hidden/assumed. Gas is a disclaimer, not a computed
+                  number — nothing in this app converts Relay's raw gas
+                  fields to USD yet, and guessing would risk a wrong figure. */}
+              {preview?.feeBreakdown && preview.feeBreakdown.length > 0 ? (
+                preview.feeBreakdown.map((leg) => (
+                  <div key={leg.label} className="flex items-center justify-between">
+                    <span className="text-xs text-ink-faint">{leg.label}</span>
+                    <span className="num text-xs text-ink-muted">
+                      {leg.bps / 100}%{leg.amountUsd ? ` (~$${leg.amountUsd})` : ""}
+                    </span>
+                  </div>
+                ))
+              ) : (
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-ink-faint">Platform fee</span>
+                  <span className="text-xs text-ink-muted">None on this swap</span>
+                </div>
+              )}
               <div className="flex items-center justify-between">
-                <span className="text-xs text-ink-faint">Platform fee</span>
-                <span className="text-xs text-ink-muted">0.25% per leg</span>
+                <span className="text-xs text-ink-faint">Network gas</span>
+                <span className="text-xs text-ink-muted">Paid separately, varies by chain</span>
               </div>
               {isCrossChain && (
                 // 2026-08-04 (security hardening pass) — was a single
@@ -610,7 +697,7 @@ export function SwapPageClient() {
                 setReviewOpen(false);
                 runSwap();
               }}
-              className="rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-accent-ink transition-all hover:brightness-110"
+              className="rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-accent-ink transition-all hover:brightness-110 active:scale-[0.98]"
             >
               Confirm swap
             </button>

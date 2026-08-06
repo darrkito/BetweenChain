@@ -52,9 +52,28 @@ export function websiteSchema() {
   };
 }
 
+/**
+ * Product-level entity (2026-08-06 GEO pass) — describes the platform's core
+ * swap product for AI/answer-engine retrieval. Fee figure matches
+ * lib/fees.ts's real JUPITER_FEE_BPS/RELAY_FEE_BPS constants (25 bps each,
+ * "per swap leg" — never state a flat total, a cross-chain swap can carry
+ * both legs). Rendered globally alongside Organization/WebSite since it
+ * describes the whole platform, not one page.
+ */
+export function financialProductSchema() {
+  return {
+    "@type": "FinancialProduct",
+    "@id": `${SITE_URL}/#product`,
+    name: `${SITE_NAME} Cross-Chain Swap`,
+    description: "Cross-chain token swap between Solana and EVM chains, with a separate cross-chain NFT marketplace additionally covering Sui.",
+    provider: { "@id": `${SITE_URL}/#organization` },
+    feesAndCommissionsSpecification: "0.25% platform fee per swap leg, plus the underlying chain's network/gas fee. No other platform fee.",
+  };
+}
+
 /** Root-level @graph — rendered once in app/layout.tsx, covers every page. */
 export function siteGraphSchema() {
-  return { "@context": "https://schema.org", "@graph": [organizationSchema(), websiteSchema()] };
+  return { "@context": "https://schema.org", "@graph": [organizationSchema(), websiteSchema(), financialProductSchema()] };
 }
 
 /**

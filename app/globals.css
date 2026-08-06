@@ -197,6 +197,28 @@ h3 {
   }
 }
 
+/* Cross-chain "bridging" beam (2026-08-06 visual pass) — used on
+   SwapStepper.tsx's connector segments while the active step is the
+   Relay/bridge leg. A moving gradient sweep, not a static fill, to read as
+   "in flight" rather than just another completed-step color. Automatically
+   disabled by the prefers-reduced-motion rule below (animation-duration
+   forced to 0.01ms), same as every other animation on this page — no extra
+   JS guard needed for this one since it's pure CSS. */
+@keyframes beamPulse {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+.step-beam {
+  background: linear-gradient(90deg, var(--hairline) 0%, var(--accent) 50%, var(--hairline) 100%);
+  background-size: 300% 100%;
+  animation: beamPulse 1.4s linear infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

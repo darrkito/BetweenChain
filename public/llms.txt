@@ -1,0 +1,29 @@
+# Blockchains.Click — Cross-Chain Token Swaps & NFT Marketplace
+
+> Blockchains.Click is a cross-chain token swap and NFT marketplace. Token swaps cover Solana and EVM chains (Ethereum, Base, Polygon, Arbitrum, Optimism, Avalanche); the NFT marketplace additionally covers Sui. Users can swap tokens across those chains, and buy NFTs across all three ecosystems while paying with a token from a different chain than the NFT itself.
+
+## Core Capabilities
+
+- **Cross-Chain Token Swaps**: Trade tokens between Solana and EVM chains (Ethereum, Base, Polygon, Arbitrum, Optimism, Avalanche), including same-chain EVM-to-EVM swaps — one destination address, locked in at quote time and never altered afterward.
+- **Cross-Chain NFT Marketplace**: Browse and buy NFTs on Solana, EVM chains, and Sui, paying with a token from a different source chain than the NFT's own chain.
+- **Fee Structure**: 0.25% platform fee per swap leg (a same-chain swap has one leg; a cross-chain swap can have two), plus the underlying chain's own network/gas fee. No other platform fee.
+- **No-Wallet Quote Preview**: Get a live swap-rate preview without connecting a wallet.
+- **Points & Referrals**: 1 point per $1 of real trading volume. Referring a friend earns 20% of their volume as points (ongoing, not one-time); the referred user gets a 10% bonus.
+
+## Target User Scenarios
+
+- Swapping tokens between Solana and Ethereum, Base, or other EVM chains without a separate manual bridging step.
+- Buying a Solana, EVM, or Sui NFT while paying with a token from a different chain.
+- Earning points and referral bonuses on real trading volume.
+
+## Technical & Security Notes
+
+- Cross-chain execution is handled by **Jupiter** (Solana-side swap leg) and **Relay** (general cross-chain delivery leg) — both non-custodial, direct wallet-signed transactions.
+- The Sui NFT purchase flow specifically uses **ChangeNOW**, a custodial exchange, for its cross-chain leg — the one exception to the non-custodial pattern above, disclosed here rather than implied otherwise.
+- The destination address for a swap is bound at quote time and cannot be changed afterward, on either the client or server, closing address-swap/MITM risk on that step.
+- Every on-chain purchase is independently re-verified against the real transaction result before being marked complete — not just trusted from a client-reported hash.
+
+## Not Supported
+
+- No support for Bitcoin, TON, or chains outside the Solana/EVM/Sui set listed above.
+- Token swaps do not currently support Sui as a source or destination (Relay, the cross-chain execution engine for swaps, doesn't reach Sui) — Sui is only reachable through the separate NFT purchase flow via ChangeNOW, not through the general token-swap engine.

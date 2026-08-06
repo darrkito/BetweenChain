@@ -43,7 +43,8 @@ const dataMono = JetBrains_Mono({
 // blocks, a permissive robots directive opting into full search-result
 // previews) carries over directly onto Next's native Metadata API.
 const SITE_URL = "https://blockchains.click";
-const SITE_DESCRIPTION = "All the blockchains, in just one click. Swap meme coins across chains, starting from Solana.";
+const SITE_DESCRIPTION =
+  "Swap tokens between Solana and EVM chains, and buy NFTs across Solana, EVM chains, and Sui, for 0.25% per leg — no manual bridging.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),

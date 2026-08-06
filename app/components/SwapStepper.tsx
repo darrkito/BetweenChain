@@ -15,10 +15,16 @@ export function SwapStepper({
   steps,
   currentIndex,
   erroredIndex,
+  beamIndex,
 }: {
   steps: SwapStep[];
   currentIndex: number;
   erroredIndex: number | null;
+  /** Index of the Relay/bridge-leg step, if this flow has one — while that
+   * step is active (not done, not errored), the connector leading out of it
+   * animates as an "in flight" beam instead of the plain pending fill. See
+   * app/globals.css's .step-beam (2026-08-06 visual pass). */
+  beamIndex?: number;
 }) {
   return (
     <div className="flex items-center gap-1 overflow-x-auto rounded-2xl border border-hairline bg-surface p-3">
@@ -26,6 +32,7 @@ export function SwapStepper({
         const isError = erroredIndex === i;
         const isDone = erroredIndex === null && i < currentIndex;
         const isActive = erroredIndex === null && i === currentIndex;
+        const isBeaming = isActive && beamIndex === i;
         return (
           <div key={s.key} className="flex flex-1 items-center gap-1 last:flex-none">
             <div className="flex flex-col items-center gap-1">
@@ -51,7 +58,7 @@ export function SwapStepper({
               </span>
             </div>
             {i < steps.length - 1 && (
-              <div className={`h-0.5 flex-1 rounded-full ${isDone ? "bg-success" : "bg-hairline"}`} />
+              <div className={`h-0.5 flex-1 rounded-full ${isBeaming ? "step-beam" : isDone ? "bg-success" : "bg-hairline"}`} />
             )}
           </div>
         );

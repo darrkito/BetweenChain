@@ -5,6 +5,7 @@ import { AppHeader } from "@/app/components/AppHeader";
 import { QuotePreviewWidget } from "@/app/components/QuotePreviewWidget";
 import { Reveal } from "@/app/components/Reveal";
 import { HeroVisual } from "@/app/components/HeroVisual";
+import { TrustBar } from "@/app/components/TrustBar";
 import { NftImage } from "@/app/components/NftImage";
 import { JsonLd, faqPageSchema } from "@/lib/seo/jsonld";
 import { FAQ_ITEMS } from "@/lib/content/faq";
@@ -29,7 +30,7 @@ export const metadata: Metadata = {
 const FEATURES = [
   {
     title: "Swap across chains",
-    description: "Trade meme coins and tokens starting from Solana into assets on Ethereum, Base, and more — no manual bridging.",
+    description: "Trade tokens between Solana and EVM chains like Ethereum and Base — including same-chain EVM swaps — with no manual bridging.",
     href: "/swap",
     cta: "Start swapping",
   },
@@ -42,8 +43,8 @@ const FEATURES = [
   {
     title: "Points & referrals",
     description: "Earn points on every dollar you trade. Refer a friend and both of you get a bonus — 20% for you, 10% for them.",
-    href: "/faq",
-    cta: "How it works",
+    href: "/dashboard",
+    cta: "View your points",
   },
 ];
 
@@ -89,13 +90,14 @@ export default async function LandingPage() {
         />
         <HeroVisual />
         <h1 className="max-w-2xl font-display text-4xl font-normal tracking-tight text-ink sm:text-5xl">
-          All the blockchains, <span className="text-accent">in just one click.</span>
+          All the blockchains, <span className="text-accent">zero manual bridging.</span>
         </h1>
         <p className="max-w-xl text-base text-ink-muted sm:text-lg">
-          Swap tokens and buy NFTs across Solana, Ethereum, and Sui — one destination address, locked in and
-          verified on-chain, every time.
+          Swap tokens and buy NFTs across Solana, Ethereum, and Sui for 0.25% per leg — one destination address,
+          locked in and verified on-chain, every time.
         </p>
         <QuotePreviewWidget />
+        <TrustBar />
       </section>
 
       {/* Trending NFT collections — real, live Magic Eden data (see

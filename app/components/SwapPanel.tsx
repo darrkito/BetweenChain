@@ -6,6 +6,7 @@ import { TokenSelectModal, type SelectedToken } from "@/app/components/TokenSele
 import { toAtomicAmount } from "@/lib/client/amount";
 import { normalizeSolanaSourceMint } from "@/lib/client/constants";
 import type { TokenListItem } from "@/lib/chains/types";
+import { chainBrandColor } from "@/lib/chainBrandColors";
 
 const SOLANA_CHAIN_ID = 792703809;
 
@@ -91,11 +92,19 @@ export function SwapPanel({
   sellBalance?: number | null;
   sellBalanceLoading?: boolean;
   /** Mirrors this panel's own live quote preview up to the parent — used for the Review modal's rate/minimum-received summary (2026-08-06 swap revamp), which lives outside this component. */
-  onPreviewChange?: (preview: { destAmountFormatted: string | null; destAmountUsd: string | null } | null) => void;
+  onPreviewChange?: (preview: {
+    destAmountFormatted: string | null;
+    destAmountUsd: string | null;
+    feeBreakdown?: Array<{ label: string; bps: number; amountUsd: string | null }>;
+  } | null) => void;
 }) {
   const [sellModalOpen, setSellModalOpen] = useState(false);
   const [buyModalOpen, setBuyModalOpen] = useState(false);
-  const [preview, setPreview] = useState<{ destAmountFormatted: string | null; destAmountUsd: string | null } | null>(
+  const [preview, setPreview] = useState<{
+    destAmountFormatted: string | null;
+    destAmountUsd: string | null;
+    feeBreakdown?: Array<{ label: string; bps: number; amountUsd: string | null }>;
+  } | null>(
     null,
   );
   const [previewLoading, setPreviewLoading] = useState(false);
@@ -172,7 +181,10 @@ export function SwapPanel({
 
   return (
     <div className="flex flex-col">
-      <div className="rounded-2xl border border-hairline bg-surface p-4 shadow-sm">
+      {/* focus-within glow (2026-08-06 visual pass) — the amount input itself
+          has no border of its own (bg-transparent, outline-none by design),
+          so the halo goes on the card that visually contains it instead. */}
+      <div className="rounded-2xl border border-hairline bg-surface p-4 shadow-sm transition-shadow focus-within:shadow-[0_0_0_3px_var(--accent-soft)]">
         <p className="mb-2 text-sm text-ink-faint">Sell</p>
         <div className="flex items-center justify-between gap-2">
           <input
@@ -197,14 +209,25 @@ export function SwapPanel({
         )}
       </div>
 
+      {/* Gradient ring encodes the sell→buy chain pair (2026-08-06 visual
+          pass) — real per-chain brand colors (lib/chainBrandColors.ts), not
+          decorative-only; falls back to the accent color when a chain isn't
+          in the registry, so it never renders a wrong/fabricated color. */}
       <div className="relative z-10 flex justify-center" style={{ marginTop: -18, marginBottom: -18 }}>
-        <button
-          onClick={onFlip}
-          className="group flex h-10 w-10 items-center justify-center rounded-xl border border-hairline bg-surface text-ink-muted shadow-sm transition-all hover:border-accent/40 hover:text-accent active:scale-90"
-          aria-label="Flip sell/buy"
+        <div
+          className="rounded-xl p-[1.5px] shadow-sm transition-all"
+          style={{
+            background: `linear-gradient(135deg, ${chainBrandColor(sellToken?.chainId)}, ${chainBrandColor(buyToken?.chainId)})`,
+          }}
         >
-          <span className="inline-block transition-transform duration-200 group-hover:rotate-180">↓</span>
-        </button>
+          <button
+            onClick={onFlip}
+            className="group flex h-10 w-10 items-center justify-center rounded-[10px] border border-hairline bg-surface text-ink-muted transition-all hover:text-accent active:scale-90"
+            aria-label="Flip sell/buy"
+          >
+            <span className="inline-block transition-transform duration-200 group-hover:rotate-180">↓</span>
+          </button>
+        </div>
       </div>
 
       <div className="rounded-2xl border border-hairline bg-surface p-4 pt-6 shadow-sm">

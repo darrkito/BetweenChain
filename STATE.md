@@ -6,6 +6,208 @@ delete history (superseded entries stay for context, just note what replaced the
 
 ---
 
+## 2026-08-06c — SEO/GEO pass (llms.txt, FinancialProduct schema, OAI-SearchBot, copy corrections)
+
+A third external audit proposed a broader SEO/GEO push. Real SEO foundation already
+existed (`app/robots.ts` already allowlists AI crawlers, `app/sitemap.ts` is a real
+dynamic sitemap, `lib/seo/jsonld.tsx` already has Organization/WebSite/FAQPage/Article/
+BreadcrumbList schemas) — this wasn't a cold start. The audit's draft content also had
+real factual errors, caught before publishing anything: wrong partners (named deBridge/
+Wormhole/Uniswap/Raydium — none integrated; real partners are Jupiter, Relay, and
+ChangeNOW for Sui NFT purchases only), "flat 0.25% fee" (real mechanic is 0.25% **per
+leg**), a fabricated "~15-second execution" claim (nothing measures swap speed), and an
+overbroad non-custodial claim (ChangeNOW's Sui leg is explicitly custodial per its own
+code comment).
+
+Built the confirmed "real, buildable" bucket:
+- **`public/llms.txt`** — new, corrected for all of the above. Also caught and fixed a
+  **pre-existing inaccuracy from earlier today's session**: `SITE_DESCRIPTION`
+  (`app/layout.tsx`) and the homepage's "Swap across chains" feature card
+  (`app/page.tsx`) both said swaps start "from Solana" — stale as of 2026-07-18i, both
+  Sell and Buy sides support Solana or EVM chains (confirmed via `SwapPanel.tsx`'s
+  `TokenSelectModal` calls, both `mode="multi-chain"`, not Solana-only). Fixed both.
+  Also confirmed **Sui is NOT a token-swap chain** — Relay (the swap engine) can't
+  reach it; Sui is only reachable through the separate NFT-purchase flow via
+  ChangeNOW. llms.txt states this explicitly under "Not Supported" rather than
+  implying broader Sui swap coverage.
+- **`financialProductSchema()`** in `lib/seo/jsonld.tsx` — new `FinancialProduct`
+  entity, added to `siteGraphSchema()` (rendered globally via `app/layout.tsx`,
+  already existing). `feesAndCommissionsSpecification` matches `lib/fees.ts`'s real
+  `JUPITER_FEE_BPS`/`RELAY_FEE_BPS` constants (25 bps each, "per swap leg").
+- **`app/robots.ts`**: added `OAI-SearchBot` (OpenAI's search-time retrieval crawler,
+  distinct from `GPTBot`'s training-time crawl) alongside the existing entries.
+- Light copy pass on `app/page.tsx`'s `FEATURES` array — only touched the one entry
+  that was actually stale (see above); "NFT marketplace" and "Points & referrals"
+  entries were already accurate, left unchanged.
+
+**Explicitly deferred, not silently dropped** (see `PLAN.md`): programmatic per-pair
+swap route pages (`/swap/solana-to-ethereum` etc. — real new feature, routing + live
+data + duplicate-content risk if thin), competitor comparison content (needs real
+sourced research into competitors' actual fees, not the audit's unverified
+assumptions), and third-party directory submissions (DefiLlama, DappRadar, CoinGecko —
+need accounts/verification on the user's end).
+
+Verified: `tsc --noEmit`, `eslint` (0 errors), `npm test` (95/95, no regressions),
+`npm run build` clean. `/llms.txt` isn't a build-listed route (expected — it's a
+static file under `public/`, same mechanism as `public/manifest.json`), not
+independently re-verified via a live server this session (no browser/HTTP tool
+available, same recurring gap noted throughout this project).
+
+---
+
+## 2026-08-06b — Visual/motion polish pass (gradient accents, bridging beam, 3D tilt, side-card, activity drawer)
+
+A second external audit proposed a full visual/motion overhaul. Triaged against the real
+codebase and against decisions locked earlier the same day (see the entry below) —
+rejected the wallet-status split pill (same SIWS/SIWE architecture mismatch as the
+already-rejected dual-wallet indicator), a tier-multiplier tracker (tiers are explicitly
+display-only, no perk, per the earlier entry — a multiplier reverses that), real vendor
+logos on the trust bar (already text-only, on purpose, no asset files exist), and
+fabricated/PII-leaking "on-chain event toasts." Also skipped the proposed full
+color-system rewrite and font swap — out of scope for what was approved. Built the
+confirmed "happy plan" list:
+
+**Chain-color gradient accent.** New `lib/chainBrandColors.ts` — real, publicly-known
+official brand colors (Solana, Ethereum, Base, Polygon, Arbitrum, Optimism, Avalanche),
+not invented; falls back to the accent color for any chain not in the registry.
+`SwapPanel.tsx`'s flip button (between the sell/buy `TokenIcon` panels) now renders a
+gradient ring from the sell chain's color to the buy chain's color.
+
+**Cross-chain bridging beam.** New `.step-beam`/`@keyframes beamPulse` in
+`app/globals.css`, following the existing `shimmer`/`fadeInUp` authoring pattern (no
+`tailwindcss-animate` plugin in this repo — named keyframe + plain class only).
+`SwapStepper.tsx` gained an optional `beamIndex` prop — while that step is active, its
+outbound connector animates instead of using the plain pending/done fill.
+`SwapPageClient.tsx` computes it as the `leg2_pending` step's index, only when
+`isCrossChain` (same-chain "Swap"-labeled leg2 never beams). Automatically respects
+`prefers-reduced-motion` via the existing global CSS rule — pure CSS, no JS guard needed.
+
+**Tactile micro-feedback.** Audited existing buttons first — the flip button already had
+`active:scale-90`, the main swap button already had `active:scale-[0.98]`. Only the
+review modal's "Confirm swap" button was missing it; added. New focus-within glow
+(`focus-within:shadow-[0_0_0_3px_var(--accent-soft)]`) on the Sell panel card, since the
+amount input itself has no border of its own to apply `focus:` to directly.
+
+**3D tilt on NFT cards.** `NftCollectionsGrid.tsx`'s grid-view card (the whole card is
+already the outer `<Link>`) gained `onMouseMove`/`onMouseLeave` handlers computing
+`rotateX`/`rotateY` from cursor position, applied via direct DOM mutation
+(`e.currentTarget.style.transform`) rather than React state — avoids a re-render storm
+across a full grid on every mousemove, and folds in the existing hover-lift translateY so
+inline style (which wins specificity) doesn't fight the CSS `hover:-translate-y-1`
+utility already on the card. Guarded by `usePrefersReducedMotion()` (same hook
+`Reveal.tsx` already uses) — handlers aren't attached at all when true, matching
+`Reveal.tsx`'s own bypass-instead-of-disable pattern. First use of a JS-driven tilt
+effect in this codebase; Tailwind v4's CSS-only config (no `tailwind.config.*` file)
+needed no changes.
+
+**Points/referral side-card.** New `PointsSummaryCard.tsx` (same `/api/points` endpoint
+`app/dashboard/page.tsx` already uses, reuses `TierBadge.tsx`). `SwapPageClient.tsx`'s
+outer container changed from single-column to `lg:grid lg:grid-cols-[1fr_320px]` — the
+swap page's `<main>` was already `max-w-5xl` with all of that width unused beyond the
+narrow swap column (confirmed via the component's own prior comment); the side-card now
+uses it instead of adding new width. Stacks to single-column below `lg:`.
+
+**Persistent activity drawer.** New `lib/client/useRecentPairs.ts`,
+`useSavedAddresses.ts`, `useSessionActivity.ts` — copy `useStarredChains.ts`'s exact
+localStorage pattern (lazy SSR-safe read, single try/catch-guarded writer), storage keys
+`sbc_recent_pairs`/`sbc_saved_addresses`/`sbc_session_activity`. New
+`ActivityDrawer.tsx`, rendered globally from `AppHeader.tsx` so it persists across page
+navigation, using the `motion` package's `AnimatePresence` (already a dependency via
+`Reveal.tsx`, not a new one). **Scope decision, not silently cut**: no GET endpoint
+reads `swap_transactions` back for display anywhere in this app — building a real
+cross-device transaction history would mean a new authenticated endpoint plus a join
+against `swap_quotes` plus token-metadata resolution, disproportionate scope for a
+visual-polish pass. The drawer's "Recent activity" section is session-local only
+(persisted to localStorage so it survives a reload, but never fetched from a server) —
+flagged as a real backlog item in `PLAN.md`, not built as a smaller version of the real
+feature under a different name. `SwapPageClient.tsx` records a pair/address/activity
+entry at each of its terminal `setStep("done")`/`catch` sites via a new
+`recordSwapResult()` helper (tracks `recordedSwapId` via a local `let`, since `newSwapId`
+is scoped inside a `try` block and doesn't leak to the outer function).
+
+**Real lint bug caught before shipping**: `ActivityDrawer.tsx`'s open-triggered
+`useEffect` originally called three `setState`s synchronously in the effect body
+(`react-hooks/set-state-in-effect`, a hard lint error, not just a warning). Fixed with
+the same `Promise.resolve().then(...)`-deferred pattern `lib/client/ThemeToggle.tsx`
+already uses for this exact rule.
+
+Verified: `tsc --noEmit`, `eslint` (0 errors — the set-state-in-effect issue above was
+caught and fixed during this pass, not shipped), `npm test` (95/95, no regressions),
+`npm run build` all clean. No browser automation tool was available this session (same
+recurring gap) — every animation/interaction (gradient, beam, tilt, drawer slide)
+is logic/type-verified only, not eyeballed. Worth a real click-through, especially the
+tilt's mouse-tracking math and the beam's visual timing during an actual cross-chain
+swap, before calling this fully done.
+
+---
+
+## 2026-08-06 — External UX audit implemented (fee breakdown, trust bar, tagline, dashboard discoverability, points calculator, tier badges)
+
+An external Web3/DEX UX audit (two batches, unrelated to this codebase's actual state)
+was triaged against the real source in `PLAN.md`'s "External UX audit triage" — most of
+its suggestions turned out to already be shipped (dark mode toggle, swap-flow stepper,
+slippage control, review step, inline address validation, monospace numerics). This
+entry covers the genuinely-still-missing items that were then implemented, full plan in
+the approved plan file (see conversation), key facts below.
+
+**Real fee breakdown replaces a hardcoded string.** The swap review modal
+(`SwapPageClient.tsx`) used to show a static `Platform fee` / `0.25% per leg` row
+regardless of the actual swap shape. New `lib/fees.ts` exports `describeFeeLegs()` and
+`feeBreakdownWithAmounts()` — mirrors `app/api/quote/route.ts`'s own leg-selection logic
+exactly (Jupiter leg only when the Solana-origin sell token isn't already native SOL;
+Relay leg only when cross-chain, or always for a non-Solana origin), and excludes a leg
+entirely if its fee isn't actually active (`JUPITER_FEE_ACCOUNT`/`RELAY_FEE_RECIPIENT`
+unset) — showing a fee that wouldn't really be charged would be worse than showing
+nothing. Wired into `app/api/quote/preview/route.ts`'s response (`feeBreakdown` field);
+the review modal reads it off the `preview` object it already receives from
+`SwapPanel.tsx`'s `onPreviewChange` (no changes needed to `POST /api/quote` — that route
+never had USD pricing and isn't used for display). Added an honest gas disclaimer row
+("Network gas — paid separately, varies by chain") instead of a computed number — Relay's
+raw gas fields aren't converted to USD anywhere in this app, and guessing risked shipping
+a wrong figure (confirmed decision, not an oversight).
+
+**New `TrustBar.tsx`** — text-only "Powered by Jupiter · Relay" badges (no hosted logo
+files exist for either partner's own branding, only per-chain network icons via
+`assets.relay.link/icons/{chainId}/light.png`, confirmed via `lib/nft/evmChains.ts`).
+Deliberately excludes ChangeNOW (Sui-NFT-purchase-only leg, not part of the general swap
+path) and confirmed-absent partners (Wormhole/deBridge/Li.Fi/Pyth aren't integrated
+anywhere in this codebase). Placed on the homepage hero and the swap page.
+
+**Tagline rewrite, 3 spots, consistent wording naming real value props** (the fee and
+the no-manual-bridging UX, nothing overclaimed): `app/layout.tsx`'s `SITE_DESCRIPTION`
+constant, `app/page.tsx`'s homepage `<h1>` ("All the blockchains, zero manual
+bridging."), `AppHeader.tsx`'s small header tagline.
+
+**Dashboard discoverability** — `/dashboard` (points/referral page) was live but linked
+from nowhere (not in `AppHeader.tsx`'s `NAV` array, not from the homepage's own "Points &
+referrals" feature card, which pointed at `/faq`). Added `{ href: "/dashboard", label:
+"Rewards" }` to `NAV`; repointed the homepage card to `/dashboard`.
+
+**New `lib/pointsConstants.ts`** — extracted `REFERRER_SHARE`/`REFERRED_BONUS` out of
+`lib/points.ts` (which has `import "server-only"` and can't be imported into a client
+component) into a small shared, non-server file — same "explicitly shared registry"
+pattern `lib/nft/evmChains.ts` already uses. `lib/points.ts` now imports from it instead
+of redefining the same numbers, closing a would-be drift risk.
+
+**New `PointsCalculator.tsx`** (dashboard) — a volume slider computing points/referral
+bonus preview off the real shared constants above, pure client-side math, no new API
+calls.
+
+**New `lib/tiers.ts` + `TierBadge.tsx`** — display-only Bronze/Silver/Diamond
+classification of the `balance` value `GET /api/points` already returns. No schema
+change, no migration, no perk/fee-discount tied to it yet (explicit user decision — a
+real perk needs its own follow-up once there's an answer for what a tier should grant).
+UI copy labels this against "points balance" specifically, not "trading volume" — balance
+includes referral bonus points on top of floor(volume), not a pure volume figure.
+
+Verified: `tsc --noEmit`, `eslint` (0 errors, pre-existing warning count unrelated to any
+touched file), `npm test` (95/95 passing, no regressions), `npm run build` all clean. No
+browser automation tool was available this session (same recurring gap noted throughout
+this project's history) — UI is logic/type-verified, not eyeballed; worth a manual
+click-through before calling this fully done.
+
+---
+
 ## 2026-08-04g — Floor Price sort no longer lets zero-volume collections rank at the top
 
 User-requested: the main NFT collections grid's default "Floor Price" sort was pure

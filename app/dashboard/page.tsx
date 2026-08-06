@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { AppHeader } from "@/app/components/AppHeader";
+import { PointsCalculator } from "@/app/components/PointsCalculator";
+import { TierBadge } from "@/app/components/TierBadge";
 
 export default function DashboardPage() {
   const [balance, setBalance] = useState<number | null>(null);
@@ -47,8 +49,11 @@ export default function DashboardPage() {
         <section className="flex flex-col gap-3 rounded-2xl border border-hairline bg-surface p-5 shadow-sm">
           <p className="text-sm text-ink-muted">Points balance <span className="text-ink-faint">($1 volume = 1 point)</span></p>
           <p className="num text-4xl font-semibold text-ink">{balance ?? "—"}</p>
+          <TierBadge balance={balance} />
           <p className="num text-sm text-ink-muted">{referralCount ?? "—"} referrals</p>
         </section>
+
+        <PointsCalculator />
 
         <section className="flex flex-col gap-2 rounded-2xl border border-hairline bg-surface p-5 shadow-sm">
           <p className="text-sm text-ink-muted">Your invite code</p>

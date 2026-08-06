@@ -1,9 +1,8 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { REFERRER_SHARE, REFERRED_BONUS } from "@/lib/pointsConstants";
 
 const MIN_VOLUME_USD_FOR_POINTS = 1; // dust floor — keep test/tiny swaps out of the ledger
-const REFERRER_SHARE = 0.2; // 20% of referred user's volume, as points, to the referrer
-const REFERRED_BONUS = 0.1; // 10% bonus, as points, to the referred user themselves
 
 /**
  * Credits points for a swap that has reached its final confirmed state.
