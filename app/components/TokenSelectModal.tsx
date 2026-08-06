@@ -1,11 +1,29 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useWallet } from "@solana/wallet-adapter-react";
 import { TokenIcon } from "@/app/components/TokenIcon";
 import { useStarredChains } from "@/lib/client/useStarredChains";
+import { useEvmWallet } from "@/lib/client/EvmWalletProvider";
+import { roundUpTo3Decimals } from "@/lib/client/amount";
 import type { ChainInfo, TokenListItem } from "@/lib/chains/types";
 
 const SOLANA_CHAIN_ID = 792703809;
+
+// Matches app/api/tokens/balances/route.ts's response shape exactly — a
+// separate type rather than extending TokenListItem since the balances
+// route doesn't (and has no reason to) return verified/source.
+interface TokenBalance {
+  chainId: number;
+  address: string;
+  symbol: string;
+  name: string;
+  decimals: number;
+  logoURI: string;
+  isNative: boolean;
+  balance: string;
+  balanceUsd: string | null;
+}
 
 export interface SelectedToken {
   chainId: number;
@@ -47,6 +65,26 @@ export function TokenSelectModal({
   const { starred, toggle } = useStarredChains();
   const abortRef = useRef<AbortController | null>(null);
 
+  // Real user request 2026-08-06: surface the connected wallet's own
+  // holdings (balance + USD value) first when the selected chain is one the
+  // connected wallet actually applies to — Solana's own wallet for the
+  // Solana chain, the shared EVM wallet for any EVM chain (the same EVM
+  // wallet works across every EVM chain; a read-only balance check doesn't
+  // need the wallet's own in-extension network switched, unlike real
+  // signing — see EvmWalletProvider.tsx's ensureChain for that separate,
+  // execution-time concern).
+  const solanaWallet = useWallet();
+  const evmWallet = useEvmWallet();
+  const applicableOwner =
+    !allChainsSelected && selectedChainId === SOLANA_CHAIN_ID
+      ? (solanaWallet.publicKey?.toBase58() ?? null)
+      : !allChainsSelected
+        ? evmWallet.address
+        : null;
+  const [heldTokens, setHeldTokens] = useState<TokenBalance[]>([]);
+  const [holdingsLoading, setHoldingsLoading] = useState(false);
+  const holdingsAbortRef = useRef<AbortController | null>(null);
+
   useEffect(() => {
     if (!open || mode !== "multi-chain") return;
     fetch("/api/tokens/chains")
@@ -54,6 +92,27 @@ export function TokenSelectModal({
       .then((d) => setChains(d.chains ?? []))
       .catch(() => setChains([]));
   }, [open, mode]);
+
+  useEffect(() => {
+    holdingsAbortRef.current?.abort();
+    if (!open || !applicableOwner) {
+      Promise.resolve().then(() => setHeldTokens([]));
+      return;
+    }
+    const controller = new AbortController();
+    holdingsAbortRef.current = controller;
+    Promise.resolve().then(() => setHoldingsLoading(true));
+    fetch(`/api/tokens/balances?chainId=${selectedChainId}&owner=${encodeURIComponent(applicableOwner)}`, {
+      signal: controller.signal,
+    })
+      .then((r) => r.json())
+      .then((d) => setHeldTokens(d.balances ?? []))
+      .catch((err) => {
+        if (err.name !== "AbortError") setHeldTokens([]);
+      })
+      .finally(() => setHoldingsLoading(false));
+    return () => controller.abort();
+  }, [open, selectedChainId, applicableOwner]);
 
   useEffect(() => {
     if (!open) return;
@@ -89,11 +148,31 @@ export function TokenSelectModal({
 
   const selectedChain = allChainsSelected ? undefined : chains.find((c) => c.id === selectedChainId);
 
-  const visibleTokens = useMemo(() => (filterTokens ? tokens.filter(filterTokens) : tokens), [tokens, filterTokens]);
+  // filterTokens (e.g. isBuyTokenAllowed / the same-token exclusion in
+  // SwapPanel.tsx) only ever reads chainId/address/isNative — none of the
+  // fields TokenBalance is missing relative to TokenListItem (verified,
+  // source) — safe to reuse the same filter here.
+  const visibleHeldTokens = useMemo(
+    () => (filterTokens ? heldTokens.filter((t) => filterTokens(t as unknown as TokenListItem)) : heldTokens),
+    [heldTokens, filterTokens],
+  );
+  const heldKeys = useMemo(
+    () => new Set(visibleHeldTokens.map((t) => `${t.chainId}-${t.address.toLowerCase()}`)),
+    [visibleHeldTokens],
+  );
+  const showHoldings = visibleHeldTokens.length > 0 && !tokenSearch.trim();
+  const visibleTokens = useMemo(() => {
+    const base = filterTokens ? tokens.filter(filterTokens) : tokens;
+    // Dedupe against "Your tokens" only when that section is actually being
+    // shown — a search query hides it, so the main list shouldn't silently
+    // omit a held token the user is specifically searching for.
+    if (!showHoldings) return base;
+    return base.filter((t) => !heldKeys.has(`${t.chainId}-${t.address.toLowerCase()}`));
+  }, [tokens, filterTokens, showHoldings, heldKeys]);
 
   if (!open) return null;
 
-  function pick(token: TokenListItem) {
+  function pick(token: Pick<TokenListItem, "chainId" | "address" | "symbol" | "name" | "decimals" | "logoURI" | "isNative">) {
     const chain = chains.find((c) => c.id === token.chainId);
     onSelect({
       chainId: token.chainId,
@@ -202,12 +281,36 @@ export function TokenSelectModal({
             onChange={(e) => setTokenSearch(e.target.value)}
           />
 
-          <p className="mb-1 px-1 text-xs font-medium uppercase tracking-wide text-ink-faint">
-            {selectedChain ? `${selectedChain.displayName} tokens` : tokenSearch ? "Search results" : "Popular tokens"}
-          </p>
-
           <div className="flex-1 overflow-y-auto">
-            {loadingTokens && <p className="px-1 py-4 text-sm text-ink-faint">Loading…</p>}
+            {showHoldings && (
+              <>
+                <p className="mb-1 px-1 text-xs font-medium uppercase tracking-wide text-ink-faint">Your tokens</p>
+                {visibleHeldTokens.map((t) => {
+                  const chain = chains.find((c) => c.id === t.chainId);
+                  return (
+                    <button
+                      key={`held-${t.chainId}-${t.address}`}
+                      onClick={() => pick(t)}
+                      className="flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left transition-colors hover:bg-surface-hover"
+                    >
+                      <TokenIcon logoURI={t.logoURI} symbol={t.symbol} chainIconUrl={mode === "multi-chain" ? chain?.iconUrl : undefined} />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate font-semibold text-ink">{t.symbol}</p>
+                        <p className="num truncate text-xs text-ink-faint">{chain?.displayName ?? t.chainId}</p>
+                      </div>
+                      <div className="shrink-0 text-right">
+                        <p className="num text-sm font-semibold text-ink">{roundUpTo3Decimals(Number(t.balance))}</p>
+                        {t.balanceUsd != null && <p className="num text-xs text-ink-faint">${t.balanceUsd}</p>}
+                      </div>
+                    </button>
+                  );
+                })}
+              </>
+            )}
+            <p className="mb-1 mt-2 px-1 text-xs font-medium uppercase tracking-wide text-ink-faint">
+              {selectedChain ? `${selectedChain.displayName} tokens` : tokenSearch ? "Search results" : "Popular tokens"}
+            </p>
+            {(loadingTokens || (holdingsLoading && !showHoldings)) && <p className="px-1 py-4 text-sm text-ink-faint">Loading…</p>}
             {!loadingTokens && visibleTokens.length === 0 && (
               <p className="px-1 py-4 text-sm text-ink-faint">No tokens found.</p>
             )}
