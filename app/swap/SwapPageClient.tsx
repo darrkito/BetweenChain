@@ -58,14 +58,21 @@ export function SwapPageClient() {
   // STATE.md 2026-07-18i.
   const isCrossChain = sellToken !== null && buyToken !== null && sellToken.chainId !== buyToken.chainId;
 
-  // Solana-only for now (see useSolanaBalance's own comment) — null/ignored
-  // for a non-Solana sell token, which SwapPanel treats as "don't show a
-  // balance row" rather than a misleading "0".
-  const sellIsSolanaForBalance = sellToken?.chainId === SOLANA_CHAIN_ID_CLIENT;
+  // Whether the wallet that needs to be connected/ready to actually sell is
+  // Solana or EVM — real user report 2026-08-06: every readiness check on
+  // this page (the main button, canOpenReview, runSwap's own entry guard)
+  // used to hard-require a Solana `publicKey` unconditionally, even when
+  // selling from an EVM chain where Solana plays no functional role at
+  // all — a user with ONLY an EVM wallet connected could never get past
+  // "Connect wallet" no matter what they did. Hoisted to the top level
+  // (was previously computed a second time, Solana-balance-hook-only,
+  // inside runSwap as a local) so every gate below can share one source of
+  // truth instead of some checking the right wallet and some not.
+  const sellIsSolana = sellToken?.chainId === SOLANA_CHAIN_ID_CLIENT;
   const { balance: sellBalance, loading: sellBalanceLoading } = useSolanaBalance(
     connection,
-    sellIsSolanaForBalance ? publicKey : null,
-    sellIsSolanaForBalance && sellToken ? { address: sellToken.address, decimals: sellToken.decimals, isNative: sellToken.isNative } : null,
+    sellIsSolana ? publicKey : null,
+    sellIsSolana && sellToken ? { address: sellToken.address, decimals: sellToken.decimals, isNative: sellToken.isNative } : null,
   );
 
   // Real user report 2026-08-06: picking an Arbitrum (or any non-Ethereum
@@ -139,17 +146,25 @@ export function SwapPageClient() {
     isCrossChain && destAddress && buyToken && !isValidDestAddress(destAddress, buyToken.chainId)
       ? `Doesn't look like a valid ${buyToken.chainId === SOLANA_CHAIN_ID_CLIENT ? "Solana" : "EVM"} address.`
       : null;
+  // The wallet that actually needs to be connected to sell — Solana for a
+  // Solana sell token, the EVM wallet for anything else. Both the button
+  // and canOpenReview need this same check (see sellIsSolana's own comment
+  // above for the real bug this fixes).
+  const sellWalletReady = sellIsSolana ? Boolean(publicKey) : Boolean(evmWallet.address);
   const canOpenReview =
-    Boolean(publicKey && sellToken && buyToken && hasValidInput) &&
+    Boolean(sellWalletReady && sellToken && buyToken && hasValidInput) &&
     (!isCrossChain || (Boolean(destAddress) && !destAddressError)) &&
     step === "idle";
 
   async function runSwap() {
-    if (!publicKey || !signTransaction || !sellToken || !buyToken) {
-      setMessage("Connect a Solana wallet and pick both tokens first.");
+    if (!sellToken || !buyToken) {
+      setMessage("Pick both tokens first.");
       return;
     }
-    const sellIsSolana = sellToken.chainId === SOLANA_CHAIN_ID_CLIENT;
+    if (sellIsSolana && (!publicKey || !signTransaction)) {
+      setMessage("Connect a Solana wallet to sell this token.");
+      return;
+    }
     if (!sellIsSolana && !evmWallet.address) {
       setMessage(`Connect an EVM wallet to sell from ${sellToken.chainDisplayName}.`);
       return;
@@ -181,7 +196,11 @@ export function SwapPageClient() {
           sourceAmount: toAtomicAmount(sellAmount, sellToken.decimals),
           destChainId: isCrossChain ? buyToken.chainId : SOLANA_CHAIN_ID_CLIENT,
           destToken: isCrossChain ? buyToken.address : "SOL",
-          destAddress: isCrossChain ? destAddress : publicKey.toBase58(),
+          // Only reached when !isCrossChain, which (given isBuyTokenAllowed
+          // blocks same-chain EVM-to-EVM) can only mean both sides are
+          // Solana — publicKey is guaranteed non-null here by the sellIsSolana
+          // guard above.
+          destAddress: isCrossChain ? destAddress : publicKey!.toBase58(),
           slippageBps,
         }),
       });
@@ -200,8 +219,11 @@ export function SwapPageClient() {
       setSwapId(newSwapId);
 
       if (unsignedTransaction) {
+        // /api/swap only ever returns a non-null unsignedTransaction for a
+        // Solana-origin quote (see that route's own comment) — signTransaction
+        // is guaranteed non-null here by the sellIsSolana guard above.
         const tx = VersionedTransaction.deserialize(Buffer.from(unsignedTransaction, "base64"));
-        const signed = await signTransaction(tx);
+        const signed = await signTransaction!(tx);
         const signature = await connection.sendRawTransaction(signed.serialize());
 
         phase = "leg1_confirming";
@@ -246,13 +268,16 @@ export function SwapPageClient() {
           }
 
           setMessage("Confirm the bridge deposit transaction in your wallet…");
+          // publicKey/signTransaction guaranteed non-null here — this whole
+          // branch is gated on sellIsSolana, which the top-of-function guard
+          // already required both for.
           const depositTx = await buildRelayDepositTransaction({
             connection,
-            payer: publicKey,
+            payer: publicKey!,
             instructions: depositItem.data.instructions,
             addressLookupTableAddresses: depositItem.data.addressLookupTableAddresses,
           });
-          const signedDeposit = await signTransaction(depositTx);
+          const signedDeposit = await signTransaction!(depositTx);
           await connection.sendRawTransaction(signedDeposit.serialize());
         } else {
           // Non-Solana origin: one or more real EVM transactions — an ERC20
@@ -321,7 +346,7 @@ export function SwapPageClient() {
   const erroredIndex = isError ? stepDefs.findIndex((s) => s.key === erroredAtStep) : null;
 
   function handleMainButtonClick() {
-    if (!publicKey) return; // button is a plain label in this state, ConnectWalletMenu lives in the header
+    if (!sellWalletReady) return; // button is a plain label in this state, ConnectWalletMenu lives in the header
     if (step === "error" || step === "done") {
       // Retry / start over — resets the flow instead of re-opening review
       // on top of a finished/failed one.
@@ -358,18 +383,28 @@ export function SwapPageClient() {
         destAddressError={destAddressError}
         isCrossChain={isCrossChain}
         onFlip={flip}
-        sellBalance={sellIsSolanaForBalance ? sellBalance : null}
-        sellBalanceLoading={sellIsSolanaForBalance && sellBalanceLoading}
+        sellBalance={sellIsSolana ? sellBalance : null}
+        sellBalanceLoading={sellIsSolana && sellBalanceLoading}
       />
 
       <SlippageControl bps={slippageBps} onChange={setSlippageBps} />
 
       <button
         onClick={handleMainButtonClick}
-        disabled={!publicKey || busy || (!canOpenReview && step === "idle")}
+        disabled={!sellWalletReady || busy || (!canOpenReview && step === "idle")}
         className="rounded-2xl bg-accent px-4 py-3.5 text-[15px] font-semibold text-accent-ink shadow-sm transition-all hover:brightness-110 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-40"
       >
-        {!publicKey ? "Connect wallet" : busy ? "Working…" : isError ? "Try again" : isDone ? "Swap again" : "Review swap"}
+        {!sellWalletReady
+          ? sellToken && !sellIsSolana
+            ? `Connect wallet to sell from ${sellToken.chainDisplayName}`
+            : "Connect wallet"
+          : busy
+            ? "Working…"
+            : isError
+              ? "Try again"
+              : isDone
+                ? "Swap again"
+                : "Review swap"}
       </button>
 
       {step !== "idle" && <SwapStepper steps={stepDefs} currentIndex={currentStepIndex} erroredIndex={erroredIndex} />}
