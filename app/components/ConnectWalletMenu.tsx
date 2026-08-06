@@ -7,6 +7,7 @@ import type { WalletName } from "@solana/wallet-adapter-base";
 import { useCurrentAccount, useDisconnectWallet } from "@mysten/dapp-kit";
 import { useEvmWallet } from "@/lib/client/EvmWalletProvider";
 import { useAuth } from "@/lib/client/AuthProvider";
+import { useConnectWalletModal } from "@/lib/client/ConnectWalletModalProvider";
 import { EvmConnectPicker } from "@/app/components/EvmConnectPicker";
 import { SuiConnectPicker } from "@/app/components/SuiConnectPicker";
 
@@ -50,9 +51,16 @@ const SOLANA_CONNECT_TIMEOUT_MS = 12_000;
  * `backdrop-blur`. A portal sidesteps the whole class of "modal renders
  * off-center because of some ancestor's CSS" bug instead of trying to prove
  * no current or future ancestor will ever trigger it.
+ *
+ * open/setOpen come from a shared context (lib/client/ConnectWalletModalProvider.tsx,
+ * instantiated once at the true app root) rather than local state — 2026-08-06
+ * real user request: the swap page's own "Connect wallet" button needed to
+ * open this EXACT same modal, not a lookalike second flow, and this
+ * component itself remounts per-page (AppHeader isn't in the root layout),
+ * so local state alone couldn't be shared with a button on the same page.
  */
 export function ConnectWalletMenu() {
-  const [open, setOpen] = useState(false);
+  const { open, setOpen } = useConnectWalletModal();
   const [solanaError, setSolanaError] = useState<string | null>(null);
   const [solanaConnectingName, setSolanaConnectingName] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
@@ -213,7 +221,6 @@ export function ConnectWalletMenu() {
   return (
     <>
       <button
-        id="app-header-connect-wallet"
         onClick={() => setOpen(true)}
         className="num shrink-0 rounded-full bg-accent px-3 py-2 text-sm font-semibold text-accent-ink shadow-sm transition-all hover:brightness-110 sm:px-4"
       >

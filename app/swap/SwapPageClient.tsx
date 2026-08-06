@@ -10,6 +10,7 @@ import { buildRelayDepositTransaction } from "@/lib/client/relayTransaction";
 import { useEvmWallet } from "@/lib/client/EvmWalletProvider";
 import { useSolanaBalance } from "@/lib/client/useSolanaBalance";
 import { useEvmTokenBalance } from "@/lib/client/useEvmTokenBalance";
+import { useConnectWalletModal } from "@/lib/client/ConnectWalletModalProvider";
 import { isPlausibleEvmAddress } from "@/lib/validation";
 import { AppHeader } from "@/app/components/AppHeader";
 import { TrendingBar } from "@/app/components/TrendingBar";
@@ -41,6 +42,7 @@ function isValidDestAddress(address: string, chainId: number): boolean {
 export function SwapPageClient() {
   const { publicKey, signTransaction } = useWallet();
   const { connection } = useConnection();
+  const connectWalletModal = useConnectWalletModal();
 
   const [sellToken, setSellToken] = useState<SelectedToken | null>(null);
   const [buyToken, setBuyToken] = useState<SelectedToken | null>(null);
@@ -397,17 +399,13 @@ export function SwapPageClient() {
 
   function handleMainButtonClick() {
     if (!sellWalletReady) {
-      // Real user report 2026-08-06 (screenshot-verified): this button used
-      // to be html-disabled + opacity-40 in this state, reading as a
-      // broken/unreadable dead button rather than a clear instruction — the
-      // actual Connect Wallet control lives in the header (ConnectWalletMenu),
-      // a page-agnostic global component this button can't open directly.
-      // Scrolls it into view and briefly pulses it so it's obvious where to
-      // go, rather than leaving the click as a silent no-op.
-      const headerButton = document.getElementById("app-header-connect-wallet");
-      headerButton?.scrollIntoView({ behavior: "smooth", block: "center" });
-      headerButton?.classList.add("animate-pulse");
-      setTimeout(() => headerButton?.classList.remove("animate-pulse"), 1500);
+      // 2026-08-06 (real user request, refined from an earlier scroll+pulse
+      // attempt): this button and the header's own Connect Wallet button
+      // now open the exact same modal instance — lib/client/
+      // ConnectWalletModalProvider.tsx, shared state instantiated once at
+      // the app root — rather than this one just pointing at the other.
+      // Either button works identically, from anywhere.
+      connectWalletModal.setOpen(true);
       return;
     }
     if (step === "error" || step === "done") {

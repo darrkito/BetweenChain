@@ -5,6 +5,7 @@ import { WalletModalProvider } from "@solana/wallet-adapter-react-ui";
 import { EvmWalletProvider } from "@/lib/client/EvmWalletProvider";
 import { SuiWalletProvider } from "@/lib/client/SuiWalletProvider";
 import { AuthProvider } from "@/lib/client/AuthProvider";
+import { ConnectWalletModalProvider } from "@/lib/client/ConnectWalletModalProvider";
 import "@solana/wallet-adapter-react-ui/styles.css";
 
 // Deliberately NO explicit PhantomWalletAdapter/SolflareWalletAdapter here
@@ -37,7 +38,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
         <WalletModalProvider>
           <EvmWalletProvider>
             <SuiWalletProvider>
-              <AuthProvider>{children}</AuthProvider>
+              <AuthProvider>
+                <ConnectWalletModalProvider>{children}</ConnectWalletModalProvider>
+              </AuthProvider>
             </SuiWalletProvider>
           </EvmWalletProvider>
         </WalletModalProvider>

@@ -27,7 +27,13 @@ import Link from "next/link";
 export function Callout({ href, cta, children }: { href: string; cta: string; children: React.ReactNode }) {
   return (
     <div className="my-2 flex flex-col gap-3 rounded-2xl border border-accent/30 bg-accent-soft p-4 sm:flex-row sm:items-center sm:justify-between">
-      <p className="text-sm text-ink">{children}</p>
+      {/* Real hydration bug found live 2026-08-06 (console error: "<p> cannot
+          be a descendant of <p>"): `children` here is MDX-parsed markdown
+          text, which MDX already wraps in its own <p> — this component's
+          own <p> wrapper produced invalid nested-<p> HTML. A <div> has no
+          such ancestor-tag restriction and needs no other change (this app's
+          .num/text utility classes work identically on either element). */}
+      <div className="text-sm text-ink">{children}</div>
       {/* Real bug found live 2026-08-06 (screenshot-verified, not visible in
           curl'd SSR HTML — the text was always there, just invisible): the
           article wrapper's own [&_a]:text-accent rule (app/blog/[slug]/page.tsx,
