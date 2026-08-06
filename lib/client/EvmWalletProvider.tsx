@@ -54,7 +54,7 @@ interface EvmWalletContextValue {
   connectedProviderUuid: string | null;
   connecting: boolean;
   error: string | null;
-  connect: (providerUuid: string) => Promise<string | null>;
+  connect: (providerUuid: string, desiredChainId?: number) => Promise<string | null>;
   disconnect: () => void;
   ensureChain: (chainId: number) => Promise<void>;
   sendStepAndWait: (step: RelayEvmStep) => Promise<string>;
@@ -62,6 +62,21 @@ interface EvmWalletContextValue {
 }
 
 const EvmWalletContext = createContext<EvmWalletContextValue | null>(null);
+
+// Same asymmetry the Solana connect path already had fixed (see
+// ConnectWalletMenu.tsx's SOLANA_CONNECT_TIMEOUT_MS) — this one was still
+// missing here: if the wallet's own approval popup never appears (opened
+// off-screen, blocked, or the extension just never responds),
+// `requestAddresses()` hangs forever with `connecting` stuck `true` and no
+// error ever shown — reads as "the connect button doesn't do anything."
+const EVM_CONNECT_TIMEOUT_MS = 12_000;
+
+function withTimeout<T>(promise: Promise<T>, ms: number, message: string): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) => setTimeout(() => reject(new Error(message)), ms)),
+  ]);
+}
 
 /**
  * Shared app-wide EVM wallet state — a context (not a page-local hook) so a
@@ -95,7 +110,7 @@ export function EvmWalletProvider({ children }: { children: ReactNode }) {
     return () => window.removeEventListener("eip6963:announceProvider", onAnnounce);
   }, []);
 
-  const connect = useCallback(async (providerUuid: string) => {
+  const connect = useCallback(async (providerUuid: string, desiredChainId?: number) => {
     // Fallback path for the rare wallet that still only does the legacy
     // `window.ethereum` injection and never announces via EIP-6963 — matches
     // this app on a single-wallet browser the same way it always did.
@@ -108,10 +123,28 @@ export function EvmWalletProvider({ children }: { children: ReactNode }) {
     setError(null);
     try {
       const client = createWalletClient({ transport: custom(provider) });
-      const [account] = await client.requestAddresses();
+      const [account] = await withTimeout(
+        client.requestAddresses(),
+        EVM_CONNECT_TIMEOUT_MS,
+        "Wallet didn't respond. Check for an approval popup that may have opened behind your browser window, or that your browser isn't blocking extension popups, then try again.",
+      );
       activeProviderRef.current = provider;
       setAddress(account);
       setConnectedProviderUuid(providerUuid);
+      // Real user report 2026-08-06: connecting from the swap page (already
+      // set to sell from e.g. Arbitrum) still landed the wallet on whatever
+      // chain it happened to be on already (usually Ethereum mainnet) — the
+      // wallet has no way to know which chain THIS app actually wants
+      // without being told. `switchChain` is idempotent (a wallet already
+      // on the target chain just resolves immediately, no prompt) so it's
+      // safe to always attempt when the caller knows the intended chain.
+      // Best-effort: a user declining the switch (or a wallet that doesn't
+      // have that chain configured yet) shouldn't undo an otherwise-successful
+      // connection — ensureChain() gets called again anyway right before any
+      // real transaction, which is the actually-authoritative check.
+      if (desiredChainId != null) {
+        await client.switchChain({ id: desiredChainId }).catch(() => {});
+      }
       return account;
     } catch (err) {
       setError((err as Error).message);

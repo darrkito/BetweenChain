@@ -315,7 +315,7 @@ export function NftBuyModal({ listing, onClose }: { listing: NftListing; onClose
               {evmWallet.address ? (
                 <EvmWalletButton address={evmWallet.address} connecting={false} error={null} onConnect={() => {}} />
               ) : (
-                <EvmConnectPicker />
+                <EvmConnectPicker desiredChainId={evmBuyChainId} />
               )}
             </div>
           </div>
@@ -327,7 +327,7 @@ export function NftBuyModal({ listing, onClose }: { listing: NftListing; onClose
             <div className="flex flex-col gap-1">
               <span className="text-xs text-ink-faint">Ethereum (pays &amp; receives)</span>
               {!evmWallet.address ? (
-                <EvmConnectPicker />
+                <EvmConnectPicker desiredChainId={evmBuyChainId} />
               ) : auth.evmVerifiedAddress === evmWallet.address ? (
                 <p className="text-[11px] text-success">Signed in.</p>
               ) : (

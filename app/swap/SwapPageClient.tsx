@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { PublicKey, VersionedTransaction } from "@solana/web3.js";
@@ -67,6 +67,31 @@ export function SwapPageClient() {
     sellIsSolanaForBalance ? publicKey : null,
     sellIsSolanaForBalance && sellToken ? { address: sellToken.address, decimals: sellToken.decimals, isNative: sellToken.isNative } : null,
   );
+
+  // Real user report 2026-08-06: picking an Arbitrum (or any non-Ethereum
+  // EVM) sell token and connecting a wallet still left the wallet on
+  // whatever chain it happened to already be on — the header's Connect
+  // Wallet menu is a page-agnostic global component (used everywhere, not
+  // just here) with no idea this page currently wants Arbitrum. This mirrors
+  // the NFT buy flow's own proactive `ensureChain` call rather than only
+  // switching chains at the final swap-signing step (line ~239 below) — a
+  // buyer should see/approve the chain switch as soon as it's clear it's
+  // needed, not be surprised by a late prompt right before signing.
+  // `switchChain` is idempotent (already-correct chain = instant no-op, no
+  // prompt), so this is safe to call whenever the pairing changes; the ref
+  // just avoids re-firing on every unrelated re-render for the same pairing.
+  const lastEnsuredChainRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!evmWallet.address || !sellToken || sellToken.chainId === SOLANA_CHAIN_ID_CLIENT) return;
+    const key = `${evmWallet.address}:${sellToken.chainId}`;
+    if (lastEnsuredChainRef.current === key) return;
+    lastEnsuredChainRef.current = key;
+    evmWallet.ensureChain(sellToken.chainId).catch(() => {
+      // Best-effort — a decline or a wallet missing this chain's config
+      // isn't fatal here; runSwap's own ensureChain call is the
+      // authoritative, blocking check right before signing.
+    });
+  }, [evmWallet, sellToken]);
 
   // Default Sell side to native SOL, matching the reference UI's prefilled state.
   useEffect(() => {

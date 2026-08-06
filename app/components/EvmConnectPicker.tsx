@@ -13,13 +13,13 @@ import { useEvmWallet } from "@/lib/client/EvmWalletProvider";
  * NftBuyModal so both offer the same real picker, not two different
  * simplified versions of it.
  */
-export function EvmConnectPicker() {
+export function EvmConnectPicker({ desiredChainId }: { desiredChainId?: number } = {}) {
   const evm = useEvmWallet();
   const [clickedUuid, setClickedUuid] = useState<string | null>(null);
 
   function pick(uuid: string) {
     setClickedUuid(uuid);
-    evm.connect(uuid);
+    evm.connect(uuid, desiredChainId);
   }
 
   if (evm.providers.length === 0) {

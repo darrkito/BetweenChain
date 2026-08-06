@@ -361,7 +361,7 @@ export function NftBuyModalMagicEden({ listing, onClose }: { listing: NftListing
                   </div>
                 )
               ) : (
-                <EvmConnectPicker />
+                <EvmConnectPicker desiredChainId={evmOriginChain.chainId} />
               )}
             </div>
             <div className="flex flex-col gap-1">
