@@ -58,6 +58,15 @@ export function SwapPageClient() {
   const [buyToken, setBuyToken] = useState<SelectedToken | null>(null);
   const [sellAmount, setSellAmount] = useState("");
   const [destAddress, setDestAddress] = useState("");
+  // Multi-wallet auto-fill (2026-08-07, Relay's own app does this): when the
+  // user has BOTH a Solana and an EVM wallet connected and picks a
+  // cross-chain destination, default the recipient to their own connected
+  // wallet on that chain instead of making them copy-paste their own
+  // address. Tracks whether the CURRENT value came from that auto-fill or
+  // from the user actually typing/pasting something — only auto-fill
+  // overwrites; a manual edit is never silently clobbered by a later
+  // buyToken change.
+  const [destAddressManuallyEdited, setDestAddressManuallyEdited] = useState(false);
   const [slippageBps, setSlippageBps] = useState(100); // 1% default, was hardcoded with no UI control before 2026-08-03
   const [autoRefuel, setAutoRefuel] = useState(false); // Just-In-Time Gas (2026-08-07), default off — see SwapPanel.tsx's toggle doc
   const [reviewOpen, setReviewOpen] = useState(false);
@@ -113,6 +122,62 @@ export function SwapPageClient() {
   // new — routes through Relay. See app/components/SwapPanel.tsx's
   // isBuyTokenAllowed doc for why same-chain EVM is real and supported now.
   const needsRelayLeg2 = isCrossChain || !sellIsSolana;
+
+  // The user's own connected wallet address on the Buy side's chain family,
+  // when they have one connected — null if they don't (e.g. only a Solana
+  // wallet connected, but buying on an EVM chain), in which case there's
+  // nothing to auto-fill and the field behaves exactly as before (manual
+  // paste required). This app's swap feature is Solana<->EVM only, so a
+  // buyToken chainId is always exactly one of those two families.
+  const ownDestAddress = buyToken
+    ? buyToken.chainId === SOLANA_CHAIN_ID_CLIENT
+      ? (publicKey?.toBase58() ?? null)
+      : (evmWallet.address ?? null)
+    : null;
+
+  // Resets to "not manually edited" whenever the Buy chain itself changes
+  // (a new destination = a fresh default, not a stale override from a
+  // different chain) — an actual edit on THIS chain re-flips it to true via
+  // handleDestAddressChange below.
+  const lastAutoFillChainRef = useRef<number | null>(null);
+  useEffect(() => {
+    let ignore = false;
+    if (buyToken?.chainId !== lastAutoFillChainRef.current) {
+      lastAutoFillChainRef.current = buyToken?.chainId ?? null;
+      // Deferred to a microtask (same pattern as CollectionPageClient.tsx's
+      // mount-skip guards) rather than a synchronous setState call in the
+      // effect body — avoids the react-hooks/set-state-in-effect lint rule
+      // by construction, not by suppressing it.
+      Promise.resolve().then(() => {
+        if (!ignore) setDestAddressManuallyEdited(false);
+      });
+    }
+    return () => {
+      ignore = true;
+    };
+  }, [buyToken?.chainId]);
+
+  useEffect(() => {
+    if (!isCrossChain || destAddressManuallyEdited || !ownDestAddress || destAddress === ownDestAddress) return;
+    let ignore = false;
+    Promise.resolve().then(() => {
+      if (!ignore) setDestAddress(ownDestAddress);
+    });
+    return () => {
+      ignore = true;
+    };
+  }, [isCrossChain, destAddressManuallyEdited, ownDestAddress, destAddress]);
+
+  function handleDestAddressChange(value: string) {
+    setDestAddressManuallyEdited(true);
+    setDestAddress(value);
+  }
+
+  function applyOwnDestAddress() {
+    if (!ownDestAddress) return;
+    setDestAddressManuallyEdited(false);
+    setDestAddress(ownDestAddress);
+  }
 
   const { balance: solanaSellBalance, loading: solanaSellBalanceLoading } = useSolanaBalance(
     connection,
@@ -595,8 +660,10 @@ export function SwapPageClient() {
           sellAmount={sellAmount}
           onSellAmountChange={setSellAmount}
           destAddress={destAddress}
-          onDestAddressChange={setDestAddress}
+          onDestAddressChange={handleDestAddressChange}
           destAddressError={destAddressError}
+          ownDestAddress={ownDestAddress}
+          onUseOwnDestAddress={applyOwnDestAddress}
           isCrossChain={isCrossChain}
           onFlip={flip}
           sellBalance={sellBalance}

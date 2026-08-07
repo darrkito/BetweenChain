@@ -11,6 +11,10 @@ import { RoutePathVisualizer } from "@/app/components/RoutePathVisualizer";
 
 const SOLANA_CHAIN_ID = 792703809;
 
+function shortenAddress(address: string): string {
+  return `${address.slice(0, 4)}…${address.slice(-4)}`;
+}
+
 function TokenPill({ token, onClick }: { token: SelectedToken | null; onClick: () => void }) {
   if (!token) {
     return (
@@ -71,6 +75,8 @@ export function SwapPanel({
   destAddress,
   onDestAddressChange,
   destAddressError,
+  ownDestAddress,
+  onUseOwnDestAddress,
   isCrossChain,
   onFlip,
   sellBalance,
@@ -89,6 +95,13 @@ export function SwapPanel({
   onDestAddressChange: (v: string) => void;
   /** Real-time validation message for the cross-chain destination address field, or null when it's empty/valid. */
   destAddressError?: string | null;
+  /** The user's own connected wallet address on the Buy chain's family
+   * (Solana or EVM), when they have one connected — null otherwise, in
+   * which case no auto-fill/quick-switch UI is shown and the field behaves
+   * exactly like a plain manual-paste input (2026-08-07, multi-wallet
+   * auto-fill — see SwapPageClient.tsx's ownDestAddress doc). */
+  ownDestAddress?: string | null;
+  onUseOwnDestAddress?: () => void;
   isCrossChain: boolean;
   onFlip: () => void;
   /** Balance for the current Sell token — Solana or EVM, source chosen by the caller. null hides the balance row/Max button entirely rather than showing a misleading "0" for a chain this doesn't fetch. */
@@ -278,6 +291,26 @@ export function SwapPanel({
                   the user commits to anything. */}
               {destAddressError && <span className="text-[11px] text-danger">{destAddressError}</span>}
             </label>
+
+            {/* Multi-wallet auto-fill (2026-08-07, same idea as Relay's own
+                app) — only rendered when the user actually has a wallet
+                connected on the Buy chain's family; otherwise this whole
+                block is absent and the field is a plain manual-paste input,
+                unchanged from before. */}
+            {ownDestAddress &&
+              (destAddress === ownDestAddress ? (
+                <p className="mt-1 flex items-center gap-1 text-[11px] text-ink-faint">
+                  <span aria-hidden="true">✓</span> Auto-filled from your connected {buyToken?.chainDisplayName} wallet
+                </p>
+              ) : (
+                <button
+                  type="button"
+                  onClick={onUseOwnDestAddress}
+                  className="mt-1 w-fit text-[11px] font-medium text-accent hover:underline"
+                >
+                  Use my connected {buyToken?.chainDisplayName} wallet ({shortenAddress(ownDestAddress)}) instead
+                </button>
+              ))}
           </div>
         )}
 

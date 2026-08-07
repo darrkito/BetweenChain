@@ -6,6 +6,41 @@ delete history (superseded entries stay for context, just note what replaced the
 
 ---
 
+## 2026-08-07e — Multi-wallet destination auto-fill (Relay-style)
+
+Real user request, inspired by Relay's own app: when a user has both a Solana wallet and
+an EVM wallet connected and picks a cross-chain destination, the "destination address"
+field now defaults to their own connected wallet on that chain instead of forcing a
+manual copy-paste — with an easy way to switch to a pasted address whenever they want.
+Scoped correctly: this app's swap feature is Solana<->EVM only (no Sui swap route), so
+the Buy side's chain family is always exactly one of those two.
+
+`app/swap/SwapPageClient.tsx`: new `ownDestAddress` — the user's own connected wallet
+address matching the Buy token's chain family (`publicKey` for Solana, `evmWallet.address`
+for EVM), `null` when that wallet type isn't connected (unchanged manual-paste behavior
+in that case). `destAddressManuallyEdited` tracks whether the current value is the
+auto-fill default or something the user actually typed — only the default gets silently
+overwritten by a later auto-fill pass; an edit never does. Resets on a genuine new Buy
+chain pick (new destination = fresh default). Two effects defer their `setState` calls
+into a microtask (`Promise.resolve().then(...)`, same pattern already used by
+`CollectionPageClient.tsx`'s mount-skip guards) rather than calling it synchronously in
+the effect body — required to satisfy this repo's `react-hooks/set-state-in-effect` lint
+rule, not just to silence it.
+
+`app/components/SwapPanel.tsx`: below the destination-address input, shows either "✓
+Auto-filled from your connected {chain} wallet" (when the current value IS the user's own
+wallet) or a "Use my connected {chain} wallet (0x1234…5678) instead" quick-switch link
+(when it isn't) — only rendered at all when `ownDestAddress` exists, so a user with only
+one wallet type connected sees no change from before.
+
+### Verification
+`npx tsc --noEmit`, `npm run lint` (0 errors), `npm test` (145 passing), `npm run build`
+all clean. No browser automation available this session — manual dev-server verification
+of the actual auto-fill/quick-switch UX (with two real wallets connected at once) was not
+performed; flagging this explicitly.
+
+---
+
 ## 2026-08-07d — Cross-chain feature batch (auto-refuel, floor conversion, dust burner, portfolio drawer, Meme Radar, NFT collection socials, site-wide X link)
 
 A large "Jumper/Magic Eden benchmark" audit plus a separate NFT-collection-socials audit,
