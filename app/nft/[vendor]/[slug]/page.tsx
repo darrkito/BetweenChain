@@ -5,6 +5,7 @@ import { getCryptoPunksOnchainListings } from "@/lib/nft/cryptopunksOnchain";
 import { CRYPTOPUNKS_SLUG } from "@/lib/nft/cryptopunksShared";
 import { getTradeportListings } from "@/lib/nft/tradeport";
 import { NFT_VENDOR_CLIENTS } from "@/lib/nft/vendorClients";
+import { applyNftImageOverride } from "@/lib/nft/imageOverrides";
 import { getSolUsdPrice, getEthUsdPrice } from "@/lib/pricing";
 import { CollectionPageClient } from "./CollectionPageClient";
 import type { NftListing, NftVendor } from "@/lib/nft/types";
@@ -61,7 +62,8 @@ export async function generateMetadata({ params }: { params: Promise<{ vendor: s
   const vendor = rawVendor as NftVendor;
   const slug = decodeURIComponent(rawSlug);
   const client = NFT_VENDOR_CLIENTS[vendor];
-  const collection = client ? await client.getCollection(slug).catch(() => undefined) : undefined;
+  const rawCollection = client ? await client.getCollection(slug).catch(() => undefined) : undefined;
+  const collection = rawCollection ? applyNftImageOverride(vendor, slug, rawCollection) : undefined;
   if (!collection) return { title: "Collection", robots: { index: false } };
   const title = collection.name;
   const description = collection.description?.trim()
@@ -121,7 +123,8 @@ export default async function NftCollectionPage({ params }: { params: Promise<{ 
   const solUsdPrice = solPriceResult.status === "fulfilled" ? solPriceResult.value : null;
   const ethUsdPrice = ethPriceResult.status === "fulfilled" ? ethPriceResult.value : null;
 
-  const initialCollection = collectionResult.status === "fulfilled" ? (collectionResult.value ?? null) : null;
+  const rawInitialCollection = collectionResult.status === "fulfilled" ? (collectionResult.value ?? null) : null;
+  const initialCollection = rawInitialCollection ? applyNftImageOverride(vendor, slug, rawInitialCollection) : null;
   const initialCollectionError =
     collectionResult.status === "rejected"
       ? (collectionResult.reason as Error).message

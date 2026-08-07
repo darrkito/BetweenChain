@@ -1,7 +1,7 @@
 import "server-only";
 import { cached } from "@/lib/cache";
 import { fetchWithTimeout } from "@/lib/fetchWithTimeout";
-import type { NftCollection, NftListing } from "@/lib/nft/types";
+import type { NftCollection, NftListing, OwnedNft } from "@/lib/nft/types";
 
 const TRADEPORT_API = "https://api.indexer.xyz/graphql";
 const TRADEPORT_API_KEY = process.env.TRADEPORT_API_KEY;
@@ -486,6 +486,37 @@ export async function getTradeportListings(chain: TradeportChain, slug: string, 
         raw: { ...l, chain, collectionSlug: slug },
       }));
   });
+}
+
+// Real, live-verified shape (2026-08-07): `nfts` is queryable directly
+// (not just nested under `listings`), filterable by `owner` + a nested
+// `collection: { slug: { _eq } }` — confirmed against Tradeport's own
+// gateway allow-list with a real (zero-result) test query before being used
+// here, same "verify the shape works before building on it" discipline as
+// every other Tradeport query in this file.
+const OWNED_NFTS_QUERY = (chain: TradeportChain) => `
+  query Owned($owner: String!, $slug: String!, $limit: Int!) {
+    ${chain} {
+      nfts(where: { owner: { _eq: $owner }, collection: { slug: { _eq: $slug } } }, limit: $limit) {
+        id
+        token_id
+        name
+        media_url
+      }
+    }
+  }
+`;
+
+const OWNED_NFTS_LIMIT = 100;
+
+/** Real NFTs a wallet actually owns from one specific collection — used by
+ * the Games Hub's collection-ownership display (2026-08-07). */
+export async function getTradeportWalletHoldings(chain: TradeportChain, owner: string, slug: string): Promise<OwnedNft[]> {
+  const data = await tradeportQuery<{
+    [K in TradeportChain]?: { nfts: Array<{ id: string; token_id?: string; name?: string; media_url?: string }> };
+  }>(OWNED_NFTS_QUERY(chain), { owner, slug, limit: OWNED_NFTS_LIMIT });
+  const rows = data[chain]?.nfts ?? [];
+  return rows.map((n) => ({ tokenId: n.token_id ?? n.id, name: n.name, imageUrl: toHttpUrl(n.media_url) }));
 }
 
 // Staleness re-check for a single listing right before building the buy

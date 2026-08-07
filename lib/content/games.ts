@@ -23,7 +23,12 @@ export interface GameMeta {
   // getting it wrong would mean either a silently-broken embed or an
   // unnecessary redirect for a game that would have embedded fine.
   embeddable: boolean;
-  nftCollection?: { vendor: "magiceden" | "opensea" | "tradeport"; slug: string };
+  // Real collections this game's community/IP is connected to (2026-08-07,
+  // ownership display — see app/components/GameCollectionOwnership.tsx).
+  // `chain` picks which connected wallet (Solana vs Sui) to check ownership
+  // against — a game can reference collections on more than one chain, e.g.
+  // Claynosaurz's own Solana collections plus a Sui spinoff.
+  nftCollections?: Array<{ vendor: "magiceden" | "opensea" | "tradeport"; slug: string; chain: "solana" | "sui" | "evm" }>;
   tokenMint?: string;
   website?: string;
   twitterUsername?: string;
@@ -52,6 +57,19 @@ export const GAMES: GameMeta[] = [
     // `Content-Security-Policy: frame-ancestors https://blockchains.click`
     // allowlist entry.
     embeddable: false,
+    // Confirmed live 2026-08-07 (all three resolve on this app's own
+    // /nft/[vendor]/[slug] routes): Claynosaurz + Saga on Solana/Magic
+    // Eden, Popkins on Sui/Tradeport — the Claynosaurz universe this fan
+    // game is set in.
+    nftCollections: [
+      { vendor: "magiceden", slug: "claynosaurz", chain: "solana" },
+      { vendor: "magiceden", slug: "saga", chain: "solana" },
+      {
+        vendor: "tradeport",
+        slug: "0xb908f3c6fea6865d32e2048c520cdfe3b5c5bbcebb658117c41bad70f52b7ccc::popkins_nft::Popkins",
+        chain: "sui",
+      },
+    ],
     twitterUsername: "Degen_Bald_Boy",
     addedDate: "2026-08-07",
   },

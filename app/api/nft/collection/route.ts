@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { NFT_VENDOR_CLIENTS, isTradeportChain, TRADEPORT_CHAINS } from "@/lib/nft/vendorClients";
+import { applyNftImageOverride } from "@/lib/nft/imageOverrides";
 import { rateLimit, clientKey } from "@/lib/rate-limit";
 import type { NftVendor } from "@/lib/nft/types";
 import { safeErrorResponse } from "@/lib/apiError";
@@ -44,7 +45,7 @@ export async function GET(req: Request) {
   try {
     const collection = await client.getCollection(slug, chain);
     if (!collection) return NextResponse.json({ error: "Collection not found" }, { status: 404 });
-    return NextResponse.json({ collection });
+    return NextResponse.json({ collection: applyNftImageOverride(vendor, slug, collection) });
   } catch (err) {
     // Upstream vendor rate-limit (e.g. Magic Eden's 120 QPM/2 QPS public
     // cap, see lib/nft/magiceden.ts's fetchMagicEden) surfaces here as a

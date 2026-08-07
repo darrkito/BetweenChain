@@ -6,6 +6,68 @@ delete history (superseded entries stay for context, just note what replaced the
 
 ---
 
+## 2026-08-07j — Games Hub: real collection ownership display + NFT image overrides
+
+Follow-up to 2026-08-07i, same day. Real user request: on `/games/crash-dummy`, show the
+Claynosaurz-universe collections this fan game is set in (Claynosaurz + Saga on Solana/
+Magic Eden, Popkins on Sui/Tradeport), each with a real icon/name/chain badge/hyperlink to
+its actual `/nft/[vendor]/[slug]` page — and when the visitor has a matching wallet
+connected, show the REAL NFTs they actually own from that collection, never a fabricated
+count.
+
+**Real research before building**: neither vendor client had a "what does this wallet own
+in this collection" function. Verified both live before writing anything:
+- **Magic Eden**: `GET /v2/wallets/{owner}/tokens` is real, public, keyless — but its own
+  `collectionSymbol` query param does NOT actually filter server-side (confirmed live: a
+  request with it still returned unrelated collections). Filtering happens after fetch
+  instead. Also confirmed the real Magic Eden `symbol` values (`claynosaurz`, `saga`)
+  match this app's own `/nft/magiceden/...` slugs exactly.
+- **Tradeport**: no wallet-holdings query existed in `lib/nft/tradeport.ts` yet. Tested a
+  new GraphQL shape (`nfts(where: { owner, collection: { slug } })`) live against a real
+  placeholder address using the actual `TRADEPORT_API_KEY`/`TRADEPORT_API_USER` in
+  `.env.local` before writing `getTradeportWalletHoldings` — confirmed the query is
+  schema-valid and passes Tradeport's gateway allow-list (empty result for the test
+  address, as expected, not an error).
+- Confirmed the exact real Popkins Tradeport slug the user gave
+  (`0xb908f3c6fea6865d32e2048c520cdfe3b5c5bbcebb658117c41bad70f52b7ccc::popkins_nft::Popkins`)
+  actually resolves live on this app's own `/nft/tradeport/...` route before using it.
+
+**Built**: `lib/nft/types.ts` gained `OwnedNft` (minimal — tokenId/name/imageUrl, distinct
+from `NftListing` which carries marketplace/price state this doesn't need).
+`getMagicEdenWalletHoldings`/`getTradeportWalletHoldings` in their respective vendor
+files. New `GET /api/games/collection-holdings` dispatches to the right vendor
+(OpenSea/EVM explicitly not wired up yet — no game currently links an EVM collection, and
+its wallet-holdings endpoint hasn't been researched, so it honestly returns `[]` rather
+than pretending to work). `lib/content/games.ts`'s `GameMeta.nftCollection` (singular)
+replaced with `nftCollections` (plural array, each tagged with which chain's wallet to
+check ownership against — a game can span more than one chain). New
+`GameCollectionOwnership.tsx` (client) — always shows every linked collection regardless
+of wallet state; fetches and shows real owned items only once a matching wallet connects.
+`app/games/[slug]/page.tsx` resolves each linked collection's live name/image server-side
+via the existing `NFT_VENDOR_CLIENTS` (not hand-baked into `games.ts` — stays correct if a
+collection's real name/image changes).
+
+**Real NFT collection image overrides** (separate small feature, same user request): new
+`lib/nft/imageOverrides.ts` — Popkins' own Tradeport-served cover image is broken
+(confirmed by the user directly), and better official banners exist for Claynosaurz/Saga
+than what each vendor's API returns. Every override URL was verified live (`curl -sI`,
+real 200) before being added. Applied at both real consumption points: the SSR collection
+page (`app/nft/[vendor]/[slug]/page.tsx`, both its `generateMetadata` and main fetch) and
+`/api/nft/collection` (used for client-side retries) — so the override is never silently
+reverted by a retry, and now also feeds the new game-page ownership widget's icons.
+
+### Verification
+`npx tsc --noEmit`, `npm run lint`, `npm test` (160 passing, unchanged — no new pure-logic
+worth a unit test this pass beyond what 2026-08-07i already added), `npm run build` all
+clean. `/games/[slug]` is now server-rendered per-request instead of pre-built at build
+time (fetches live collection data now, same as `/nft/[vendor]/[slug]` already is) — an
+expected consequence of the new live fetch, not a regression. No browser automation
+available — could not visually verify the ownership widget with a real connected wallet
+holding a real Claynosaurz/Saga/Popkins NFT; flagging this explicitly, same as every other
+unverified-in-browser change this session.
+
+---
+
 ## 2026-08-07i — New: Web3 Games Hub (`/games`), first game Crash Dummy
 
 Added a "Games Hub" — a Miniclip/Kongregate-style portal for Web3-community browser

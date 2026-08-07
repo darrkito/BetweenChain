@@ -3,8 +3,11 @@ import { notFound } from "next/navigation";
 import { AppHeader } from "@/app/components/AppHeader";
 import { Breadcrumb } from "@/app/components/Breadcrumb";
 import { GamePlayer } from "@/app/components/GamePlayer";
+import { GameCollectionOwnership, type GameCollectionInfo } from "@/app/components/GameCollectionOwnership";
 import { getAllGames, getGame } from "@/lib/content/games";
 import { JsonLd, breadcrumbListSchema, videoGameSchema } from "@/lib/seo/jsonld";
+import { NFT_VENDOR_CLIENTS } from "@/lib/nft/vendorClients";
+import { applyNftImageOverride } from "@/lib/nft/imageOverrides";
 
 export function generateStaticParams() {
   return getAllGames().map((g) => ({ slug: g.slug }));
@@ -38,6 +41,23 @@ export default async function GameDetailPage({ params }: { params: Promise<{ slu
 
   const breadcrumbItems = [{ label: "Games", href: "/games" }, { label: game.name }];
   const pageUrl = `https://blockchains.click/games/${game.slug}`;
+
+  // Real name/image for each linked collection, resolved live server-side
+  // (same NFT_VENDOR_CLIENTS every /nft page uses) rather than hand-baked
+  // into games.ts — stays correct if a collection's own name/image changes,
+  // and picks up the real image-override for Popkins/Claynosaurz/Saga (see
+  // lib/nft/imageOverrides.ts). A collection that fails to resolve is
+  // dropped rather than shown broken.
+  const collectionInfos: GameCollectionInfo[] = (
+    await Promise.all(
+      (game.nftCollections ?? []).map(async (link): Promise<GameCollectionInfo | null> => {
+        const raw = await NFT_VENDOR_CLIENTS[link.vendor]?.getCollection(link.slug, link.chain).catch(() => undefined);
+        if (!raw) return null;
+        const resolved = applyNftImageOverride(link.vendor, link.slug, raw);
+        return { vendor: link.vendor, slug: link.slug, chain: link.chain, name: resolved.name, imageUrl: resolved.imageUrl };
+      }),
+    )
+  ).filter((c): c is GameCollectionInfo => c !== null);
 
   const socialLinks = [
     game.website ? { label: "Website", url: sanitizeUrl(game.website) } : null,
@@ -89,16 +109,6 @@ export default async function GameDetailPage({ params }: { params: Promise<{ slu
               <dt className="text-ink-faint">Genre</dt>
               <dd className="text-ink">{game.genre}</dd>
             </div>
-            {game.nftCollection && (
-              <div className="flex justify-between gap-2">
-                <dt className="text-ink-faint">NFT collection</dt>
-                <dd>
-                  <a href={`/nft/${game.nftCollection.vendor}/${encodeURIComponent(game.nftCollection.slug)}`} className="text-accent hover:underline">
-                    View →
-                  </a>
-                </dd>
-              </div>
-            )}
             {game.tokenMint && (
               <div className="flex justify-between gap-2">
                 <dt className="text-ink-faint">Token</dt>
@@ -146,6 +156,8 @@ export default async function GameDetailPage({ params }: { params: Promise<{ slu
           </div>
         </section>
       )}
+
+      {collectionInfos.length > 0 && <GameCollectionOwnership collections={collectionInfos} />}
 
       <JsonLd data={breadcrumbListSchema(breadcrumbItems, pageUrl)} />
       <JsonLd

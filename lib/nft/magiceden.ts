@@ -2,7 +2,7 @@ import "server-only";
 import { cached } from "@/lib/cache";
 import { fetchWithTimeout } from "@/lib/fetchWithTimeout";
 import { getCollectionAssetsPage } from "@/lib/chains/heliusDas";
-import type { NftCollection, NftListing } from "@/lib/nft/types";
+import type { NftCollection, NftListing, OwnedNft } from "@/lib/nft/types";
 
 const MAGICEDEN_API = "https://api-mainnet.magiceden.dev/v2";
 // Undocumented but public (no API key needed, confirmed live 2026-08-03) —
@@ -649,6 +649,40 @@ export async function getMagicEdenAllAssets(symbol: string, page: number, limit 
       listed: false,
     }));
     return { listings, nextCursor: das.hasMore ? String(page + 1) : undefined };
+  });
+}
+
+const WALLET_HOLDINGS_TTL_MS = 60_000;
+// ME's wallet-tokens endpoint's own `collectionSymbol` query param does NOT
+// actually filter server-side — confirmed live 2026-08-07 (a request with
+// `collectionSymbol=claynosaurz` against a real wallet still returned
+// tokens from unrelated collections). Filtering is done here instead, after
+// fetching the wallet's real holdings. Capped at 500 (ME's own page-size
+// ceiling, confirmed live) — a wallet with more than 500 total NFTs across
+// every collection is a rare edge case, not worth paginating further for a
+// "do you own one of these 3 collections" display.
+const WALLET_HOLDINGS_LIMIT = 500;
+
+interface RawMagicEdenWalletToken {
+  mintAddress: string;
+  collection?: string;
+  name?: string;
+  image?: string;
+}
+
+/** Real NFTs a wallet actually owns from one specific collection — used by
+ * the Games Hub's collection-ownership display (2026-08-07). */
+export async function getMagicEdenWalletHoldings(owner: string, collectionSymbol: string): Promise<OwnedNft[]> {
+  return cached(`magiceden:wallet-holdings:${owner}:${collectionSymbol}`, WALLET_HOLDINGS_TTL_MS, async () => {
+    const res = await fetchWithTimeout(
+      `${MAGICEDEN_API}/wallets/${owner}/tokens?limit=${WALLET_HOLDINGS_LIMIT}`,
+      { headers: magicEdenHeaders(), cache: "no-store" },
+    );
+    if (!res.ok) return [];
+    const tokens = (await res.json()) as RawMagicEdenWalletToken[];
+    return tokens
+      .filter((t) => t.collection === collectionSymbol)
+      .map((t) => ({ tokenId: t.mintAddress, name: t.name, imageUrl: t.image }));
   });
 }
 

@@ -66,6 +66,16 @@ export interface NftCollection {
   telegramUrl?: string;
 }
 
+// A specific NFT a wallet actually owns from one collection (2026-08-07,
+// Games Hub ownership display) — deliberately minimal, just enough to
+// render an owned-items list. Not the same as NftListing (which describes a
+// marketplace order); this has no price/listing state at all.
+export interface OwnedNft {
+  tokenId: string;
+  name?: string;
+  imageUrl?: string;
+}
+
 export interface NftTrait {
   traitType: string;
   value: string;
