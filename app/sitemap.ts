@@ -3,6 +3,7 @@ import { NFT_VENDOR_CLIENTS, VENDOR_FOR_FAMILY } from "@/lib/nft/vendorClients";
 import type { NftChainFamily } from "@/lib/nft/types";
 import { getAllBlogPosts } from "@/lib/content/blog";
 import { SWAP_PAIRS } from "@/lib/content/swapPairs";
+import { getAllGames } from "@/lib/content/games";
 
 const SITE_URL = "https://blockchains.click";
 
@@ -47,10 +48,17 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${SITE_URL}/nft`, changeFrequency: "hourly", priority: 0.8 },
     { url: `${SITE_URL}/faq`, changeFrequency: "monthly", priority: 0.6 },
     { url: `${SITE_URL}/blog`, changeFrequency: "weekly", priority: 0.7 },
+    { url: `${SITE_URL}/games`, changeFrequency: "weekly", priority: 0.7 },
   ];
   const blogEntries: MetadataRoute.Sitemap = getAllBlogPosts().map((post) => ({
     url: `${SITE_URL}/blog/${post.slug}`,
     lastModified: post.date,
+    changeFrequency: "monthly",
+    priority: 0.6,
+  }));
+  const gameEntries: MetadataRoute.Sitemap = getAllGames().map((g) => ({
+    url: `${SITE_URL}/games/${g.slug}`,
+    lastModified: g.addedDate,
     changeFrequency: "monthly",
     priority: 0.6,
   }));
@@ -60,5 +68,5 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.8,
   }));
   const collectionEntries = await nftCollectionEntries().catch(() => []);
-  return [...staticEntries, ...blogEntries, ...swapPairEntries, ...collectionEntries];
+  return [...staticEntries, ...blogEntries, ...gameEntries, ...swapPairEntries, ...collectionEntries];
 }

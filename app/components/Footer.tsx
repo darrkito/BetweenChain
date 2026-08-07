@@ -9,6 +9,7 @@ import { SocialXLink } from "@/app/components/SocialXLink";
 const LINKS: Array<{ href: string; label: string }> = [
   { href: "/swap", label: "Swap" },
   { href: "/nft", label: "NFT Marketplace" },
+  { href: "/games", label: "Games" },
   { href: "/faq", label: "FAQ" },
   { href: "/blog", label: "Blog" },
 ];

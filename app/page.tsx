@@ -11,6 +11,8 @@ import { JsonLd, faqPageSchema } from "@/lib/seo/jsonld";
 import { FAQ_ITEMS } from "@/lib/content/faq";
 import { NFT_VENDOR_CLIENTS } from "@/lib/nft/vendorClients";
 import { SUI_ICON_URL } from "@/lib/nft/labels";
+import { GameCard } from "@/app/components/GameCard";
+import { getAllGames } from "@/lib/content/games";
 
 // 2026-08-05 (landing-page overhaul, Phase 2) — `/` used to BE the swap
 // tool (now relocated to /swap, see that route's own history). This is a
@@ -70,6 +72,7 @@ async function getTrendingCollections() {
 
 export default async function LandingPage() {
   const trending = await getTrendingCollections();
+  const games = getAllGames().slice(0, 6);
 
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-col gap-16 p-6">
@@ -132,6 +135,26 @@ export default async function LandingPage() {
                   )}
                 </div>
               </Link>
+            ))}
+          </div>
+        </Reveal>
+      )}
+
+      {/* Community Games (2026-08-07) — same "no fetch needed, GAMES is a
+          static in-repo array" reasoning as lib/content/games.ts's own doc
+          comment, plus the same inline-grid card pattern as Trending NFT
+          collections directly above. */}
+      {games.length > 0 && (
+        <Reveal className="flex flex-col gap-4">
+          <div className="flex items-center justify-between">
+            <h2 className="font-display text-2xl font-normal text-ink">🎮 Community Games</h2>
+            <Link href="/games" className="text-sm font-medium text-accent hover:underline">
+              Browse all →
+            </Link>
+          </div>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-6">
+            {games.map((g) => (
+              <GameCard key={g.slug} game={g} />
             ))}
           </div>
         </Reveal>

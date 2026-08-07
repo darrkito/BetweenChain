@@ -26,6 +26,7 @@ const NAV: Array<{ href: string; label: string; shortLabel?: string }> = [
   { href: "/swap", label: "Token Swap", shortLabel: "Swap" },
   { href: "/nft", label: "NFTs" },
   { href: "/radar", label: "Meme Radar", shortLabel: "Radar" },
+  { href: "/games", label: "Games" },
   { href: "/dashboard", label: "Rewards" },
 ];
 

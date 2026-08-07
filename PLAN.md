@@ -442,6 +442,30 @@ actually active outside local dev.
     Sui; a real multi-coin Sui balance reader would need new research into Sui's coin
     object model, not a small addition.
 
+- **Games Hub follow-ups (deferred from the 2026-08-07i pass, see `STATE.md`)** — `/games`
+  shipped with one real game (Crash Dummy); these are the real, separate items flagged
+  along the way, not silently dropped:
+  - **Crash Dummy true in-page embedding** — currently launches externally
+    (`embeddable: false`) because crash-dummy.xyz sends `X-Frame-Options: SAMEORIGIN`.
+    Needs either the developer (@Degen_Bald_Boy) adding a CSP `frame-ancestors`
+    allowlist entry, or sharing the actual built game files for blockchains.click to
+    self-host (the real technical equivalent of how the original Miniclip worked). Can't
+    currently reach him — real follow-up outside this build.
+  - **Real admin CRUD UI + role system + upload storage for games** — none of these exist
+    anywhere in this app today; V1 deliberately used content-as-code
+    (`lib/content/games.ts`) instead, same pattern as blog/FAQ. Revisit only if outside
+    communities start submitting games at real volume — not worth the new auth/RBAC/
+    storage surface for one game.
+  - **Chain filter on `/games`** — not meaningful yet with one chain-agnostic browser
+    game; add once real multi-chain-tagged games exist.
+  - **Recently Played / Favorites** — same `localStorage`-hook pattern already used by
+    `lib/client/useRecentPairs.ts`/`useSavedAddresses.ts`, held for Phase 1.5 until
+    there's a real multi-game catalog to make either useful.
+  - **Ratings/reviews, wallet-aware launches, achievements/leaderboards** (Phase 2+) —
+    each a real new subsystem; wallet-aware launches specifically need each game's own
+    SDK cooperation to read a passed-in address — blockchains.click can't force this on
+    a third-party game.
+
 - **Blog tutorial-hub follow-ups (deferred from the 2026-08-07c blog audit pass, see
   `STATE.md`)** — the HowTo/FAQ JSON-LD, sticky TOC, route diagram, embedded swap
   widget, and OG chain-badge infrastructure from that pass is done and exercised by one

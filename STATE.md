@@ -6,6 +6,84 @@ delete history (superseded entries stay for context, just note what replaced the
 
 ---
 
+## 2026-08-07i — New: Web3 Games Hub (`/games`), first game Crash Dummy
+
+Added a "Games Hub" — a Miniclip/Kongregate-style portal for Web3-community browser
+games, played in-page rather than linking away. First real test case: crash-dummy.xyz, by
+Claynosaurz community member @Degen_Bald_Boy. A detailed ChatGPT-authored plan was pasted
+proposing a full catalog + admin CRUD panel + new DB schema; real research before building
+anything found several of its assumptions didn't hold in this codebase (see the approved
+plan, `/home/darrkito/.claude/plans/iridescent-snacking-grove.md`, for full reasoning):
+
+- **crash-dummy.xyz sends `X-Frame-Options: SAMEORIGIN`** (confirmed live via `curl -sI`)
+  — browsers refuse to embed it in an iframe from another origin, no client-side
+  workaround exists. Discussed live with the user: true in-page embedding needs either
+  the game's own host cooperating (a CSP `frame-ancestors` allowlist entry) or
+  blockchains.click self-hosting the actual built game files (the real technical
+  equivalent of how the original Miniclip worked — it hosted the Flash files itself, it
+  never framed someone else's live site). Neither is reachable right now (can't currently
+  reach the developer) — **shipped with an honest external-launch ("Play ↗", new tab)
+  fallback**, while the real embedded-iframe player still exists and works for any future
+  game whose host does cooperate.
+- **No NFT/token DB tables exist anywhere in this app** — every collection/token is
+  fetched live from vendor APIs, never persisted locally (confirmed: zero matching
+  `create table` across all 16 prior migrations). A game's NFT-collection/token link is a
+  soft reference into this app's own `/nft/[vendor]/[slug]` addressing or a `/swap`
+  deep-link, never a DB foreign key.
+- **No admin panel, CRUD UI, or role system exists** — content-as-code for V1, same
+  pattern as this app's existing blog posts (`lib/content/blog.ts`) and FAQ
+  (`lib/content/faq.ts`): new `lib/content/games.ts`, a typed `GAMES` array. Adding a game
+  is a commit, not a live admin action.
+- **No file-upload/storage system exists** — game cover/screenshots are external URLs the
+  game's own team hosts, same pattern as every NFT/token image in this app. Crash Dummy's
+  cover is its own real `og:image` (confirmed live, resolves 200, 1200x630).
+
+**Built:** `lib/content/games.ts` (typed content), `lib/seo/jsonld.tsx` gained
+`videoGameSchema()` (same "only include real optional fields" discipline as
+`nftCollectionBrandSchema`), `app/games/page.tsx` (index — search/category/genre filter +
+sort, all URL-param-driven, mirrors `app/nft/page.tsx`'s pattern), `app/games/[slug]/
+page.tsx` (SSR shell — breadcrumb, JSON-LD, `notFound()` for unknown slugs, soft links to
+`/nft/[vendor]/[slug]` and a `/swap?radarMint=&radarUsd=10` deep-link — reuses the exact
+prefill mechanism built for the Meme Radar's quick-buy chips), `GamePlayer.tsx` (client —
+real sandboxed iframe with fullscreen/reload/exit/always-visible-new-tab-escape-hatch for
+`embeddable: true` games, honest external-launch state for `embeddable: false` ones),
+`GameCard.tsx`/`GameSearchBar.tsx`/`GameCategoryTabs.tsx` (match the established card/tab
+visual language exactly). Homepage gained a "🎮 Community Games" section, same
+`getTrendingCollections()`-style inline-grid pattern. Nav links added to
+`AppHeader.tsx`/`Footer.tsx`. `app/sitemap.ts` gained `/games` + per-game entries, same
+pattern as blog.
+
+**Real, minimal play-count persistence** (separate from `@vercel/analytics`'s `track()`
+funnel events, which are dashboard-only and can't be read back into the app): new
+migration `0017_game_plays.sql` — `game_plays` table + an atomic
+`increment_game_play_count()` Postgres function (avoids a real, if narrow, read-then-write
+race), RLS enabled with zero grants (matches this project's established "service-role
+client only, no direct PostgREST access" posture — see 0014/0016). New `POST /api/games/
+[slug]/play` (rate-limited, unauthenticated) increments it once the user actually starts
+playing, not on page view. **Migration applied to the live Supabase project this
+session** (`npx supabase db push`, confirmed success) — user explicitly approved before
+this ran, since it's a real production DB write (purely additive, no existing
+table/data touched).
+
+### Verification
+`npx tsc --noEmit`, `npm run lint`, `npm test` (160 passing, +5 new:
+`lib/content/games.test.ts`), `npm run build` all clean. `/games` and `/games/crash-dummy`
+both build correctly (dynamic index, SSG detail page). No browser automation available
+this session — could not visually verify the iframe player's fullscreen/reload behavior,
+the homepage section's layout at the 6-up breakpoint, or the external-launch flow
+end-to-end; flagging this explicitly.
+
+### Deferred (see plan's Backlog for full reasoning)
+- A real admin CRUD UI + upload storage — only if outside communities start submitting
+  games at real volume.
+- Chain filter on `/games` — not meaningful with one chain-agnostic browser game yet.
+- Recently Played / Favorites (Phase 1.5) — same `localStorage`-hook pattern as
+  `useRecentPairs.ts`, held until there's a real multi-game catalog to make it useful.
+- Reaching out to @Degen_Bald_Boy about either the CSP header change or sharing the actual
+  game build files for self-hosting — a real, separate follow-up outside this build.
+
+---
+
 ## 2026-08-07h — Fix: Portfolio drawer rendered as a tiny box, not a full drawer + visual pass
 
 Real user report: "the portfolio icon is not working correctly, when you click its just a

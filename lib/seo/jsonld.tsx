@@ -95,6 +95,46 @@ export function breadcrumbListSchema(items: BreadcrumbItem[], currentUrl: string
   };
 }
 
+/**
+ * Games Hub (2026-08-07) — real schema.org VideoGame type, same "only
+ * include a field when the game's own data actually has it" discipline as
+ * nftCollectionBrandSchema above (no padded/guessed sameAs array, no
+ * invented genre/publisher when the game doesn't declare one).
+ */
+export function videoGameSchema(game: {
+  slug: string;
+  name: string;
+  description: string;
+  developer: string;
+  genre?: string;
+  coverImage?: string;
+  website?: string;
+  twitterUsername?: string;
+  discordUrl?: string;
+  telegramUrl?: string;
+}) {
+  const sameAs = [
+    game.website,
+    game.twitterUsername ? `https://x.com/${game.twitterUsername}` : undefined,
+    game.discordUrl,
+    game.telegramUrl,
+  ].filter((v): v is string => Boolean(v));
+
+  return {
+    "@context": "https://schema.org",
+    "@type": "VideoGame",
+    "@id": `${SITE_URL}/games/${game.slug}#game`,
+    name: game.name,
+    description: game.description,
+    author: { "@type": "Organization", name: game.developer },
+    applicationCategory: "Game",
+    operatingSystem: "Web Browser",
+    ...(game.genre ? { genre: game.genre } : {}),
+    ...(game.coverImage ? { image: game.coverImage } : {}),
+    ...(sameAs.length > 0 ? { sameAs } : {}),
+  };
+}
+
 export function faqPageSchema(qas: Array<{ question: string; answer: string }>) {
   return {
     "@context": "https://schema.org",
