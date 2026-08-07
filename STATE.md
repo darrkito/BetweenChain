@@ -6,6 +6,39 @@ delete history (superseded entries stay for context, just note what replaced the
 
 ---
 
+## 2026-08-07h — Fix: Portfolio drawer rendered as a tiny box, not a full drawer + visual pass
+
+Real user report: "the portfolio icon is not working correctly, when you click its just a
+small window." Root cause: `PortfolioDrawer.tsx` (new this session, Phase 4 of the
+2026-08-07d batch) rendered its `fixed inset-0`/`fixed inset-y-0 right-0` overlay and
+panel directly inside `AppHeader.tsx`'s own DOM position, and `AppHeader`'s `<header>`
+has `backdrop-blur` on it. A `backdrop-filter` on any ancestor establishes its own
+containing block for `position: fixed` descendants, so the "full-viewport" drawer was
+actually being sized/positioned relative to the slim header bar instead of the real
+viewport — rendering as a tiny box in the corner. This is the EXACT SAME root cause
+`ConnectWalletMenu.tsx` already hit and fixed via `createPortal` to `document.body`
+(documented in its own comment, 2026-07-21) — `PortfolioDrawer.tsx` just hadn't gotten
+the same treatment when it was built. Fixed the same way.
+
+Also did a visual pass while fixing it, per the user's explicit ask for "inspiration from
+how Jup[iter] show it or even Relay already does it" — real portfolio-panel conventions
+those apps use: one big hero total-value number at the top (not buried among the detail
+rows), token icons per holding (reused `TokenIcon.tsx`, already used elsewhere in this
+app — no new icon component needed), chain icons on each section header (sourced from
+`SWAP_CHAINS`'s existing `iconUrl` field + `SUI_ICON_URL`), and a per-chain USD subtotal
+next to each section header. Loading state upgraded from a text line to skeleton rows
+(matches this app's existing `.skeleton` convention).
+
+### Verification
+`npx tsc --noEmit`, `npm run lint`, `npm test` (155 passing, unchanged — this was a
+render-target/layout fix + visual pass, no new pure-function logic to test), `npm run
+build` all clean. No browser automation available this session — could not visually
+confirm the drawer now renders full-height in a real browser; flagging this explicitly,
+though the root-cause diagnosis directly matches a previously-confirmed identical bug in
+this exact codebase (`ConnectWalletMenu.tsx`'s own fix), so confidence is high.
+
+---
+
 ## 2026-08-07g — Fix: same-chain Solana SPL<->SPL swaps ("select Solana, swap to another Solana token, nothing displays")
 
 Real user report, second bug in the same session (see 2026-08-07f above for the unrelated
