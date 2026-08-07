@@ -6,6 +6,43 @@ delete history (superseded entries stay for context, just note what replaced the
 
 ---
 
+## 2026-08-07f — Fix: Phantom (Solana) connect stuck forever on "Connecting…"
+
+Real user report: clicking Phantom under "Solana" in the Connect Wallet menu just sat on
+"Connecting…" forever, while Phantom under "Ethereum" worked fine. Root-caused live
+against `@solana/wallet-adapter-react`'s own source
+(`node_modules/@solana/wallet-adapter-react/lib/cjs/WalletProvider.js`): the selected
+wallet name is persisted to `localStorage` (`walletName` key), and the library's internal
+`changeWallet()` **no-ops entirely** — `if (walletName === nextWalletName) return;` —
+whenever the requested name is already the stored selection. That happens on a second
+click after any hung/failed first attempt (nothing ever disconnected, so localStorage is
+never cleared), or after a page reload that restores the same stored name.
+
+`app/components/ConnectWalletMenu.tsx`'s connect effect was gated on `solana.wallet`
+*changing reference* (`useEffect(..., [solana.wallet, solana])`, with a mutable
+`pendingSolanaConnectRef` flag). When `select()` no-ops as above, `solana.wallet` never
+changes, so the effect never re-runs — `connect()` is never (re)called and the 12-second
+"didn't respond" timeout (added 2026-07-21 for a related issue) never even starts. The
+button was stuck on "Connecting…" with zero recovery short of clearing site storage.
+Ethereum uses an entirely separate connect path (`EvmWalletProvider`), so it was never
+affected — this is why only Solana showed the symptom.
+
+**Fix**: replaced the ref flag with a plain incrementing `connectAttempt` counter, set on
+every click. A counter always changes value on a new click regardless of whether the
+underlying wallet selection itself changed, so the effect reliably re-fires and actually
+attempts `connect()` (and starts the timeout) every time, including retries after a prior
+hang/error and reconnects after a page reload.
+
+### Verification
+`npx tsc --noEmit`, `npm run lint`, `npm test` (145 passing), `npm run build` all clean.
+No browser automation available this session — could not reproduce the exact Phantom hang
+live or manually verify the fix end-to-end with a real extension; flagging this
+explicitly. The root cause (verified directly against the installed library's own source)
+and the fix's mechanism are solid, but a real click-through confirmation is still
+outstanding.
+
+---
+
 ## 2026-08-07e — Multi-wallet destination auto-fill (Relay-style)
 
 Real user request, inspired by Relay's own app: when a user has both a Solana wallet and

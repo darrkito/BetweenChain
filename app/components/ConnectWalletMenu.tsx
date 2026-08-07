@@ -75,10 +75,26 @@ export function ConnectWalletMenu() {
     Promise.resolve().then(() => setMounted(true));
   }, []);
 
-  const pendingSolanaConnectRef = useRef(false);
+  // Counts each real connect click, rather than a ref flag gated on
+  // `solana.wallet` changing reference — real bug found live 2026-08-07:
+  // `@solana/wallet-adapter-react`'s own `select()` persists the chosen
+  // wallet name to localStorage and no-ops entirely
+  // (`if (walletName === nextWalletName) return`) whenever the requested
+  // name is ALREADY the stored selection — which it will be on a second
+  // click after a hung/failed first attempt (never disconnected, so
+  // localStorage never clears), or after a page reload that restores the
+  // same stored name. When that happens `solana.wallet` never changes
+  // reference, so the old ref-gated effect (deps: `[solana.wallet,
+  // solana]`) never re-ran connect() or started the timeout — the button
+  // was stuck on "Connecting…" forever with no recovery short of clearing
+  // site storage. A plain counter always changes on every click, so the
+  // effect below always re-fires regardless of whether the underlying
+  // wallet selection itself actually changed.
+  const [connectAttempt, setConnectAttempt] = useState(0);
+  const handledAttemptRef = useRef(0);
   useEffect(() => {
-    if (!pendingSolanaConnectRef.current || !solana.wallet) return;
-    pendingSolanaConnectRef.current = false;
+    if (connectAttempt === 0 || connectAttempt === handledAttemptRef.current || !solana.wallet) return;
+    handledAttemptRef.current = connectAttempt;
 
     let settled = false;
     const timeout = setTimeout(() => {
@@ -103,13 +119,13 @@ export function ConnectWalletMenu() {
         clearTimeout(timeout);
         setSolanaConnectingName(null);
       });
-  }, [solana.wallet, solana]);
+  }, [connectAttempt, solana.wallet, solana]);
 
   function connectSolanaWallet(name: WalletName) {
     setSolanaError(null);
     setSolanaConnectingName(name);
     solana.select(name);
-    pendingSolanaConnectRef.current = true;
+    setConnectAttempt((n) => n + 1);
   }
 
   const solanaPubkeyStr = solana.publicKey?.toBase58() ?? null;
