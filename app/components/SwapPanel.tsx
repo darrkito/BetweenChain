@@ -48,8 +48,20 @@ function TokenPill({ token, onClick }: { token: SelectedToken | null; onClick: (
  * chain. Enforced here so page.tsx's flip() can reuse the exact same check
  * rather than duplicating the logic.
  *
- * Execution only ever produces native SOL for a same-chain (Solana) leg
- * (see AGENTS.md) — a non-native Solana token can never be a Buy target.
+ * 2026-08-07: a non-native Solana token used to be blocked as a Buy target
+ * UNCONDITIONALLY — real user report ("select Solana then want to swap to
+ * another Solana token, it doesn't display anything"). Root cause: this app's
+ * Jupiter integration (lib/chains/jupiter.ts) was hardcoded to only ever
+ * quote SPL->SOL (built as leg 1 of a cross-chain bridge, where the
+ * destination genuinely always is native SOL), and that hardcoding leaked
+ * into this filter. Jupiter's own aggregator has always supported any
+ * mint-to-mint pair — getJupiterQuote now accepts an explicit destinationMint,
+ * and the same-chain Solana quote/execute paths (app/api/quote/route.ts,
+ * app/api/quote/preview/route.ts, app/api/swap/route.ts) were fixed to match.
+ * A non-native Solana buy target is now allowed WHEN the sell side is also
+ * Solana (same-chain SPL<->SPL, or SOL->SPL) — cross-chain delivery INTO
+ * Solana remains native-SOL-only, since Relay only ever bridges SOL onto
+ * Solana, not an arbitrary SPL token.
  *
  * 2026-08-06: same-chain EVM-to-EVM (e.g. USDC→ETH both on Arbitrum) used to
  * be blocked here too, on the theory that it was "untested against Relay's
@@ -62,7 +74,10 @@ function TokenPill({ token, onClick }: { token: SelectedToken | null; onClick: (
  * execution side.
  */
 export function isBuyTokenAllowed(sellChainId: number | undefined, t: { chainId: number; isNative: boolean }): boolean {
-  return !(t.chainId === SOLANA_CHAIN_ID && !t.isNative);
+  if (t.chainId === SOLANA_CHAIN_ID && !t.isNative) {
+    return sellChainId === SOLANA_CHAIN_ID;
+  }
+  return true;
 }
 
 export function SwapPanel({
@@ -169,7 +184,14 @@ export function SwapPanel({
         sourceMint: normalizeSolanaSourceMint(sellToken.address),
         sourceAmount: toAtomicAmount(sellAmount, sellToken.decimals),
         destChainId: String(buyToken.chainId),
-        destToken: buyToken.chainId === SOLANA_CHAIN_ID ? "SOL" : buyToken.address,
+        // "SOL" sentinel only for an actual native-SOL pick — real gap fixed
+        // 2026-08-07: this used to force "SOL" for ANY Solana buyToken,
+        // which meant picking a different SPL token as Buy silently priced
+        // native SOL instead. destDecimals lets the preview route format an
+        // arbitrary SPL token's raw atomic amount correctly (see that
+        // route's own doc — it doesn't have a token registry of its own).
+        destToken: buyToken.chainId === SOLANA_CHAIN_ID ? (buyToken.isNative ? "SOL" : buyToken.address) : buyToken.address,
+        destDecimals: String(buyToken.decimals),
         autoRefuel: String(autoRefuel),
       });
 

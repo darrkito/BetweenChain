@@ -70,24 +70,35 @@ export interface JupiterQuote {
 }
 
 /**
- * Quotes sourceMint -> SOL. Amount is in the source token's smallest unit.
- * This is leg 1 of a cross-chain swap: convert whatever meme coin the user
- * holds into native SOL, which Relay then bridges onward.
+ * Quotes sourceMint -> destinationMint (defaults to native SOL). Amount is
+ * in the source token's smallest unit.
+ *
+ * Two real callers of this, both real Jupiter quotes, same function:
+ * 1. Leg 1 of a cross-chain swap — convert whatever SPL token the user holds
+ *    into native SOL (destinationMint left at its default), which Relay
+ *    then bridges onward. destinationMint is never anything else here.
+ * 2. A same-chain Solana SPL<->SPL (or SOL<->SPL) swap (2026-08-07, real
+ *    gap found live — this app's Buy-side token picker previously only
+ *    ever allowed picking native SOL as a same-chain Solana destination,
+ *    even though Jupiter's own aggregator has always supported any
+ *    mint-to-mint pair) — destinationMint is the buyer's actual pick.
  */
 export async function getJupiterQuote(params: {
   sourceMint: string;
+  destinationMint?: string;
   amount: string;
   slippageBps: number;
 }): Promise<JupiterQuote> {
   const { sourceMint, amount, slippageBps } = params;
+  const destinationMint = params.destinationMint ?? NATIVE_SOL_MINT;
 
-  if (sourceMint === NATIVE_SOL_MINT) {
-    throw new Error("Source is already native SOL — no Jupiter leg needed");
+  if (sourceMint === destinationMint) {
+    throw new Error("Source and destination are the same token — no Jupiter quote needed");
   }
 
   const url = new URL(`${JUPITER_API}/quote`);
   url.searchParams.set("inputMint", sourceMint);
-  url.searchParams.set("outputMint", NATIVE_SOL_MINT);
+  url.searchParams.set("outputMint", destinationMint);
   url.searchParams.set("amount", amount);
   url.searchParams.set("slippageBps", String(slippageBps));
   // No fee charged on this leg until JUPITER_FEE_ACCOUNT is set (requires a
@@ -106,7 +117,7 @@ export async function getJupiterQuote(params: {
 
   return {
     inputMint: sourceMint,
-    outputMint: NATIVE_SOL_MINT,
+    outputMint: destinationMint,
     inAmount: route.inAmount,
     outAmount: route.outAmount,
     otherAmountThreshold: route.otherAmountThreshold,

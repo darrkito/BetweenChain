@@ -49,7 +49,7 @@ export function relayAppFees(): Array<{ recipient: string; fee: string }> | unde
  */
 export function describeFeeLegs(params: {
   isSolanaOrigin: boolean;
-  sourceIsNativeSol: boolean;
+  needsJupiterLeg: boolean;
   isCrossChain: boolean;
 }): Array<{ label: string; bps: number }> {
   return describeExecutionRoute(params)

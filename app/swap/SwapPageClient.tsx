@@ -399,7 +399,11 @@ export function SwapPageClient() {
           // same-chain-EVM case (would send Solana as the destination for an
           // EVM->EVM swap). buyToken.chainId is correct unconditionally.
           destChainId: buyToken.chainId,
-          destToken: buyToken.chainId === SOLANA_CHAIN_ID_CLIENT ? "SOL" : buyToken.address,
+          // "SOL" sentinel only for an actual native-SOL pick — same fix as
+          // SwapPanel.tsx's preview fetch (2026-08-07): this used to force
+          // "SOL" for ANY Solana buyToken, silently executing a swap into
+          // native SOL even when the user had picked a different SPL token.
+          destToken: buyToken.chainId === SOLANA_CHAIN_ID_CLIENT ? (buyToken.isNative ? "SOL" : buyToken.address) : buyToken.address,
           // Cross-chain uses the explicit destAddress field. Same-chain
           // Solana has no such field — defaults to the connected Solana
           // wallet (publicKey guaranteed non-null here by the sellIsSolana

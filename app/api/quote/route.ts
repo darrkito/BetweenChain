@@ -54,6 +54,18 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid or missing EVM source address" }, { status: 400 });
   }
 
+  // Same-token same-chain guard, Solana side (2026-08-07, added alongside
+  // enabling same-chain Solana SPL<->SPL swaps below) — mirrors the
+  // existing EVM same-chain check right below; the "SOL" sentinel needs
+  // resolving to the real mint first since sourceMint is never the literal
+  // string "SOL".
+  if (isSolanaOrigin && input.destChainId === SOLANA_CHAIN_ID) {
+    const destMint = input.destToken === "SOL" ? NATIVE_SOL_MINT : input.destToken;
+    if (destMint === input.sourceMint) {
+      return NextResponse.json({ error: "Sell and Buy can't be the same token" }, { status: 400 });
+    }
+  }
+
   // 2026-08-06: same-chain EVM-to-EVM (e.g. USDC->ETH both on Arbitrum) used
   // to be rejected here — confirmed live it works fine against Relay's own
   // /quote (real single-step "swap" response, same settlement mechanism as
@@ -87,7 +99,7 @@ export async function POST(req: Request) {
   }
 
   try {
-    let solAmount = input.sourceAmount;
+    let outputAmount = input.sourceAmount;
     let jupiterRoute: unknown = null;
     let relayRoute: unknown = null;
     let expectedOutputMin: string | null = null;
@@ -101,22 +113,52 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: "This action requires a Solana wallet — sign in with Solana to continue." }, { status: 400 });
       }
 
-      // Existing Solana-origin path, unchanged: optional Jupiter leg
-      // (arbitrary SPL -> SOL), then a Relay leg (SOL -> destination) if
-      // cross-chain. See AGENTS.md.
-      if (input.sourceMint !== NATIVE_SOL_MINT) {
-        const jq = await getJupiterQuote({
-          sourceMint: input.sourceMint,
-          amount: input.sourceAmount,
-          slippageBps: input.slippageBps,
-        });
-        solAmount = jq.outAmount;
-        jupiterRoute = jq.route;
-      }
+      if (input.destChainId === SOLANA_CHAIN_ID) {
+        // Same-chain Solana destination (2026-08-07: any SPL mint, not just
+        // native SOL — see lib/chains/jupiter.ts's getJupiterQuote doc).
+        // Always a single, direct source->destination Jupiter quote (or
+        // zero legs when the destination genuinely is native SOL and the
+        // source already is too — impossible here, blocked by the
+        // same-token guard above). Never a two-hop "convert to SOL first
+        // then figure out the real destination" — that was the bug this
+        // replaces: the old code always converted to SOL, then just assumed
+        // that WAS the final output, silently ignoring destToken entirely.
+        const destMint = input.destToken === "SOL" ? NATIVE_SOL_MINT : input.destToken;
 
-      if (input.destChainId !== SOLANA_CHAIN_ID) {
+        if (destMint !== NATIVE_SOL_MINT || input.sourceMint !== NATIVE_SOL_MINT) {
+          const jq = await getJupiterQuote({
+            sourceMint: input.sourceMint,
+            destinationMint: destMint,
+            amount: input.sourceAmount,
+            slippageBps: input.slippageBps,
+          });
+          outputAmount = jq.outAmount;
+          jupiterRoute = jq.route;
+        }
+        // else: source and destination are both native SOL — genuinely
+        // impossible to reach here (the same-token guard above already
+        // rejects destMint === input.sourceMint), kept only as an explicit
+        // guard against a future change to that check silently reopening
+        // this branch.
+
+        expectedOutputMin = outputAmount;
+      } else {
+        // Cross-chain: existing behavior, unchanged — convert a non-native
+        // source to SOL first (leg 1), then Relay bridges the SOL onward
+        // (leg 2). Cross-chain delivery is native-SOL-only on the Solana
+        // side; there's no arbitrary-SPL cross-chain destination.
+        if (input.sourceMint !== NATIVE_SOL_MINT) {
+          const jq = await getJupiterQuote({
+            sourceMint: input.sourceMint,
+            amount: input.sourceAmount,
+            slippageBps: input.slippageBps,
+          });
+          outputAmount = jq.outAmount;
+          jupiterRoute = jq.route;
+        }
+
         const rq = await getRelayQuote({
-          amountLamports: solAmount,
+          amountLamports: outputAmount,
           destChainId: input.destChainId,
           destToken: input.destToken,
           destAddress: input.destAddress,
@@ -125,8 +167,6 @@ export async function POST(req: Request) {
         });
         relayRoute = rq.quote;
         expectedOutputMin = rq.expectedOutAmount;
-      } else {
-        expectedOutputMin = solAmount;
       }
     } else {
       // Non-Solana origin: no Jupiter leg exists for this chain — Relay is

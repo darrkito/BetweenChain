@@ -31,6 +31,11 @@ const querySchema = z.object({
   sourceAmount: z.string().regex(/^\d+$/),
   destChainId: z.coerce.number().int(),
   destToken: z.string().min(1),
+  // Only meaningful for a same-chain Solana destination that isn't native
+  // SOL (2026-08-07, SPL<->SPL swaps) — needed to format the raw atomic
+  // Jupiter quote amount, since arbitrary SPL tokens don't share SOL's
+  // fixed 9 decimals. Every other branch ignores this.
+  destDecimals: z.coerce.number().int().min(0).max(18).optional(),
   // Just-In-Time Gas (2026-08-07) — see getRelayQuote's doc; safe to pass
   // unconditionally, Relay no-ops it for a non-EVM/already-native destination.
   autoRefuel: z.coerce.boolean().default(false),
@@ -81,9 +86,67 @@ export async function GET(req: Request) {
       const sourceIsNativeSol = input.sourceMint === NATIVE_SOL_MINT;
 
       if (isSolanaOrigin) {
-        // Existing Solana-origin preview path, unchanged.
-        let solAmountLamports = input.sourceAmount;
+        // Same-chain Solana destination (2026-08-07: any SPL mint, not just
+        // native SOL — real gap found live, this used to force every
+        // Solana->Solana preview through a SOL-shaped response regardless of
+        // what destToken actually was). Handled entirely separately from the
+        // cross-chain path below: a same-chain quote is always exactly zero
+        // or one Jupiter leg, direct source->destination, never a two-hop
+        // "convert to SOL first" — Jupiter's own aggregator already routes
+        // through SOL internally when that's the best path.
+        if (input.destChainId === SOLANA_CHAIN_ID) {
+          const destMint = input.destToken === "SOL" ? NATIVE_SOL_MINT : input.destToken;
 
+          if (destMint === input.sourceMint) {
+            // Same-token same-chain — not a real trade. The UI already
+            // blocks picking this; this is a defensive no-op for direct
+            // callers of this public route.
+            return { destAmountFormatted: null, destAmountUsd: null, feeBreakdown: [], route: [], autoRefuelAvailable: false };
+          }
+
+          if (destMint === NATIVE_SOL_MINT) {
+            // sourceIsNativeSol is guaranteed false here (both-SOL was
+            // caught by the same-token check above).
+            const jq = await getJupiterQuote({ sourceMint: input.sourceMint, amount: input.sourceAmount, slippageBps: 100 });
+            const solUsdPrice = await getSolUsdPrice();
+            const destAmountUsd = lamportsToUsd(jq.outAmount, solUsdPrice).toFixed(2);
+            return {
+              destAmountFormatted: formatAtomicAmount(jq.outAmount, 9),
+              destAmountUsd,
+              feeBreakdown: feeBreakdownWithAmounts({ isSolanaOrigin, needsJupiterLeg: true, isCrossChain: false }, destAmountUsd),
+              route: describeExecutionRoute({ isSolanaOrigin, needsJupiterLeg: true, isCrossChain: false }),
+              autoRefuelAvailable: false, // same-chain Solana destination — Relay's topupGas is EVM-destination only
+            };
+          }
+
+          // Arbitrary non-SOL SPL destination — direct Jupiter quote
+          // (works with a native-SOL source too: SOL -> SPL is a real,
+          // valid Jupiter quote, not a special case). No USD price source
+          // for arbitrary SPL tokens exists in this app yet (lib/pricing.ts
+          // only covers SOL/ETH/SUI) — destAmountUsd is honestly null
+          // rather than fabricated; the fee breakdown degrades gracefully
+          // to "—" per leg, same as any other unpriced preview.
+          const jq = await getJupiterQuote({
+            sourceMint: input.sourceMint,
+            destinationMint: destMint,
+            amount: input.sourceAmount,
+            slippageBps: 100,
+          });
+          return {
+            destAmountFormatted: formatAtomicAmount(jq.outAmount, input.destDecimals ?? 0),
+            destAmountUsd: null,
+            feeBreakdown: feeBreakdownWithAmounts({ isSolanaOrigin, needsJupiterLeg: true, isCrossChain: false }, null),
+            route: describeExecutionRoute({ isSolanaOrigin, needsJupiterLeg: true, isCrossChain: false }),
+            autoRefuelAvailable: false,
+          };
+        }
+
+        // Cross-chain: existing behavior, unchanged — always convert a
+        // non-native source to SOL first (leg 1), then Relay bridges the SOL
+        // onward (leg 2). Cross-chain delivery is native-SOL-only on the
+        // Solana side; there's no equivalent of the same-chain arbitrary-SPL
+        // path above for a bridged destination.
+        let solAmountLamports = input.sourceAmount;
         if (!sourceIsNativeSol) {
           const jq = await getJupiterQuote({
             sourceMint: input.sourceMint,
@@ -91,22 +154,6 @@ export async function GET(req: Request) {
             slippageBps: 100,
           });
           solAmountLamports = jq.outAmount;
-        }
-
-        // Same-chain destination is always native SOL in this app's current
-        // architecture (leg 1 only ever produces SOL — see AGENTS.md); the
-        // Buy-side token picker restricts Solana selections to native SOL for
-        // exactly this reason, so destToken is ignored here on purpose.
-        if (input.destChainId === SOLANA_CHAIN_ID) {
-          const solUsdPrice = await getSolUsdPrice();
-          const destAmountUsd = lamportsToUsd(solAmountLamports, solUsdPrice).toFixed(2);
-          return {
-            destAmountFormatted: formatAtomicAmount(solAmountLamports, 9),
-            destAmountUsd,
-            feeBreakdown: feeBreakdownWithAmounts({ isSolanaOrigin, sourceIsNativeSol, isCrossChain: false }, destAmountUsd),
-            route: describeExecutionRoute({ isSolanaOrigin, sourceIsNativeSol, isCrossChain: false }),
-            autoRefuelAvailable: false, // same-chain Solana destination — Relay's topupGas is EVM-destination only
-          };
         }
 
         const destChain = await getRelayChain(input.destChainId);
@@ -127,10 +174,10 @@ export async function GET(req: Request) {
           destAmountFormatted: rq.expectedOutAmountFormatted,
           destAmountUsd: rq.expectedOutAmountUsd,
           feeBreakdown: feeBreakdownWithAmounts(
-            { isSolanaOrigin, sourceIsNativeSol, isCrossChain: true },
+            { isSolanaOrigin, needsJupiterLeg: !sourceIsNativeSol, isCrossChain: true },
             rq.expectedOutAmountUsd,
           ),
-          route: describeExecutionRoute({ isSolanaOrigin, sourceIsNativeSol, isCrossChain: true }),
+          route: describeExecutionRoute({ isSolanaOrigin, needsJupiterLeg: !sourceIsNativeSol, isCrossChain: true }),
           autoRefuelAvailable: destChain?.vmType === "evm",
         };
       }
@@ -167,11 +214,11 @@ export async function GET(req: Request) {
         destAmountFormatted: rq.expectedOutAmountFormatted,
         destAmountUsd: rq.expectedOutAmountUsd,
         feeBreakdown: feeBreakdownWithAmounts(
-          { isSolanaOrigin, sourceIsNativeSol, isCrossChain: true },
+          { isSolanaOrigin, needsJupiterLeg: false, isCrossChain: true },
           rq.expectedOutAmountUsd,
         ),
         autoRefuelAvailable: destChain?.vmType === "evm",
-        route: describeExecutionRoute({ isSolanaOrigin, sourceIsNativeSol, isCrossChain: true }),
+        route: describeExecutionRoute({ isSolanaOrigin, needsJupiterLeg: false, isCrossChain: true }),
       };
     });
 

@@ -16,12 +16,20 @@ export interface ExecutionRouteLeg {
 
 export function describeExecutionRoute(params: {
   isSolanaOrigin: boolean;
-  sourceIsNativeSol: boolean;
+  /** Whether a real Jupiter conversion is actually needed — NOT simply
+   * "source is native SOL" (that was the old, narrower field name/meaning,
+   * valid back when a same-chain Solana destination could only ever be
+   * native SOL itself). Since 2026-08-07 same-chain Solana can target any
+   * SPL mint, so e.g. a native-SOL source swapping INTO an SPL token still
+   * needs a real Jupiter leg despite the source being SOL — callers must
+   * compute this as "does the source token differ from what's actually
+   * being delivered," not just check the source mint in isolation. */
+  needsJupiterLeg: boolean;
   isCrossChain: boolean;
 }): ExecutionRouteLeg[] {
   const legs: ExecutionRouteLeg[] = [];
   if (params.isSolanaOrigin) {
-    if (!params.sourceIsNativeSol) {
+    if (params.needsJupiterLeg) {
       legs.push({ label: "Jupiter (Solana conversion)", engine: "jupiter" });
     }
     if (params.isCrossChain) {

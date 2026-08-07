@@ -6,6 +6,69 @@ delete history (superseded entries stay for context, just note what replaced the
 
 ---
 
+## 2026-08-07g — Fix: same-chain Solana SPL<->SPL swaps ("select Solana, swap to another Solana token, nothing displays")
+
+Real user report, second bug in the same session (see 2026-08-07f above for the unrelated
+Phantom-connect fix reported alongside it). Root cause was architectural, not a UI filter
+bug: `lib/chains/jupiter.ts`'s `getJupiterQuote` was hardcoded to always quote
+`sourceMint -> native SOL` — it was originally built as leg 1 of a cross-chain bridge
+(convert whatever SPL token the user holds into SOL, which Relay then bridges onward),
+and that assumption leaked everywhere a same-chain Solana destination was handled. The
+Buy-side token picker's `isBuyTokenAllowed` (`app/components/SwapPanel.tsx`) filtered out
+every non-native Solana token as a Buy target UNCONDITIONALLY — so picking any SPL token
+other than SOL while Sell was also Solana produced an empty/no-match token list, which is
+exactly the reported symptom.
+
+Fixed the whole chain, not just the filter:
+- `lib/chains/jupiter.ts`: `getJupiterQuote` now accepts an optional `destinationMint`
+  (defaults to native SOL, so the existing cross-chain leg-1 callers are byte-for-byte
+  unchanged). Guard changed from "source is already native SOL" to "source equals
+  destination" — SOL as a *source* into an arbitrary SPL *destination* is now a valid,
+  real quote (previously threw unconditionally).
+- `lib/chains/executionRoute.ts`: renamed `sourceIsNativeSol` → `needsJupiterLeg`
+  (semantic fix, not just a rename) — the old field meant "no Jupiter leg needed" ONLY
+  because a same-chain Solana destination used to always BE native SOL; a same-chain
+  SOL→SPL swap now genuinely needs a real Jupiter leg despite the source being SOL, which
+  the old boolean couldn't express. `lib/fees.ts`'s `describeFeeLegs` (separate literal
+  param type) updated to match. All call sites (`app/api/quote/preview/route.ts`,
+  `app/components/RouteDiagram.tsx`, `lib/chains/executionRoute.test.ts`) updated.
+- `app/api/quote/preview/route.ts` / `app/api/quote/route.ts`: the same-chain-Solana
+  branch no longer hardcodes the destination to SOL and ignores `destToken` — it resolves
+  the real destination mint, quotes directly `sourceMint -> destMint` (one hop, since
+  Jupiter's own aggregator already routes through SOL internally when that's the best
+  path — no need for this app to chain two separate quotes), and formats the result using
+  a new `destDecimals` param the client sends (arbitrary SPL tokens don't share SOL's
+  fixed 9 decimals). No USD price exists for arbitrary SPL tokens in this app
+  (`lib/pricing.ts` only covers SOL/ETH/SUI) — `destAmountUsd` is honestly `null` for that
+  case, never fabricated; the fee breakdown/UI already render "—" gracefully for a null
+  USD amount. Also added a same-token-same-chain guard on the Solana side of `/api/quote`
+  (parity with the existing EVM one).
+- **Real separate execution-correctness bug found and fixed while here**:
+  `app/api/swap/route.ts`'s "leg 1 is trivially confirmed, no Jupiter transaction needed"
+  shortcut checked `source_mint === NATIVE_SOL_MINT` — under the new architecture this is
+  WRONG for a SOL→SPL same-chain swap (source is SOL, but a real conversion into the SPL
+  destination is still needed). Left as-is, this would have silently skipped building any
+  Jupiter transaction, marked leg 1 "confirmed" with `leg1_out_amount` set to the SOL
+  amount (not the SPL amount actually owed), and returned no signable transaction at all —
+  the swap would appear to complete without the user's tokens ever actually changing.
+  Fixed to check `jupiter_route == null` instead — the single source of truth for whether
+  `/api/quote` actually built a real Jupiter quote for this swap, correct in every case
+  (Solana or not, SOL-source or not) without re-deriving the logic a second time.
+- `app/components/SwapPanel.tsx` / `app/swap/SwapPageClient.tsx`: both the preview fetch
+  and the real execution POST were hardcoding `destToken: "SOL"` for ANY Solana buyToken
+  regardless of whether it was actually native SOL — fixed to send the real SPL mint
+  address when the pick isn't native.
+
+### Verification
+`npx tsc --noEmit`, `npm run lint`, `npm test` (155 passing, +9 new: `lib/chains/
+jupiter.test.ts`, `app/components/SwapPanel.test.ts`, extended `executionRoute.test.ts`),
+`npm run build` all clean. No browser automation available this session — could not
+click-test an actual same-chain Solana SPL<->SPL swap end to end (would also require a
+funded real wallet); flagging this explicitly. The fix is grounded in tracing every real
+call site through to the actual Jupiter/Relay API contracts, not guessed.
+
+---
+
 ## 2026-08-07f — Fix: Phantom (Solana) connect stuck forever on "Connecting…"
 
 Real user report: clicking Phantom under "Solana" in the Connect Wallet menu just sat on

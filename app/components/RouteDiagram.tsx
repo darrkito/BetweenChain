@@ -19,7 +19,7 @@ export function RouteDiagram({ sellChain, buyChain }: { sellChain: string; buyCh
   // Default (native-token-to-native-token) route — same real fact
   // established for the /swap/[pair] landing pages: a native/native swap
   // is always single-leg, regardless of direction.
-  const route = describeExecutionRoute({ isSolanaOrigin: from.slug === "solana", sourceIsNativeSol: true, isCrossChain: true });
+  const route = describeExecutionRoute({ isSolanaOrigin: from.slug === "solana", needsJupiterLeg: false, isCrossChain: true });
 
   return (
     <div className="my-2 flex flex-wrap items-center justify-center gap-2 rounded-2xl border border-hairline bg-surface p-5 text-sm">

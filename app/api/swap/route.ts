@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireSession, SessionError } from "@/lib/auth/session";
 import { supabaseAdmin } from "@/lib/supabase/server";
-import { buildJupiterSwapTransaction, NATIVE_SOL_MINT } from "@/lib/chains/jupiter";
+import { buildJupiterSwapTransaction } from "@/lib/chains/jupiter";
 import { rateLimit, clientKey } from "@/lib/rate-limit";
 import { safeErrorResponse } from "@/lib/apiError";
 
@@ -64,12 +64,20 @@ export async function POST(req: Request) {
 
   // Nothing for Jupiter to do — leg 1 is trivially "confirmed" and the
   // caller should go straight to /api/bridge (if cross-chain) or is already
-  // done otherwise. Two cases hit this: same-chain Solana source is already
-  // SOL (original case), or the source chain isn't Solana at all — Jupiter
-  // only ever operates on Solana, so a non-Solana origin has no leg 1
-  // conversion step by definition; Relay is the whole execution engine for
-  // that case (see AGENTS.md / STATE.md 2026-07-18i).
-  if (quote.source_mint === NATIVE_SOL_MINT || quote.source_chain !== "solana") {
+  // done otherwise. Checking `jupiter_route == null` directly (2026-08-07,
+  // real bug fix) rather than re-deriving "was a Jupiter leg needed" from
+  // `source_mint === NATIVE_SOL_MINT` — that re-derivation was WRONG once
+  // same-chain Solana could target an arbitrary SPL mint: a native-SOL
+  // source swapping INTO an SPL token (e.g. SOL -> BONK) genuinely DOES
+  // need a real Jupiter leg despite the source being SOL, but the old check
+  // would have silently skipped building any Jupiter transaction at all and
+  // reported leg 1 "confirmed" with the wrong output amount
+  // (source_amount, i.e. the SOL amount, not the SPL amount actually
+  // owed). `jupiter_route` is set by /api/quote iff a real Jupiter quote
+  // was actually fetched for this exact quote — the single source of truth
+  // for whether a Jupiter transaction needs to exist, not a re-derived
+  // approximation of it.
+  if (quote.jupiter_route == null) {
     await db
       .from("swap_transactions")
       .update({ status: "leg1_confirmed", leg1_out_amount: quote.source_amount, leg1_confirmed_at: new Date().toISOString() })
