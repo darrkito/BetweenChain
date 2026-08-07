@@ -2,6 +2,7 @@ import type { MetadataRoute } from "next";
 import { NFT_VENDOR_CLIENTS, VENDOR_FOR_FAMILY } from "@/lib/nft/vendorClients";
 import type { NftChainFamily } from "@/lib/nft/types";
 import { getAllBlogPosts } from "@/lib/content/blog";
+import { SWAP_PAIRS } from "@/lib/content/swapPairs";
 
 const SITE_URL = "https://blockchains.click";
 
@@ -35,6 +36,10 @@ async function nftCollectionEntries(): Promise<MetadataRoute.Sitemap> {
 // this. /swap added in Phase 2, /faq in Phase 3, /blog + real post entries
 // in Phase 4 — each added alongside its own route, never preemptively (a
 // sitemap entry for a route that 404s is worse than no entry at all).
+// swapPairEntries (2026-08-07) added alongside app/swap/[pair]/page.tsx —
+// same principle, and the same bounded SWAP_PAIRS array generateStaticParams
+// uses, so this can never list a pair-page slug the route itself doesn't
+// actually generate.
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const staticEntries: MetadataRoute.Sitemap = [
     { url: SITE_URL, changeFrequency: "daily", priority: 1 },
@@ -49,6 +54,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     changeFrequency: "monthly",
     priority: 0.6,
   }));
+  const swapPairEntries: MetadataRoute.Sitemap = SWAP_PAIRS.map((p) => ({
+    url: `${SITE_URL}/swap/${p.slug}`,
+    changeFrequency: "weekly",
+    priority: 0.8,
+  }));
   const collectionEntries = await nftCollectionEntries().catch(() => []);
-  return [...staticEntries, ...blogEntries, ...collectionEntries];
+  return [...staticEntries, ...blogEntries, ...swapPairEntries, ...collectionEntries];
 }

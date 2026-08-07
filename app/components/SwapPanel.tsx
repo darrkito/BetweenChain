@@ -7,6 +7,7 @@ import { toAtomicAmount } from "@/lib/client/amount";
 import { normalizeSolanaSourceMint } from "@/lib/client/constants";
 import type { TokenListItem } from "@/lib/chains/types";
 import { chainBrandColor } from "@/lib/chainBrandColors";
+import { RoutePathVisualizer } from "@/app/components/RoutePathVisualizer";
 
 const SOLANA_CHAIN_ID = 792703809;
 
@@ -96,6 +97,7 @@ export function SwapPanel({
     destAmountFormatted: string | null;
     destAmountUsd: string | null;
     feeBreakdown?: Array<{ label: string; bps: number; amountUsd: string | null }>;
+    route?: Array<{ label: string; engine: "jupiter" | "relay" }>;
   } | null) => void;
 }) {
   const [sellModalOpen, setSellModalOpen] = useState(false);
@@ -104,6 +106,7 @@ export function SwapPanel({
     destAmountFormatted: string | null;
     destAmountUsd: string | null;
     feeBreakdown?: Array<{ label: string; bps: number; amountUsd: string | null }>;
+    route?: Array<{ label: string; engine: "jupiter" | "relay" }>;
   } | null>(
     null,
   );
@@ -266,6 +269,10 @@ export function SwapPanel({
           </div>
         )}
       </div>
+
+      {hasValidInput && preview?.route && preview.route.length > 0 && sellToken && buyToken && (
+        <RoutePathVisualizer sellChainId={sellToken.chainId} buyChainId={buyToken.chainId} route={preview.route} />
+      )}
 
       <TokenSelectModal
         open={sellModalOpen}

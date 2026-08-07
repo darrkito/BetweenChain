@@ -1,4 +1,5 @@
 import "server-only";
+import { describeExecutionRoute } from "@/lib/chains/executionRoute";
 
 /**
  * Platform fee configuration. Two independent legs, two independent
@@ -37,30 +38,23 @@ export function relayAppFees(): Array<{ recipient: string; fee: string }> | unde
 
 /**
  * Which fee legs actually apply to a given swap shape, for display in the
- * review step. Mirrors app/api/quote/route.ts's own leg-selection exactly —
- * Jupiter only runs when the Solana-origin sell token isn't already native
- * SOL, Relay only runs when the origin isn't Solana OR the swap is
- * cross-chain. Also excludes a leg entirely if its fee isn't actually active
- * yet (JUPITER_FEE_ACCOUNT / RELAY_FEE_RECIPIENT unset) — showing a fee that
- * won't really be charged would be worse than showing nothing.
+ * review step. Built on lib/chains/executionRoute.ts's describeExecutionRoute
+ * (the same real leg-selection rules, mirroring app/api/quote/route.ts's own
+ * logic exactly), then filtered to only the legs whose fee is actually
+ * active (JUPITER_FEE_ACCOUNT / RELAY_FEE_RECIPIENT unset) — showing a fee
+ * that won't really be charged would be worse than showing nothing. For a
+ * fee-INDEPENDENT view of which engine executes the swap (e.g. a route/
+ * execution-pathway display), use describeExecutionRoute directly instead —
+ * this function is fee display only.
  */
 export function describeFeeLegs(params: {
   isSolanaOrigin: boolean;
   sourceIsNativeSol: boolean;
   isCrossChain: boolean;
 }): Array<{ label: string; bps: number }> {
-  const legs: Array<{ label: string; bps: number }> = [];
-  if (params.isSolanaOrigin) {
-    if (!params.sourceIsNativeSol && JUPITER_FEE_ACCOUNT) {
-      legs.push({ label: "Jupiter (Solana conversion)", bps: JUPITER_FEE_BPS });
-    }
-    if (params.isCrossChain && RELAY_FEE_RECIPIENT) {
-      legs.push({ label: "Relay (cross-chain delivery)", bps: RELAY_FEE_BPS });
-    }
-  } else if (RELAY_FEE_RECIPIENT) {
-    legs.push({ label: "Relay (swap & delivery)", bps: RELAY_FEE_BPS });
-  }
-  return legs;
+  return describeExecutionRoute(params)
+    .filter((leg) => (leg.engine === "jupiter" ? Boolean(JUPITER_FEE_ACCOUNT) : Boolean(RELAY_FEE_RECIPIENT)))
+    .map((leg) => ({ label: leg.label, bps: leg.engine === "jupiter" ? JUPITER_FEE_BPS : RELAY_FEE_BPS }));
 }
 
 /** Same as describeFeeLegs, plus a dollar amount per leg (approximated as

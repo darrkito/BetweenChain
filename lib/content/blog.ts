@@ -12,6 +12,23 @@ import matter from "gray-matter";
 // generateStaticParams/the listing page don't need to compile MDX at all.
 const BLOG_DIR = path.join(process.cwd(), "content", "blog");
 
+export interface HowToStepData {
+  name: string;
+  text: string;
+}
+
+export interface HowToData {
+  summary: string;
+  totalTime?: string; // ISO 8601 duration, e.g. "PT5M"
+  tools?: string[];
+  steps: HowToStepData[];
+}
+
+export interface FaqData {
+  question: string;
+  answer: string;
+}
+
 export interface BlogPostMeta {
   slug: string;
   title: string;
@@ -20,6 +37,16 @@ export interface BlogPostMeta {
   category: string;
   image?: string;
   readingTimeMinutes: number;
+  // 2026-08-07 (blog tutorial-hub upgrade) — all optional, a post that
+  // omits every one of these behaves exactly as before this pass. Real
+  // YAML frontmatter (via gray-matter), NOT MDX body component props —
+  // see BlogComponents.tsx's own top comment for the confirmed
+  // next-mdx-remote/rsc bug that silently drops array/object-literal MDX
+  // attribute expressions; frontmatter has no such limitation.
+  updatedDate?: string; // ISO 8601 (YYYY-MM-DD), only shown/used when it differs from `date`
+  chains?: string[]; // SWAP_CHAINS slugs, e.g. ["solana", "ethereum"]
+  howTo?: HowToData;
+  faq?: FaqData[];
 }
 
 export interface BlogPost extends BlogPostMeta {
@@ -49,6 +76,10 @@ function readPostFile(slug: string): { meta: BlogPostMeta; content: string } {
       category: String(data.category),
       image: data.image ? String(data.image) : undefined,
       readingTimeMinutes: estimateReadingTimeMinutes(content),
+      updatedDate: data.updatedDate ? String(data.updatedDate) : undefined,
+      chains: Array.isArray(data.chains) ? data.chains.map(String) : undefined,
+      howTo: data.howTo as HowToData | undefined,
+      faq: data.faq as FaqData[] | undefined,
     },
     content,
   };

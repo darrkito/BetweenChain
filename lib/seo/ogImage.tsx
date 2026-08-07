@@ -57,7 +57,14 @@ export function renderOgImage() {
 // variant carries the post's own title/category instead, still built from
 // the same brand colors/wordmark treatment, same Satori CSS-subset
 // constraints as renderOgImage above.
-export function renderBlogOgImage(post: { title: string; category: string }) {
+// 2026-08-07 (blog tutorial-hub upgrade) — optional `chains` param draws 2
+// real chain icons/labels side by side (e.g. "Solana -> Ethereum") when a
+// post is about a specific pair. Omitted, output is byte-identical to
+// before this param existed. `iconUrl` values are the same Relay-hosted
+// per-chain CDN already used everywhere else in this app
+// (lib/chains/swapChains.ts) — Satori (ImageResponse's renderer) fetches
+// remote <img> sources directly, same as any other Satori-based OG image.
+export function renderBlogOgImage(post: { title: string; category: string; chains?: Array<{ label: string; iconUrl: string }> }) {
   return new ImageResponse(
     (
       <div
@@ -72,19 +79,31 @@ export function renderBlogOgImage(post: { title: string; category: string }) {
           fontFamily: "sans-serif",
         }}
       >
-        <div
-          style={{
-            display: "flex",
-            alignSelf: "flex-start",
-            padding: "8px 20px",
-            borderRadius: 999,
-            backgroundColor: "#ecebfc",
-            color: "#5b4fe8",
-            fontSize: 28,
-            fontWeight: 600,
-          }}
-        >
-          {post.category}
+        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+          <div
+            style={{
+              display: "flex",
+              padding: "8px 20px",
+              borderRadius: 999,
+              backgroundColor: "#ecebfc",
+              color: "#5b4fe8",
+              fontSize: 28,
+              fontWeight: 600,
+            }}
+          >
+            {post.category}
+          </div>
+          {post.chains && post.chains.length === 2 && (
+            <div style={{ display: "flex", alignItems: "center", gap: 12, fontSize: 28, fontWeight: 600, color: "#1a1730" }}>
+              {/* eslint-disable-next-line @next/next/no-img-element -- Satori (ImageResponse) is not the Next.js runtime, next/image doesn't apply here */}
+              <img src={post.chains[0].iconUrl} width={40} height={40} style={{ borderRadius: 999 }} alt="" />
+              <span>{post.chains[0].label}</span>
+              <span style={{ color: "#5b4fe8" }}>→</span>
+              {/* eslint-disable-next-line @next/next/no-img-element -- Satori (ImageResponse) is not the Next.js runtime, next/image doesn't apply here */}
+              <img src={post.chains[1].iconUrl} width={40} height={40} style={{ borderRadius: 999 }} alt="" />
+              <span>{post.chains[1].label}</span>
+            </div>
+          )}
         </div>
         <div
           style={{

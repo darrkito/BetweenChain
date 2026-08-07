@@ -15,6 +15,7 @@ import { getSolUsdPrice, lamportsToUsd, formatAtomicAmount } from "@/lib/pricing
 import { rateLimit, clientKey } from "@/lib/rate-limit";
 import { safeErrorResponse } from "@/lib/apiError";
 import { feeBreakdownWithAmounts } from "@/lib/fees";
+import { describeExecutionRoute } from "@/lib/chains/executionRoute";
 
 // External-call budget for this route -- prevents Vercel's platform-level
 // function timeout from killing the request with an empty/non-JSON body
@@ -60,7 +61,7 @@ export async function GET(req: Request) {
   const isSolanaOrigin = input.sourceChainId === SOLANA_CHAIN_ID;
 
   if (input.sourceAmount === "0") {
-    return NextResponse.json({ destAmountFormatted: "0", destAmountUsd: "0", rateLabel: null, feeBreakdown: [] });
+    return NextResponse.json({ destAmountFormatted: "0", destAmountUsd: "0", rateLabel: null, feeBreakdown: [], route: [] });
   }
 
   const cacheKey = `preview:${input.sourceChainId}:${input.sourceMint}:${input.sourceAmount}:${input.destChainId}:${input.destToken}`;
@@ -93,12 +94,13 @@ export async function GET(req: Request) {
             destAmountFormatted: formatAtomicAmount(solAmountLamports, 9),
             destAmountUsd,
             feeBreakdown: feeBreakdownWithAmounts({ isSolanaOrigin, sourceIsNativeSol, isCrossChain: false }, destAmountUsd),
+            route: describeExecutionRoute({ isSolanaOrigin, sourceIsNativeSol, isCrossChain: false }),
           };
         }
 
         const destChain = await getRelayChain(input.destChainId);
         const recipientPlaceholder = recipientPlaceholderFor(destChain?.vmType);
-        if (!recipientPlaceholder) return { destAmountFormatted: null, destAmountUsd: null, feeBreakdown: [] };
+        if (!recipientPlaceholder) return { destAmountFormatted: null, destAmountUsd: null, feeBreakdown: [], route: [] };
 
         const rq = await getRelayQuote({
           amountLamports: solAmountLamports,
@@ -115,6 +117,7 @@ export async function GET(req: Request) {
             { isSolanaOrigin, sourceIsNativeSol, isCrossChain: true },
             rq.expectedOutAmountUsd,
           ),
+          route: describeExecutionRoute({ isSolanaOrigin, sourceIsNativeSol, isCrossChain: true }),
         };
       }
 
@@ -123,7 +126,7 @@ export async function GET(req: Request) {
       // app/api/quote/route.ts's non-Solana-origin branch.
       const destChain = await getRelayChain(input.destChainId);
       const recipientPlaceholder = recipientPlaceholderFor(destChain?.vmType);
-      if (!recipientPlaceholder) return { destAmountFormatted: null, destAmountUsd: null, feeBreakdown: [] };
+      if (!recipientPlaceholder) return { destAmountFormatted: null, destAmountUsd: null, feeBreakdown: [], route: [] };
 
       const rq = await getRelayQuote({
         amountLamports: input.sourceAmount,
@@ -151,6 +154,7 @@ export async function GET(req: Request) {
           { isSolanaOrigin, sourceIsNativeSol, isCrossChain: true },
           rq.expectedOutAmountUsd,
         ),
+        route: describeExecutionRoute({ isSolanaOrigin, sourceIsNativeSol, isCrossChain: true }),
       };
     });
 

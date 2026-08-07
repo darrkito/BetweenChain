@@ -414,13 +414,36 @@ actually active outside local dev.
 
 ## Not yet scheduled
 
+- **Blog tutorial-hub follow-ups (deferred from the 2026-08-07c blog audit pass, see
+  `STATE.md`)** — the HowTo/FAQ JSON-LD, sticky TOC, route diagram, embedded swap
+  widget, and OG chain-badge infrastructure from that pass is done and exercised by one
+  real post; these are real, separate scope, not silently dropped:
+  - **More full blog articles** — only `how-to-swap-sol-to-eth.mdx` was written this
+    pass (to exercise the new infrastructure); the audit's other 5 title suggestions
+    are content work, not blocked on anything technical. Write more when there's time
+    for real, accurate per-post content (not fabricated speed/KYC claims).
+  - **Comparison articles** ("Blockchains.Click vs. Jumper vs. deBridge") — same item
+    as the SEO backlog below, needs real sourced competitor research.
+  - **Annotated UI step screenshots** (numbered callout badges on real wallet
+    popups) — needs actual product screenshots; no browser automation has been
+    available in any session so far to capture them.
+  - **Floating persistent referral banner** — a real, deliberate site-wide UI decision
+    (persistent bars have real engagement/CLS downsides), not built by default. The
+    example post uses a normal in-content `Callout` referral mention instead.
 - **SEO/GEO follow-ups (deferred from the 2026-08-06 SEO pass, see `STATE.md`
   2026-08-06c)** — the `llms.txt`/JSON-LD/robots.ts/copy-correction work from that
   pass is done; these three are real, separate scope, not silently dropped:
-  - **Programmatic per-pair swap route pages** (`/swap/solana-to-ethereum`,
-    `/swap/bonk-to-eth`, etc.) — a real new feature (routing, live per-pair rate
-    data, real duplicate-content risk if any page is thin/templated-only). Needs its
-    own plan, not a copy-paste of the audit's page list.
+  - **Programmatic per-pair swap route pages — Phase 1 DONE 2026-08-07, see
+    `STATE.md`.** 12 Solana<->EVM chain-pair pages at `/swap/{chain}-to-{chain}`
+    (SSG, real live quote widget + FAQ + JSON-LD per page), scoped deliberately to
+    Solana-inclusive chain pairs only — full reasoning in the approved plan from that
+    session (chain-pairs avoid the doorway-page risk token-pairs would carry; the
+    full 7×6=42 chain matrix would include low-value EVM-to-EVM pairs this product
+    has no real edge on). **Phase 2, still open**: token-level pair pages (e.g.
+    `/swap/bonk-to-eth`, the audit's original example) — explicitly NOT built yet,
+    gated on proving the 12 chain-pair pages actually get indexed/rank first, and
+    needs a real content strategy to avoid thin/duplicate content at token-level
+    scale (potentially hundreds of pages if built naively).
   - **Competitor comparison content** ("Blockchains.Click vs. Jumper vs. deBridge")
     — needs real, sourced research into competitors' actual current fee structures
     before writing anything; the audit's own assumptions about competitors aren't

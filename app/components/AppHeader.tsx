@@ -4,7 +4,6 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ThemeToggle } from "@/lib/client/ThemeToggle";
-import { ActivityDrawer } from "@/app/components/ActivityDrawer";
 
 // ConnectWalletMenu reads live browser wallet state, so it must never be
 // part of SSR — same reasoning the old WalletMultiButton import here had.
@@ -112,7 +111,6 @@ export function AppHeader() {
         </nav>
       </div>
       <div className="flex shrink-0 items-center gap-2">
-        <ActivityDrawer />
         <ThemeToggle />
         <ConnectWalletMenu />
       </div>

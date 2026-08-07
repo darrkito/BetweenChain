@@ -7,8 +7,25 @@ import { toAtomicAmount } from "@/lib/client/amount";
 import { TokenSelectModal, type SelectedToken } from "@/app/components/TokenSelectModal";
 import { TokenIcon } from "@/app/components/TokenIcon";
 import { isBuyTokenAllowed } from "@/app/components/SwapPanel";
+import { fetchNativeToken } from "@/lib/client/nativeToken";
+import { swapChainForChainId } from "@/lib/chains/swapChains";
 
 const DEBOUNCE_MS = 500;
+
+/**
+ * `/swap` when either side isn't picked yet, `/swap?sell=<slug>&buy=<slug>`
+ * once both are — reads from the CURRENT selection (which the user may have
+ * changed from whatever initialSellChainId/initialBuyChainId seeded), so
+ * this benefits every use of this widget, not just the pair landing pages.
+ * SwapPageClient.tsx reads these same two params on mount (2026-08-07).
+ */
+function swapHref(sellToken: SelectedToken | null, buyToken: SelectedToken | null): string {
+  if (!sellToken || !buyToken) return "/swap";
+  const sellSlug = swapChainForChainId(sellToken.chainId)?.slug;
+  const buySlug = swapChainForChainId(buyToken.chainId)?.slug;
+  if (!sellSlug || !buySlug) return "/swap";
+  return `/swap?sell=${sellSlug}&buy=${buySlug}`;
+}
 
 /**
  * Landing-page "try before you connect a wallet" widget — real user
@@ -18,10 +35,24 @@ const DEBOUNCE_MS = 500;
  * embedding the full SwapPanel. Both Sell and Buy are now fully pickable
  * (2026-08-05 follow-up) — mirrors app/swap/SwapPageClient.tsx's own
  * sourceMint/destToken param-building and isBuyTokenAllowed filtering, just
- * without a wallet-connected execution step. Sell defaults to native SOL,
- * fetched the same way SwapPageClient seeds its own default.
+ * without a wallet-connected execution step. Sell defaults to native SOL
+ * when no `initialSellChainId` is given.
+ *
+ * `initialSellChainId`/`initialBuyChainId` (2026-08-07, swap-pair landing
+ * pages) are optional — omitted (as on the homepage), behavior is unchanged
+ * from before this prop existed. When given, both sides seed to that
+ * chain's native token via the shared fetchNativeToken helper (previously
+ * this component had its OWN inline Solana-only fetch; Buy had no default
+ * fetch at all — both are now unified through one helper used by both
+ * sides, see lib/client/nativeToken.ts).
  */
-export function QuotePreviewWidget() {
+export function QuotePreviewWidget({
+  initialSellChainId,
+  initialBuyChainId,
+}: {
+  initialSellChainId?: number;
+  initialBuyChainId?: number;
+} = {}) {
   const [amount, setAmount] = useState("1");
   const [sellToken, setSellToken] = useState<SelectedToken | null>(null);
   const [buyToken, setBuyToken] = useState<SelectedToken | null>(null);
@@ -31,25 +62,28 @@ export function QuotePreviewWidget() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    fetch(`/api/tokens/list?chainId=${SOLANA_CHAIN_ID_CLIENT}`)
-      .then((r) => r.json())
-      .then((d: { tokens?: Array<{ address: string; symbol: string; name: string; decimals: number; logoURI: string; isNative: boolean }> }) => {
-        const native = (d.tokens ?? []).find((t) => t.isNative);
-        if (native) {
-          setSellToken({
-            chainId: SOLANA_CHAIN_ID_CLIENT,
-            address: native.address,
-            symbol: native.symbol,
-            name: native.name,
-            decimals: native.decimals,
-            logoURI: native.logoURI,
-            chainDisplayName: "Solana",
-            chainIconUrl: null,
-            isNative: true,
-          });
-        }
-      })
-      .catch(() => {});
+    const sellChainId = initialSellChainId ?? SOLANA_CHAIN_ID_CLIENT;
+    const label = sellChainId === SOLANA_CHAIN_ID_CLIENT ? "Solana" : (swapChainForChainId(sellChainId)?.label ?? "");
+    let ignore = false;
+    fetchNativeToken(sellChainId, label).then((token) => {
+      if (!ignore && token) setSellToken(token);
+    });
+    return () => {
+      ignore = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (initialBuyChainId === undefined) return;
+    let ignore = false;
+    fetchNativeToken(initialBuyChainId, swapChainForChainId(initialBuyChainId)?.label ?? "").then((token) => {
+      if (!ignore && token) setBuyToken(token);
+    });
+    return () => {
+      ignore = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -157,7 +191,7 @@ export function QuotePreviewWidget() {
       </div>
 
       <Link
-        href="/swap"
+        href={swapHref(sellToken, buyToken)}
         className="rounded-xl bg-accent px-4 py-3 text-center text-sm font-semibold text-accent-ink transition-all hover:brightness-110"
       >
         Swap now →

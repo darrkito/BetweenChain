@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { PublicKey, VersionedTransaction } from "@solana/web3.js";
 import { SOLANA_CHAIN_ID_CLIENT, normalizeSolanaSourceMint } from "@/lib/client/constants";
@@ -19,11 +20,14 @@ import { SwapPanel, isBuyTokenAllowed } from "@/app/components/SwapPanel";
 import { SlippageControl } from "@/app/components/SlippageControl";
 import { TrustBar } from "@/app/components/TrustBar";
 import { PointsSummaryCard } from "@/app/components/PointsSummaryCard";
-import { SwapStepper, type SwapStep } from "@/app/components/SwapStepper";
+import type { SwapStep } from "@/app/components/SwapStepper";
+import { SwapProgressDrawer } from "@/app/components/SwapProgressDrawer";
 import type { SelectedToken } from "@/app/components/TokenSelectModal";
 import { useRecentPairs } from "@/lib/client/useRecentPairs";
 import { useSavedAddresses } from "@/lib/client/useSavedAddresses";
 import { useSessionActivity } from "@/lib/client/useSessionActivity";
+import { fetchNativeToken } from "@/lib/client/nativeToken";
+import { swapChainForSlug } from "@/lib/chains/swapChains";
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -48,6 +52,7 @@ export function SwapPageClient() {
   const { publicKey, signTransaction } = useWallet();
   const { connection } = useConnection();
   const connectWalletModal = useConnectWalletModal();
+  const searchParams = useSearchParams();
 
   const [sellToken, setSellToken] = useState<SelectedToken | null>(null);
   const [buyToken, setBuyToken] = useState<SelectedToken | null>(null);
@@ -62,11 +67,16 @@ export function SwapPageClient() {
     destAmountFormatted: string | null;
     destAmountUsd: string | null;
     feeBreakdown?: Array<{ label: string; bps: number; amountUsd: string | null }>;
+    route?: Array<{ label: string; engine: "jupiter" | "relay" }>;
   } | null>(null);
 
   const [step, setStep] = useState<Step>("idle");
   const [erroredAtStep, setErroredAtStep] = useState<Step | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  // Transaction-progress drawer (2026-08-07) — auto-opens at the start of
+  // every run (see the `step === "quoting"` effect below, near stepDefs);
+  // closing it never cancels the in-flight runSwap(), it's display-only.
+  const [progressDrawerOpen, setProgressDrawerOpen] = useState(false);
 
   // Activity drawer data sources (2026-08-06 visual pass) — see
   // app/components/ActivityDrawer.tsx and the three lib/client/use* hooks
@@ -145,27 +155,37 @@ export function SwapPageClient() {
     });
   }, [evmWallet, sellToken]);
 
-  // Default Sell side to native SOL, matching the reference UI's prefilled state.
+  // Default Sell side to native SOL, matching the reference UI's prefilled
+  // state — UNLESS ?sell=&buy= are both present and resolve to real chains
+  // (2026-08-07, arriving from a /swap/[pair] landing page's "Continue to
+  // full swap" CTA — see app/components/QuotePreviewWidget.tsx's swapHref),
+  // in which case both sides prefill to those chains' native tokens
+  // instead. Reuses the same fetchNativeToken helper the widget uses — this
+  // used to be a third copy of the same inline fetch/find(isNative) logic.
   useEffect(() => {
-    fetch(`/api/tokens/list?chainId=${SOLANA_CHAIN_ID_CLIENT}`)
-      .then((r) => r.json())
-      .then((d: { tokens?: Array<{ address: string; symbol: string; name: string; decimals: number; logoURI: string; isNative: boolean }> }) => {
-        const native = (d.tokens ?? []).find((t) => t.isNative);
-        if (native) {
-          setSellToken({
-            chainId: SOLANA_CHAIN_ID_CLIENT,
-            address: native.address,
-            symbol: native.symbol,
-            name: native.name,
-            decimals: native.decimals,
-            logoURI: native.logoURI,
-            chainDisplayName: "Solana",
-            chainIconUrl: null,
-            isNative: true,
-          });
-        }
-      })
-      .catch(() => {});
+    const sellSlug = searchParams.get("sell");
+    const buySlug = searchParams.get("buy");
+    const sellChain = sellSlug ? swapChainForSlug(sellSlug) : undefined;
+    const buyChain = buySlug ? swapChainForSlug(buySlug) : undefined;
+    let ignore = false;
+
+    if (sellChain && buyChain) {
+      fetchNativeToken(sellChain.chainId, sellChain.label).then((t) => {
+        if (!ignore && t) setSellToken(t);
+      });
+      fetchNativeToken(buyChain.chainId, buyChain.label).then((t) => {
+        if (!ignore && t) setBuyToken(t);
+      });
+    } else {
+      fetchNativeToken(SOLANA_CHAIN_ID_CLIENT, "Solana").then((t) => {
+        if (!ignore && t) setSellToken(t);
+      });
+    }
+
+    return () => {
+      ignore = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   function flip() {
@@ -431,12 +451,38 @@ export function SwapPageClient() {
   const isError = step === "error";
   const isDone = step === "done";
 
+  // Auto-open the progress drawer at the exact start of every run (fresh or
+  // a "Try again"/"Swap again" retry — runSwap() sets step to "quoting"
+  // unconditionally as its very first action, never passing back through
+  // "idle" first on a retry, so this fires exactly once per run either way).
+  useEffect(() => {
+    if (step !== "quoting") return;
+    // Deferred via Promise.resolve().then(...) — same pattern
+    // lib/client/ThemeToggle.tsx/ActivityDrawer.tsx already use for this
+    // exact set-state-in-effect lint rule.
+    let ignore = false;
+    Promise.resolve().then(() => {
+      if (!ignore) setProgressDrawerOpen(true);
+    });
+    return () => {
+      ignore = true;
+    };
+  }, [step]);
+
+  // Source/bridge/destination-aware labels (2026-08-07, progress drawer) —
+  // same real steps as before, just relabeled with the actual chain names
+  // now in scope here. No new backend-observable granularity invented:
+  // /api/bridge/confirm still returns one combined "complete" status, so
+  // "Delivered on {chain}" is the done state for the whole leg2_pending
+  // step, not a separately-tracked destination-confirmation sub-step.
+  const sellChainLabel = sellToken?.chainDisplayName ?? "source chain";
+  const buyChainLabel = buyToken?.chainDisplayName ?? "destination chain";
   const stepDefs: SwapStep[] = [
     { key: "quoting", label: "Quote" },
-    { key: "leg1_signing", label: "Sign" },
-    { key: "leg1_confirming", label: "Confirm" },
-    ...(needsRelayLeg2 ? [{ key: "leg2_pending", label: isCrossChain ? "Bridge" : "Swap" }] : []),
-    { key: "done", label: "Done" },
+    { key: "leg1_signing", label: `Sign on ${sellChainLabel}` },
+    { key: "leg1_confirming", label: `Confirm on ${sellChainLabel}` },
+    ...(needsRelayLeg2 ? [{ key: "leg2_pending", label: isCrossChain ? `Bridging to ${buyChainLabel}` : "Swap" }] : []),
+    { key: "done", label: isCrossChain ? `Delivered on ${buyChainLabel}` : "Done" },
   ];
   const currentStepIndex = stepDefs.findIndex((s) => s.key === (isError ? erroredAtStep : step));
   const erroredIndex = isError ? stepDefs.findIndex((s) => s.key === erroredAtStep) : null;
@@ -539,8 +585,19 @@ export function SwapPageClient() {
                   : "Review swap"}
         </button>
 
-        {step !== "idle" && (
-          <SwapStepper steps={stepDefs} currentIndex={currentStepIndex} erroredIndex={erroredIndex} beamIndex={beamStepIndex} />
+        {/* Real step detail now lives in the slide-out progress drawer
+            (2026-08-07) instead of inline in the card — see
+            SwapProgressDrawer below. This link is the reopen affordance for
+            when a user closes the drawer mid-swap; it's never the only way
+            to see progress since the drawer auto-opens at the start of
+            every run. */}
+        {busy && !progressDrawerOpen && (
+          <button
+            onClick={() => setProgressDrawerOpen(true)}
+            className="self-start text-sm font-medium text-accent transition-opacity hover:opacity-80"
+          >
+            View progress →
+          </button>
         )}
 
         {message && (
@@ -704,6 +761,15 @@ export function SwapPageClient() {
           </div>
         </div>
       )}
+
+      <SwapProgressDrawer
+        open={progressDrawerOpen && step !== "idle"}
+        onClose={() => setProgressDrawerOpen(false)}
+        steps={stepDefs}
+        currentIndex={currentStepIndex}
+        erroredIndex={erroredIndex}
+        beamIndex={beamStepIndex}
+      />
     </main>
   );
 }

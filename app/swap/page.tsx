@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { SwapPageClient } from "./SwapPageClient";
 
 // 2026-08-05 (landing-page overhaul, Phase 2) — this route used to BE `/`
@@ -17,5 +18,14 @@ export const metadata: Metadata = {
 };
 
 export default function SwapPage() {
-  return <SwapPageClient />;
+  // Suspense boundary (2026-08-07) — SwapPageClient now reads useSearchParams()
+  // (for the ?sell=&buy= pair-page prefill) which requires one, or Next.js
+  // deopts this whole static page into fully dynamic rendering. No fallback
+  // UI needed — the client component itself already handles its own loading
+  // states for every async piece it has.
+  return (
+    <Suspense>
+      <SwapPageClient />
+    </Suspense>
+  );
 }

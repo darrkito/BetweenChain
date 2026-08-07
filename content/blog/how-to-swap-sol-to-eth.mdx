@@ -1,0 +1,69 @@
+---
+title: "How to Swap SOL to ETH on Blockchains.Click"
+description: "A step-by-step guide to swapping Solana (SOL) directly into Ethereum (ETH) — real fees, no manual bridging, no KYC signup."
+date: "2026-08-07"
+category: "Guides"
+chains:
+  - "solana"
+  - "ethereum"
+howTo:
+  summary: "Swap native SOL directly into native ETH in three steps."
+  totalTime: "PT3M"
+  tools:
+    - "Solana wallet (e.g. Phantom, Solflare)"
+    - "EVM wallet (e.g. MetaMask, Rabby) or a destination address"
+  steps:
+    - name: "Connect Your Wallets"
+      text: "Open the Blockchains.Click header and connect your Solana wallet. If you want ETH delivered to your own wallet, connect an EVM wallet too — otherwise you can paste any destination address instead."
+    - name: "Pick Tokens and Preview the Route"
+      text: "Choose SOL as the token you're selling and ETH as the token you want. The live preview shows the real rate and which engine executes the swap, before you connect anything."
+    - name: "Review and Confirm the Swap"
+      text: "Continue to the full swap page (pre-filled with SOL to ETH), review the fee and minimum received in the summary, then confirm the signature in your wallet."
+faq:
+  - question: "What does it cost to swap SOL to ETH?"
+    answer: "0.25% of the swap amount as a platform fee, plus the network's own gas fee. Swapping native SOL to native ETH is a single-leg swap (Relay only) — 0.25% total, not per leg."
+  - question: "Do I need to bridge SOL to Ethereum manually first?"
+    answer: "No. Relay delivers ETH directly to the destination chain — there's no separate wrapping or bridging step to do yourself."
+  - question: "How long does the swap take?"
+    answer: "It depends on network conditions on both chains — Blockchains.Click doesn't guarantee a fixed time."
+  - question: "Do I need to complete KYC or create an account?"
+    answer: "No. There's no signup form or identity verification — connecting a wallet is all that's required."
+---
+
+Swapping SOL for ETH doesn't require a centralized exchange, a manual bridge, or a second "unwrap" transaction on the other side. Blockchains.Click routes it as one flow: pick your tokens, review a real quote, sign once.
+
+<QuickFacts items='["0.25% platform fee (single leg for native SOL → native ETH)", "No manual bridging — one flow start to finish", "No account signup or KYC form", "Destination address locked in at quote time, never changed afterward"]' />
+
+Here's the real route this specific pair uses:
+
+<RouteDiagram sellChain="solana" buyChain="ethereum" />
+
+Native SOL never touches Jupiter — Jupiter's conversion leg only activates when you're selling a different Solana token (not SOL itself). For the default SOL → ETH pair, Relay is the only engine involved, which is also why the fee is a flat 0.25% here instead of the 0.25%-per-leg figure a non-native token would carry.
+
+## Connect Your Wallets
+
+Open the Blockchains.Click header and connect your Solana wallet. If you want ETH delivered to your own wallet, connect an EVM wallet too — otherwise you can paste any destination address instead. The destination address is locked in the moment you get a quote and can't be changed afterward, which closes off address-swap attacks on this step.
+
+<BlogTip>
+Double-check the destination address before confirming, especially if you're sending to an exchange deposit address rather than your own wallet — some exchanges require a specific network tag that a personal wallet doesn't.
+</BlogTip>
+
+## Pick Tokens and Preview the Route
+
+Choose SOL as the token you're selling and ETH as the token you want. The preview below is live and doesn't require connecting anything to try:
+
+<BlogSwapPreview sellChain="solana" buyChain="ethereum" />
+
+## Review and Confirm the Swap
+
+Once you're happy with the quote, continue to the full swap page — pre-filled with SOL and ETH already selected — review the fee breakdown and minimum received in the summary, then confirm the signature in your wallet.
+
+<Callout href="/swap?sell=solana&buy=ethereum" cta="Swap SOL to ETH now">
+Ready to go? This link opens the swap page with SOL and ETH already selected.
+</Callout>
+
+Referring a friend earns you 20% of their trading volume as points, ongoing — not a one-time bonus. They get a 10% bonus themselves.
+
+<Callout href="/dashboard" cta="Get your referral link">
+Check your points balance and invite code on the dashboard.
+</Callout>

@@ -6,6 +6,199 @@ delete history (superseded entries stay for context, just note what replaced the
 
 ---
 
+## 2026-08-07c — Blog tutorial-hub upgrade (HowTo/FAQ JSON-LD, sticky TOC, route diagrams, embedded swap widget)
+
+A large blog-optimization audit. Checked the real template first — a lot was already
+built, not a cold start: `readingTimeMinutes`, `QuickFacts` (already a "key takeaways"
+box in all but name), dynamic per-post OG images, and `articleSchema()`'s
+already-existing but never-populated `dateModified` field. Full reasoning for what was
+rejected/deferred is in the approved plan (see conversation) — summary:
+
+**Rejected outright**: a "Route Security Verification" trust badge (this app has no
+formal third-party security audit — same reasoning that already rejected fake audit
+badges elsewhere this session); route diagrams naming deBridge/Uniswap V3 (not
+integrated, corrected 3x already today); fabricated speed/KYC headline claims.
+
+**Built:**
+- `lib/content/blog.ts` gained optional frontmatter fields: `updatedDate`, `chains`,
+  `howTo`, `faq`. All optional, zero behavior change for existing posts — confirmed via
+  `lib/content/blog.test.ts` reading a real pre-existing post and asserting all four
+  stay `undefined`.
+- New `lib/seo/jsonld.tsx` `howToSchema()` — real `estimatedCost` (the actual 0.25%
+  per-leg fee fact, not a placeholder string), `totalTime`/`tool` only included when
+  the caller actually has data for them.
+- New `lib/content/headingSlug.ts` — `slugifyHeading`, a **custom, dependency-free**
+  rehype plugin (`rehypeHeadingIds`, sets real `id`s on every H2), and `extractHeadings`
+  (builds the TOC list from raw MDX source, same slugify function so a TOC link and its
+  target anchor can never drift apart). Deliberately not the `rehype-slug` package —
+  matches this codebase's own established "small dependency-free module over a library"
+  preference (`lib/seo/jsonld.tsx`'s own comment).
+- New `app/components/TableOfContents.tsx` (Server Component, no client JS needed —
+  plain anchor links), `RouteDiagram.tsx` (real Jupiter/Relay engines via
+  `lib/chains/executionRoute.ts`, built earlier today), `BlogSwapPreview.tsx` (thin
+  wrapper around `QuotePreviewWidget`'s `initialSellChainId`/`initialBuyChainId` props,
+  also built earlier today — genuinely just reusing today's own infrastructure), and
+  `BlogTip.tsx` (💡 reading aid, distinct from `Callout`'s CTA-button styling).
+- `app/blog/[slug]/page.tsx`: wired `dateModified` into the existing `articleSchema()`
+  call, added a real "Updated {date}" tag (only when `updatedDate` differs from `date`),
+  chain badges, conditional `HowTo`/`FAQPage` JSON-LD, and the sticky TOC (bordered block
+  above the article on mobile, sticky side column at `lg:` — same flex-row-reflow
+  pattern, one `TableOfContents` render either way).
+- `lib/seo/ogImage.tsx`'s `renderBlogOgImage` gained an optional `chains` param (2 real
+  chain icons/labels side by side on the OG image) — omitted, byte-identical to before.
+- New example post, `content/blog/how-to-swap-sol-to-eth.mdx`, exercising every piece
+  above with real, accurate content — **deliberately has no `updatedDate`** (the post
+  has never actually been revised; faking one would be exactly the kind of fabricated
+  claim this session has been avoiding all day) — `blog.test.ts` asserts this directly
+  rather than asserting a fake date.
+
+**Real correctness discipline carried through**: the HowTo schema's step URLs only
+resolve correctly because `howTo.steps[].name` in frontmatter is required to exactly
+match its H2 heading text in the article body (same string → same `slugifyHeading`
+output on both sides) — documented in `HowToSchemaInput`'s own type comment, and the
+new post follows it.
+
+**Explicitly deferred, not silently dropped** (see `PLAN.md`): more full blog posts
+(only one written this pass — content work, not blocked on anything technical),
+comparison articles (already deferred 2x today), annotated UI screenshots (no browser
+automation available to capture real ones), a floating persistent referral banner (a
+real, separate site-wide UI decision, bigger than the rest of this batch).
+
+Verified: `tsc --noEmit`, `eslint` (0 errors), `npm test` (126/126 — 14 new across 4
+new test files, no regressions), `npm run build` clean. Went further than "logic
+verified" for once — **spot-checked the actual built HTML output** (`.next/server/app/blog/how-to-swap-sol-to-eth.html`):
+real `"@type":"HowTo"` and `"@type":"FAQPage"` JSON-LD present, and the heading anchor
+ids (`id="connect-your-wallets"`, `id="pick-tokens-and-preview-the-route"`) really are
+in the rendered markup, confirming the TOC/HowTo-step-URL consistency claim holds in
+practice, not just in the pure-function tests. Also confirmed the new post's URL
+appears in the built `sitemap.xml` output. Still no browser available — didn't verify
+visual layout (TOC sticky behavior, OG image rendering) with real eyes.
+
+---
+
+## 2026-08-07b — Transaction-progress slide-out drawer + route/execution-pathway visualizer
+
+Two swap-flow UX asks, both grounded against real app state:
+
+- **Route visualizer, real correctness catch**: `lib/fees.ts`'s existing `describeFeeLegs()`
+  only lists a leg when its fee is actually active (env-gated). Reusing it for a
+  route/execution-pathway display would have silently hidden a real execution leg
+  whenever that leg's fee isn't configured — the engine still runs the swap regardless
+  of whether this app's own fee is turned on. Fixed by extracting the same real
+  leg-selection rules into a new, fee-**independent** `lib/chains/executionRoute.ts`
+  (`describeExecutionRoute`), with `lib/fees.ts` now building its fee-gated view on top
+  of it — verified byte-identical output for the existing fee-breakdown UI via the
+  pre-existing `lib/fees.test.ts` suite (still 100% passing) plus a new
+  `lib/chains/executionRoute.test.ts` (7 tests) asserting the fee-independence directly.
+- New `route` field added to `GET /api/quote/preview`'s response (parallel to the
+  existing `feeBreakdown`), and a new `app/components/RoutePathVisualizer.tsx` renders
+  it inside `SwapPanel.tsx` (the actual Swap Card) as soon as a valid quote preview
+  exists — before Review is ever opened. Real engines only (Jupiter, Relay) — the
+  audit's own example named deBridge/Uniswap V3, which aren't integrated (same
+  correction made twice already this session). Text-only badges, matching `TrustBar`'s
+  established no-hosted-logo-files decision.
+- **New `app/components/SwapProgressDrawer.tsx`** — slide-out drawer (same
+  `motion`/`AnimatePresence` mechanics as the removed `ActivityDrawer.tsx`, a new
+  component for a different purpose) replacing the inline `SwapStepper` render in the
+  swap card. Auto-opens at the exact start of every run (`step === "quoting"`, which
+  fires identically on a fresh swap or a "Try again"/"Swap again" retry — `runSwap()`
+  never passes back through `"idle"` on retry, confirmed by reading it, so a naive
+  `prevStep === "idle"` check would have missed retries). Closing the drawer never
+  cancels the in-flight swap; a small "View progress" link reopens it if closed while
+  busy.
+- **Step labels relabeled with real source/bridge/destination chain names** (`stepDefs`
+  in `SwapPageClient.tsx`) — e.g. `"Sign"` → `"Sign on Solana"`, `"Bridge"` →
+  `"Bridging to Ethereum"`, `"Done"` → `"Delivered on Ethereum"` (cross-chain) — using
+  chain names already in scope there. Deliberately did NOT invent new
+  backend-observable granularity: `/api/bridge/confirm` still returns one combined
+  `"complete"` status, so "Delivered on X" is a label on the existing `leg2_pending`→
+  `done` transition, not a separately-tracked destination-confirmation sub-step.
+- **Real lint bug caught before shipping**: the drawer's auto-open effect originally
+  called `setProgressDrawerOpen` synchronously in the effect body
+  (`react-hooks/set-state-in-effect`, a hard error) — fixed with the same
+  `Promise.resolve().then(...)`-deferred pattern used everywhere else in this project
+  for this exact rule (`ThemeToggle.tsx`, `ActivityDrawer.tsx`).
+- `app/swap/page.tsx` unchanged from earlier today (already wraps `SwapPageClient` in
+  `<Suspense>` for `useSearchParams()`) — no new Suspense requirement from this pass.
+
+Verified: `tsc --noEmit`, `eslint` (0 errors), `npm test` (112/112 — 7 new, no
+regressions), `npm run build` clean. No browser automation available this session (same
+recurring note) — logic/type-verified, not eyeballed, especially the drawer's real
+motion/timing and the route visualizer's live behavior across a genuine cross-chain
+quote.
+
+---
+
+## 2026-08-07 — Programmatic swap-pair landing pages (12 Solana<->EVM pairs) + header ActivityDrawer removed
+
+**Header change (unrelated, explicit user request):** removed the `ActivityDrawer`
+trigger button from `AppHeader.tsx`. The component and its three localStorage-backed
+data hooks (`useRecentPairs`/`useSavedAddresses`/`useSessionActivity`) stay in the
+codebase, just unreachable from the UI now — not deleted, in case they're wanted back
+or wired in elsewhere later.
+
+**Programmatic pages, phase 1 of the "AI & organic acquisition" ask** (llms.txt and
+JSON-LD schema — the other two parts of that ask — were already done, see the
+2026-08-06c entry below). Deliberately scoped to **12 pages**, not the full 42-pair
+chain matrix and not token-level pages — full reasoning in the approved plan (see
+`PLAN.md`'s SEO backlog entry): chain-pairs (not token-pairs) avoid the doorway-page
+risk since each page embeds a real live quote, not just reworded template text; scoping
+to pairs that include Solana (not EVM-to-EVM) matches this product's actual
+differentiated value — this app has no edge over a native EVM DEX aggregator for e.g.
+Base↔Arbitrum. **Real fee fact discovered while writing the page copy**: re-checked
+`app/api/quote/route.ts`'s actual leg-selection logic — a native-token-to-native-token
+swap is ALWAYS single-leg (Jupiter only activates for a non-native Solana-side sell;
+non-Solana origins never touch Jupiter at all) — so every one of these 12 pages, which
+default to native/native, can honestly state a flat "0.25% total" fee, not "per leg."
+
+- **New `lib/chains/swapChains.ts`** — `SWAP_CHAINS` registry (Solana + the existing
+  `EVM_CHAINS` from `lib/nft/evmChains.ts`, not duplicated), `swapChainForSlug`/
+  `swapChainForChainId` lookups. Deliberately does NOT hardcode native-token ticker
+  symbols (Polygon's own has changed before) — static copy stays chain-name-generic.
+- **New `lib/content/swapPairs.ts`** — `SWAP_PAIRS` (the 12 Solana-inclusive ordered
+  pairs), `pairForSlug`, `relatedPairs`, and `swapPairCopy()` (templated intro/
+  how-it-works/FAQ content with real substituted facts, not hand-authored prose per
+  page). `lib/content/swapPairs.test.ts` (11 tests) asserts the pair count, no
+  duplicates, and — importantly — that the copy never states a fabricated speed claim
+  or the wrong fee figure.
+- **New `lib/client/nativeToken.ts`** (`fetchNativeToken`) — extracted from
+  `QuotePreviewWidget.tsx`'s original Solana-only inline fetch. Now shared by three
+  call sites instead of three separate near-identical copies: the widget (both sides),
+  `SwapPageClient.tsx`'s default-Sell-to-SOL effect (previously its own third inline
+  copy), and the new pair pages.
+- **`QuotePreviewWidget.tsx`** gained optional `initialSellChainId`/`initialBuyChainId`
+  props — omitted (homepage usage, unchanged), behavior is byte-for-byte identical to
+  before. Its "Swap now" CTA is now dynamic (`swapHref()`): `/swap` when either side
+  isn't picked, `/swap?sell=<slug>&buy=<slug>` once both are — this benefits the
+  homepage widget too, not just the new pair pages.
+- **New `app/swap/[pair]/page.tsx`** — `generateStaticParams()` over the 12 real
+  slugs (SSG, confirmed via `npm run build`: exactly 12 `.html` files generated,
+  correctly named), `generateMetadata` with the same noindex-fallback convention
+  `app/blog/[slug]/page.tsx` already uses for an unrecognized param. Page renders the
+  live `QuotePreviewWidget` (the one genuinely non-templated piece — client-fetched,
+  same as the homepage, so NOT visible to a non-JS crawler; the static, crawlable value
+  is the real copy/FAQ/JSON-LD around it, stated plainly rather than overclaimed),
+  `TrustBar`, a "how it works" block, an FAQ section (`faqPageSchema`), related-pair
+  internal links, breadcrumb (`breadcrumbListSchema`), and a "Continue to full swap"
+  CTA carrying `?sell=&buy=`.
+- **`SwapPageClient.tsx`** now reads `?sell=&buy=` on mount (via `useSearchParams()`)
+  and prefills both sides from those chains' native tokens when both resolve to real
+  `SWAP_CHAINS` entries — closes the loop from a pair page's CTA to a fully prefilled
+  transactional page. **Required wrapping `<SwapPageClient />` in `<Suspense>`** in
+  `app/swap/page.tsx` — `useSearchParams()` forces a page dynamic without one; `/swap`
+  is confirmed still `○ Static` in the build output after adding it.
+- **`app/sitemap.ts`** — added the 12 pair-page URLs (`weekly`, priority 0.8), built
+  from the same `SWAP_PAIRS` array `generateStaticParams` uses, so the sitemap can
+  never list a slug the route itself doesn't actually generate.
+- **`public/llms.txt`** — one line added noting the dedicated pair pages exist.
+
+Verified: `tsc --noEmit`, `eslint` (0 errors), `npm test` (106/106, 11 new + 95
+existing, no regressions), `npm run build` clean — confirmed exactly 12
+`/swap/[pair]` static pages generated with the correct slugs. No browser automation
+available this session (same recurring gap) — logic/type-verified, not eyeballed.
+
+---
+
 ## 2026-08-06c — SEO/GEO pass (llms.txt, FinancialProduct schema, OAI-SearchBot, copy corrections)
 
 A third external audit proposed a broader SEO/GEO push. Real SEO foundation already
