@@ -14,7 +14,7 @@ export const FAQ_ITEMS: FaqItem[] = [
   {
     question: "What is Blockchains.Click?",
     answer:
-      "A cross-chain swap and NFT marketplace — swap tokens (starting from Solana) into assets on other chains, and browse/buy NFTs across Solana, Ethereum and other EVM chains, and Sui, all from one place.",
+      "A cross-chain swap and NFT marketplace — swap tokens between Solana and EVM chains, and browse/buy NFTs across Solana, Ethereum and other EVM chains, and Sui, all from one place.",
   },
   {
     question: "Do I need a wallet to try it?",
@@ -40,5 +40,10 @@ export const FAQ_ITEMS: FaqItem[] = [
     question: "Which chains and marketplaces are supported for NFTs?",
     answer:
       "Solana, Ethereum and other EVM chains like Base and ApeChain, and Sui — with the same cross-chain payment flow as token swaps, so you can pay from a different chain than the NFT you're buying.",
+  },
+  {
+    question: "Where can I find your official social channels?",
+    answer:
+      'Our official X account is @blocksdotclick (linked in the header and footer of every page). We\'ll never DM you first or ask for your seed phrase — if an account claiming to be us does either of those, it isn\'t us.',
   },
 ];

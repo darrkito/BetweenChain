@@ -6,6 +6,99 @@ delete history (superseded entries stay for context, just note what replaced the
 
 ---
 
+## 2026-08-07d — Cross-chain feature batch (auto-refuel, floor conversion, dust burner, portfolio drawer, Meme Radar, NFT collection socials, site-wide X link)
+
+A large "Jumper/Magic Eden benchmark" audit plus a separate NFT-collection-socials audit,
+combined into one 7-phase batch, executed non-stop per explicit instruction. Two real
+corrections to the audits' own assumptions before building anything (see the approved
+plan for full reasoning): auto-refuel isn't a new deBridge/LI.FI integration — Relay's
+own `/quote` already supports `topupGas`/`topupGasAmount`; and OpenSea's real website
+field is `project_url`, not `external_url` as the socials audit assumed (live-verified
+against a real collection response).
+
+**Phase 1 — Auto-refuel gas.** `lib/chains/relay.ts`'s `getRelayQuote` gained optional
+`topupGas`/`topupGasAmount`, threaded through `/api/quote` and `/api/quote/preview`.
+`SwapPanel.tsx` shows a manual opt-in toggle (default OFF) only when the destination is
+an EVM cross-chain target.
+
+**Phase 2 — NFT floor price in source currency.** `NftCollectionStats.tsx` shows a
+secondary converted floor line (e.g. "2.4 SOL (~0.11 ETH)") using the existing
+`getSolUsdPrice`/`getEthUsdPrice` getters, USD as the pivot — no new price-fetching code.
+
+**Phase 3 — Dust token burner.** Added `@solana/spl-token` (previously not a dependency).
+New `lib/client/dustAccounts.ts` (pure, unit-tested: zero-balance filtering, batching)
++ `app/components/DustBurner.tsx` (wallet/RPC wiring — scans via
+`getParsedTokenAccountsByOwner`, batches `createCloseAccountInstruction` calls, one
+signature per batch, surfaces real partial-progress on failure). Mounted on `/dashboard`.
+
+**Phase 4 — Portfolio drawer.** New `app/api/tokens/sui-balance/route.ts` (native-SUI-only,
+same pattern as the existing `/api/tokens/balances`). New `app/components/PortfolioDrawer.tsx`
+— slide-out drawer (motion/AnimatePresence) fanning out Solana + all 6 EVM chains + native
+SUI, aggregating a real USD total from non-null `balanceUsd` fields only (never fabricated).
+Trigger icon added to `AppHeader.tsx`'s right-side slot, shown only when a wallet is
+connected.
+
+**Phase 5 — Meme Radar.** New `lib/chains/rugcheck.ts` (RugCheck.xyz's real, public,
+keyless report endpoint — returns `null`, never a guessed score, on any failure/unknown
+mint). Three new thin API routes: `/api/tokens/safety`, `/api/tokens/trending` (wraps the
+existing server-only `lib/chains/trending.ts`), `/api/tokens/price` (SOL/USD, for the
+quick-buy USD→SOL conversion). New `/radar` page lists Solana trending tokens with real
+RugCheck scores; quick-buy chips ($10/$50/$100) hand off to `/swap?radarMint=&radarUsd=`,
+which resolves the token via the existing `/api/tokens/list` search endpoint (same path a
+pasted address already used) and opens the real review modal — no separate signing path.
+Solana-focused v1 only (RugCheck has no EVM coverage; reuses existing trending data, not
+new fresh-launch detection — see PLAN.md for what's explicitly out of scope).
+
+**Phase 6 — NFT collection social links.** `NftCollection` gained optional
+`externalUrl`/`twitterUsername`/`discordUrl`/`telegramUrl`. `lib/nft/opensea.ts` captures
+`project_url`/`twitter_username`/`discord_url`/`telegram_url` from OpenSea's real response.
+`lib/nft/tradeport.ts` now selects `discord`/`twitter`/`website` (fields already confirmed
+live in a prior session's research comment, just never selected before). Magic Eden
+deliberately NOT included — hit its rate limit mid-research, couldn't verify field
+presence, not building on an assumption. New `app/components/CollectionSocialsBar.tsx`
+(inline SVGs, no `lucide-react` dependency added — matches this codebase's existing
+inline-SVG convention; URL-sanitized to http/https only; `rel="noopener noreferrer"`
+without `nofollow`, deliberately — these are the vendor's own verified official links, not
+user content, and nofollowing them would undercut the JSON-LD assertion right next to it).
+New `lib/seo/jsonld.tsx` `nftCollectionBrandSchema()` — `sameAs` built only from whichever
+fields are actually present. Both wired into `CollectionPageClient.tsx`.
+
+**Phase 7 — Site-wide X link + FAQ fix.** New `app/components/SocialXLink.tsx` (single
+source of truth for the header/footer X icon + `https://x.com/blocksdotclick`) — the handle
+was provided directly by the user as their own account; could NOT be independently
+confirmed live (X blocks scraping with a 402, account too small to be search-indexed),
+documented as such in-code rather than silently trusted. Added to `AppHeader.tsx` and
+`Footer.tsx`. New FAQ entry in `lib/content/faq.ts` about official social channels.
+**Real bug found and fixed along the way**: `FAQ_ITEMS[0]`'s answer still had the stale
+"starting from Solana" phrasing that was already fixed in `SITE_DESCRIPTION`
+(`app/layout.tsx`) and the homepage feature card earlier this session — this file was
+missed in that pass, now consistent.
+
+### Verification
+`npx tsc --noEmit`, `npm run lint`, `npm test`, `npm run build` all run clean after every
+phase (not just once at the end) — 145 tests passing (up from 137 at session start), zero
+lint errors project-wide (pre-existing warnings in `.github/skills/` tooling files are
+unrelated to this work). New test files: `lib/chains/rugcheck.test.ts`,
+`app/components/CollectionSocialsBar.test.ts`. No browser automation available this
+session — manual dev-server checks not performed; flagging this explicitly rather than
+claiming visual verification that didn't happen.
+
+### Explicitly deferred / out of scope (see PLAN.md for full reasoning)
+- Paying for an NFT with an arbitrary SPL token (e.g. BONK) — `NftBuyModal.tsx` still
+  hardcodes native SOL/ETH only, untested backend risk, needs its own pass.
+- Brand-new-listing (minutes-old) meme detection — Radar v1 reuses existing trending
+  data, not real fresh-launch detection (higher rug-risk category, deliberately not built
+  without more research).
+- EVM safety scores on the Radar — RugCheck is Solana-only; EVM rows would show "Not
+  available" rather than an inconsistent borrowed/invented score (moot in v1 since Radar
+  itself is Solana-only for now).
+- Magic Eden social links — unverified this session, add once fields are actually
+  live-confirmed.
+- The Radar's plan-described "gas-refuel micro-pill" on cross-chain EVM quick-buy rows
+  doesn't apply to what actually shipped — v1 Radar is Solana-only (same-chain SOL→SPL
+  quick-buys), so no cross-chain EVM destination exists in any Radar row yet. Revisit if
+  Radar ever expands to EVM trending tokens.
+
 ## 2026-08-07c — Blog tutorial-hub upgrade (HowTo/FAQ JSON-LD, sticky TOC, route diagrams, embedded swap widget)
 
 A large blog-optimization audit. Checked the real template first — a lot was already

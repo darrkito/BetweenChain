@@ -45,6 +45,14 @@ interface RawOpenSeaCollection {
   // far the dominant value across both order_by rankings (seven_day_volume
   // AND market_cap), only used to filter browseOpenSeaCollections below.
   safelist_status?: string;
+  // Official social links (confirmed live 2026-08-07 against a real
+  // collection response) — `project_url` is the real website field; an
+  // audit that proposed surfacing these assumed `external_url`, which does
+  // not appear in OpenSea's actual response at all.
+  project_url?: string | null;
+  twitter_username?: string | null;
+  discord_url?: string | null;
+  telegram_url?: string | null;
 }
 
 interface RawOpenSeaStats {
@@ -72,6 +80,10 @@ function toNftCollection(c: RawOpenSeaCollection, stats?: RawOpenSeaStats, chain
     // own — assuming it shares floor_price_symbol (true for any single-chain,
     // single-currency collection, which covers everything this app lists).
     volume24hrCurrency: stats?.total?.floor_price_symbol,
+    externalUrl: c.project_url ?? undefined,
+    twitterUsername: c.twitter_username ?? undefined,
+    discordUrl: c.discord_url ?? undefined,
+    telegramUrl: c.telegram_url ?? undefined,
   };
 }
 

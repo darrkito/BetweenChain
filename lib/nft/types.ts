@@ -49,6 +49,21 @@ export interface NftCollection {
   // lib/nft/tradeport.ts's enrichCollection for the exact math and the caveat
   // on ordering assumptions. Still no vendor exposes this as a native field.
   floorChange24hrPct?: number;
+  // Official social/external links (2026-08-07) — present only when the
+  // vendor's own API actually returns them (OpenSea: project_url/
+  // twitter_username/discord_url/telegram_url, confirmed live against a
+  // real collection — the audit that proposed this feature assumed
+  // `external_url` for the website field, which doesn't exist in OpenSea's
+  // real response; the correct field is `project_url`. Tradeport: discord/
+  // twitter/website, confirmed via lib/nft/tradeport.ts's own prior
+  // research comment. Magic Eden intentionally omitted — its fields
+  // couldn't be verified live this session, see PLAN.md). Never fabricated
+  // or defaulted — undefined means "this vendor/collection didn't provide
+  // one," not "none exists."
+  externalUrl?: string;
+  twitterUsername?: string;
+  discordUrl?: string;
+  telegramUrl?: string;
 }
 
 export interface NftTrait {

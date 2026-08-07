@@ -31,6 +31,8 @@ import { NftTraitFilters, matchesTraitSelection, type TraitSelection } from "@/a
 import { NftBuyModal } from "@/app/components/NftBuyModal";
 import { NftBuyModalSui } from "@/app/components/NftBuyModalSui";
 import { NftBuyModalMagicEden } from "@/app/components/NftBuyModalMagicEden";
+import { CollectionSocialsBar } from "@/app/components/CollectionSocialsBar";
+import { JsonLd, nftCollectionBrandSchema } from "@/lib/seo/jsonld";
 import { isOnchainPunkListing } from "@/lib/nft/cryptopunksShared";
 import { nftChainFamilyLabel, nftFamilyForVendor } from "@/lib/nft/labels";
 import { TRADEPORT_FEE_SAFETY_MARGIN } from "@/lib/nft/tradeportFee";
@@ -90,6 +92,12 @@ export interface CollectionPageClientProps {
   initialCursor?: string;
   initialHasMore: boolean;
   initialListingsError: string | null;
+  /** 2026-08-07 (cross-chain floor price display) — fetched server-side by
+   * the page (lib/pricing.ts is server-only), null when that price API call
+   * failed. See NftCollectionStats.tsx for how these become the floor
+   * price's secondary converted line. */
+  solUsdPrice?: number | null;
+  ethUsdPrice?: number | null;
 }
 
 export function CollectionPageClient({
@@ -101,6 +109,8 @@ export function CollectionPageClient({
   initialCursor,
   initialHasMore,
   initialListingsError,
+  solUsdPrice,
+  ethUsdPrice,
 }: CollectionPageClientProps) {
   // Vendor maps 1:1 to a chain family (see lib/nft/labels.ts) — known
   // immediately from the route param, no need to wait for the collection
@@ -481,7 +491,11 @@ export function CollectionPageClient({
       )}
 
       {collection ? (
-        <NftCollectionHero collection={collection} />
+        <>
+          <NftCollectionHero collection={collection} />
+          <CollectionSocialsBar collection={collection} />
+          <JsonLd data={nftCollectionBrandSchema(collection)} />
+        </>
       ) : (
         collectionLoading && (
           <>
@@ -502,6 +516,8 @@ export function CollectionPageClient({
           listedCountInfo={listedCountInfo}
           totalSupplyInfo={totalSupplyInfo}
           magicEdenRoyaltyBps={listings.find((l) => l.royaltyBps != null)?.royaltyBps}
+          solUsdPrice={solUsdPrice}
+          ethUsdPrice={ethUsdPrice}
         />
       )}
 

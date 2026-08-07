@@ -132,6 +132,41 @@ export function articleSchema(post: ArticleSchemaInput) {
   };
 }
 
+/**
+ * NFT collection social/official-link assertion (2026-08-07) — `sameAs`
+ * built ONLY from whichever social fields the vendor's own API actually
+ * returned for this specific collection (see lib/nft/types.ts's
+ * NftCollection doc) — never a padded/guessed array. Renders nothing
+ * meaningful (empty sameAs) when a collection has no confirmed social
+ * links, which callers should skip rendering entirely rather than emit.
+ */
+export function nftCollectionBrandSchema(collection: {
+  vendor: string;
+  slug: string;
+  name: string;
+  imageUrl?: string;
+  externalUrl?: string;
+  twitterUsername?: string;
+  discordUrl?: string;
+  telegramUrl?: string;
+}) {
+  const sameAs = [
+    collection.externalUrl,
+    collection.twitterUsername ? `https://x.com/${collection.twitterUsername}` : undefined,
+    collection.discordUrl,
+    collection.telegramUrl,
+  ].filter((v): v is string => Boolean(v));
+
+  return {
+    "@context": "https://schema.org",
+    "@type": "Brand",
+    "@id": `${SITE_URL}/nft/${collection.vendor}/${collection.slug}#brand`,
+    name: collection.name,
+    ...(collection.imageUrl ? { logo: collection.imageUrl } : {}),
+    ...(sameAs.length > 0 ? { sameAs } : {}),
+  };
+}
+
 export interface HowToSchemaInput {
   slug: string;
   name: string;

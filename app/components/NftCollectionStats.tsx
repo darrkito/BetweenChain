@@ -3,7 +3,20 @@ import { magicEdenBuyerTotal } from "@/lib/nft/magicedenFee";
 import { roundUpTo3Decimals } from "@/lib/client/amount";
 import type { NftCollection } from "@/lib/nft/types";
 
-function Stat({ label, value, title, emphasize }: { label: string; value: string; title?: string; emphasize?: boolean }) {
+function Stat({
+  label,
+  value,
+  secondaryValue,
+  title,
+  emphasize,
+}: {
+  label: string;
+  value: string;
+  /** Optional converted-currency line under the main value (2026-08-07) — e.g. "≈0.11 ETH" under a SOL floor price. */
+  secondaryValue?: string;
+  title?: string;
+  emphasize?: boolean;
+}) {
   return (
     <div
       className={`flex min-w-[92px] flex-1 flex-col gap-0.5 rounded-xl px-3 py-2 sm:flex-none ${emphasize ? "bg-accent-soft" : ""}`}
@@ -11,6 +24,7 @@ function Stat({ label, value, title, emphasize }: { label: string; value: string
     >
       <span className="text-[11px] uppercase tracking-wide text-ink-faint">{label}</span>
       <span className={`num text-[15px] font-semibold ${emphasize ? "text-accent" : "text-ink"}`}>{value}</span>
+      {secondaryValue && <span className="num text-[11px] text-ink-faint">{secondaryValue}</span>}
     </div>
   );
 }
@@ -60,6 +74,8 @@ export function NftCollectionStats({
   listedCountInfo,
   totalSupplyInfo,
   magicEdenRoyaltyBps,
+  solUsdPrice,
+  ethUsdPrice,
 }: {
   collection: NftCollection;
   listedCountInfo?: ListedCountInfo;
@@ -70,6 +86,14 @@ export function NftCollectionStats({
   // floor listing's. Undefined falls back to magicEdenBuyerTotal's own
   // default (see that function's doc).
   magicEdenRoyaltyBps?: number;
+  // 2026-08-07 (cross-chain floor price display) — fetched server-side
+  // (lib/pricing.ts is server-only) by the page and passed down; null/
+  // undefined when the price API call failed, in which case the secondary
+  // line is simply omitted rather than showing a stale/fabricated figure.
+  // USD is the pivot — only SOL<->ETH conversion is supported for now (the
+  // two currencies this app's floor prices actually appear in).
+  solUsdPrice?: number | null;
+  ethUsdPrice?: number | null;
 }) {
   const totalSupply = totalSupplyInfo?.value ?? collection.totalSupply;
   const listedCount = listedCountInfo?.count ?? collection.listedCount;
@@ -122,6 +146,18 @@ export function NftCollectionStats({
   // same override pattern as floorPrice above — collection.volume24hr is
   // OpenSea's true 24h figure, sourced directly on the collection object
   // instead since OpenSea doesn't need a deferred second call for it.
+  // Cross-chain floor price conversion (2026-08-07) — USD as the pivot,
+  // real prices only. Silently omitted (not "—") when the floor currency
+  // isn't SOL or ETH, or when either price is unavailable — this is a
+  // bonus reference line, not a claim every floor has one.
+  const floorConvertedDisplay = (() => {
+    if (floorPriceDisplay == null || !solUsdPrice || !ethUsdPrice) return null;
+    const floorNum = Number(floorPriceDisplay);
+    if (floorPriceCurrency === "SOL") return `≈${((floorNum * solUsdPrice) / ethUsdPrice).toFixed(3)} ETH`;
+    if (floorPriceCurrency === "ETH") return `≈${((floorNum * ethUsdPrice) / solUsdPrice).toFixed(3)} SOL`;
+    return null;
+  })();
+
   const volumeValue = listedCountInfo?.volume ?? collection.volume24hr;
   const volumeCurrency = listedCountInfo?.volumeCurrency ?? collection.volume24hrCurrency;
   const volumePeriodDays = listedCountInfo?.volumePeriodDays ?? collection.volumePeriodDays ?? 1;
@@ -132,6 +168,7 @@ export function NftCollectionStats({
       <Stat
         label="Floor Price"
         value={floorPriceDisplay != null ? `${floorPriceDisplay} ${floorPriceCurrency ?? ""}` : "—"}
+        secondaryValue={floorConvertedDisplay ?? undefined}
         // OpenSea's floorPrice is computed live from actual listings (see
         // countOpenSeaListedItems) and can genuinely disagree with its own
         // /stats endpoint. Magic Eden's is now fetched via a separate

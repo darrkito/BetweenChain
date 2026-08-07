@@ -31,6 +31,9 @@ const querySchema = z.object({
   sourceAmount: z.string().regex(/^\d+$/),
   destChainId: z.coerce.number().int(),
   destToken: z.string().min(1),
+  // Just-In-Time Gas (2026-08-07) — see getRelayQuote's doc; safe to pass
+  // unconditionally, Relay no-ops it for a non-EVM/already-native destination.
+  autoRefuel: z.coerce.boolean().default(false),
 });
 
 function recipientPlaceholderFor(vmType: string | undefined): string | null {
@@ -61,10 +64,17 @@ export async function GET(req: Request) {
   const isSolanaOrigin = input.sourceChainId === SOLANA_CHAIN_ID;
 
   if (input.sourceAmount === "0") {
-    return NextResponse.json({ destAmountFormatted: "0", destAmountUsd: "0", rateLabel: null, feeBreakdown: [], route: [] });
+    return NextResponse.json({
+      destAmountFormatted: "0",
+      destAmountUsd: "0",
+      rateLabel: null,
+      feeBreakdown: [],
+      route: [],
+      autoRefuelAvailable: false,
+    });
   }
 
-  const cacheKey = `preview:${input.sourceChainId}:${input.sourceMint}:${input.sourceAmount}:${input.destChainId}:${input.destToken}`;
+  const cacheKey = `preview:${input.sourceChainId}:${input.sourceMint}:${input.sourceAmount}:${input.destChainId}:${input.destToken}:${input.autoRefuel}`;
 
   try {
     const result = await cached(cacheKey, PREVIEW_TTL_MS, async () => {
@@ -95,12 +105,14 @@ export async function GET(req: Request) {
             destAmountUsd,
             feeBreakdown: feeBreakdownWithAmounts({ isSolanaOrigin, sourceIsNativeSol, isCrossChain: false }, destAmountUsd),
             route: describeExecutionRoute({ isSolanaOrigin, sourceIsNativeSol, isCrossChain: false }),
+            autoRefuelAvailable: false, // same-chain Solana destination — Relay's topupGas is EVM-destination only
           };
         }
 
         const destChain = await getRelayChain(input.destChainId);
         const recipientPlaceholder = recipientPlaceholderFor(destChain?.vmType);
-        if (!recipientPlaceholder) return { destAmountFormatted: null, destAmountUsd: null, feeBreakdown: [], route: [] };
+        if (!recipientPlaceholder)
+          return { destAmountFormatted: null, destAmountUsd: null, feeBreakdown: [], route: [], autoRefuelAvailable: false };
 
         const rq = await getRelayQuote({
           amountLamports: solAmountLamports,
@@ -108,6 +120,7 @@ export async function GET(req: Request) {
           destToken: input.destToken,
           destAddress: recipientPlaceholder,
           userSolanaAddress: PREVIEW_SOLANA_PLACEHOLDER,
+          topupGas: input.autoRefuel,
         });
 
         return {
@@ -118,6 +131,7 @@ export async function GET(req: Request) {
             rq.expectedOutAmountUsd,
           ),
           route: describeExecutionRoute({ isSolanaOrigin, sourceIsNativeSol, isCrossChain: true }),
+          autoRefuelAvailable: destChain?.vmType === "evm",
         };
       }
 
@@ -126,7 +140,8 @@ export async function GET(req: Request) {
       // app/api/quote/route.ts's non-Solana-origin branch.
       const destChain = await getRelayChain(input.destChainId);
       const recipientPlaceholder = recipientPlaceholderFor(destChain?.vmType);
-      if (!recipientPlaceholder) return { destAmountFormatted: null, destAmountUsd: null, feeBreakdown: [], route: [] };
+      if (!recipientPlaceholder)
+        return { destAmountFormatted: null, destAmountUsd: null, feeBreakdown: [], route: [], autoRefuelAvailable: false };
 
       const rq = await getRelayQuote({
         amountLamports: input.sourceAmount,
@@ -145,6 +160,7 @@ export async function GET(req: Request) {
         // sender === recipient, and both could otherwise land on the same
         // EVM burn address when origin and destination are both EVM chains.
         userOriginAddress: PREVIEW_EVM_ORIGIN_PLACEHOLDER,
+        topupGas: input.autoRefuel,
       });
 
       return {
@@ -154,6 +170,7 @@ export async function GET(req: Request) {
           { isSolanaOrigin, sourceIsNativeSol, isCrossChain: true },
           rq.expectedOutAmountUsd,
         ),
+        autoRefuelAvailable: destChain?.vmType === "evm",
         route: describeExecutionRoute({ isSolanaOrigin, sourceIsNativeSol, isCrossChain: true }),
       };
     });

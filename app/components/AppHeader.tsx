@@ -4,6 +4,7 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ThemeToggle } from "@/lib/client/ThemeToggle";
+import { SocialXLink } from "@/app/components/SocialXLink";
 
 // ConnectWalletMenu reads live browser wallet state, so it must never be
 // part of SSR — same reasoning the old WalletMultiButton import here had.
@@ -12,11 +13,19 @@ const ConnectWalletMenu = dynamic(
   { ssr: false },
 );
 
+// Reads live wallet state (same reasoning as ConnectWalletMenu above) — must
+// never be part of SSR. Renders nothing until a wallet is connected.
+const PortfolioDrawer = dynamic(
+  () => import("@/app/components/PortfolioDrawer").then((m) => m.PortfolioDrawer),
+  { ssr: false },
+);
+
 // 2026-08-05 (landing-page overhaul) — Swap moved off `/` (now the marketing
 // landing page) to its own /swap route.
 const NAV: Array<{ href: string; label: string; shortLabel?: string }> = [
   { href: "/swap", label: "Token Swap", shortLabel: "Swap" },
   { href: "/nft", label: "NFTs" },
+  { href: "/radar", label: "Meme Radar", shortLabel: "Radar" },
   { href: "/dashboard", label: "Rewards" },
 ];
 
@@ -111,7 +120,9 @@ export function AppHeader() {
         </nav>
       </div>
       <div className="flex shrink-0 items-center gap-2">
+        <SocialXLink className="flex h-9 w-9 items-center justify-center rounded-full border border-hairline bg-surface text-ink-muted transition-all hover:border-accent/40 hover:text-accent" />
         <ThemeToggle />
+        <PortfolioDrawer />
         <ConnectWalletMenu />
       </div>
     </header>

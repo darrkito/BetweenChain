@@ -163,6 +163,16 @@ export async function getRelayQuote(params: {
   originChainId?: number;
   originCurrency?: string;
   userOriginAddress?: string;
+  /** "Just-In-Time Gas" (2026-08-07) — real Relay `/quote` params, confirmed
+   * via docs.relay.link: destination-chain gas top-up bundled into the same
+   * fill. Docs state this only applies to an EVM destination whose
+   * requested currency isn't already that chain's own gas currency — a
+   * Solana or same-currency destination silently gets no top-up from Relay
+   * regardless of this flag, so callers don't need to gate on destination
+   * chain type themselves. `topupGasAmount` is a USD-decimal string (e.g.
+   * "100000" = $1); Relay's own default is $2 if omitted. */
+  topupGas?: boolean;
+  topupGasAmount?: string;
 }): Promise<RelayQuote> {
   const {
     amountLamports,
@@ -173,6 +183,8 @@ export async function getRelayQuote(params: {
     originChainId = SOLANA_CHAIN_ID,
     originCurrency = RELAY_NATIVE_SOL_SENTINEL,
     userOriginAddress = userSolanaAddress,
+    topupGas,
+    topupGasAmount,
   } = params;
   if (!userOriginAddress) throw new Error("getRelayQuote requires userOriginAddress or userSolanaAddress");
 
@@ -192,6 +204,7 @@ export async function getRelayQuote(params: {
       // account/registration needed for this leg, unlike Jupiter's. See
       // lib/fees.ts.
       ...(relayAppFees() ? { appFees: relayAppFees() } : {}),
+      ...(topupGas ? { topupGas: true, ...(topupGasAmount ? { topupGasAmount } : {}) } : {}),
     }),
     cache: "no-store",
   });

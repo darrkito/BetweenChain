@@ -59,6 +59,7 @@ export function SwapPageClient() {
   const [sellAmount, setSellAmount] = useState("");
   const [destAddress, setDestAddress] = useState("");
   const [slippageBps, setSlippageBps] = useState(100); // 1% default, was hardcoded with no UI control before 2026-08-03
+  const [autoRefuel, setAutoRefuel] = useState(false); // Just-In-Time Gas (2026-08-07), default off — see SwapPanel.tsx's toggle doc
   const [reviewOpen, setReviewOpen] = useState(false);
   // Mirrored up from SwapPanel's own live quote preview (see its
   // onPreviewChange doc) — used below for the Review modal's rate/
@@ -68,6 +69,7 @@ export function SwapPageClient() {
     destAmountUsd: string | null;
     feeBreakdown?: Array<{ label: string; bps: number; amountUsd: string | null }>;
     route?: Array<{ label: string; engine: "jupiter" | "relay" }>;
+    autoRefuelAvailable?: boolean;
   } | null>(null);
 
   const [step, setStep] = useState<Step>("idle");
@@ -188,6 +190,53 @@ export function SwapPageClient() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Meme Radar quick-buy handoff (2026-08-07): ?radarMint=&radarUsd=,
+  // arriving from a /radar quick-buy chip. Independent of the ?sell=&buy=
+  // chain-slug prefill above (which already defaults Sell to native SOL
+  // when neither is present) — this resolves the SPECIFIC token via the
+  // same /api/tokens/list search endpoint the token-select modal uses for a
+  // pasted address, then converts the USD preset into a SOL amount using a
+  // real live price (never a hardcoded SOL/USD rate).
+  useEffect(() => {
+    const radarMint = searchParams.get("radarMint");
+    const radarUsdRaw = searchParams.get("radarUsd");
+    const radarUsd = radarUsdRaw ? Number(radarUsdRaw) : NaN;
+    if (!radarMint || !Number.isFinite(radarUsd) || radarUsd <= 0) return;
+    let ignore = false;
+
+    fetch(`/api/tokens/list?chainId=${SOLANA_CHAIN_ID_CLIENT}&term=${encodeURIComponent(radarMint)}`)
+      .then((r) => (r.ok ? r.json() : Promise.reject(r)))
+      .then((body: { tokens?: Array<{ address: string; symbol: string; name: string; decimals: number; logoURI: string }> }) => {
+        if (ignore) return;
+        const match = (body.tokens ?? []).find((t) => t.address === radarMint);
+        if (!match) return;
+        setBuyToken({
+          chainId: SOLANA_CHAIN_ID_CLIENT,
+          address: match.address,
+          symbol: match.symbol,
+          name: match.name,
+          decimals: match.decimals,
+          logoURI: match.logoURI,
+          chainDisplayName: "Solana",
+          chainIconUrl: null,
+          isNative: false,
+        });
+      })
+      .catch(() => {});
+
+    fetch("/api/tokens/price")
+      .then((r) => (r.ok ? r.json() : Promise.reject(r)))
+      .then((body: { solUsdPrice: number }) => {
+        if (!ignore && body.solUsdPrice > 0) setSellAmount((radarUsd / body.solUsdPrice).toFixed(6));
+      })
+      .catch(() => {});
+
+    return () => {
+      ignore = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   function flip() {
     // Only swap sides if the result would still be a valid Buy-side pick —
     // reuses the exact same rule the Buy modal itself enforces (native-SOL-
@@ -295,6 +344,7 @@ export function SwapPageClient() {
           // guard above).
           destAddress: isCrossChain ? destAddress : sellIsSolana ? publicKey!.toBase58() : evmWallet.address!,
           slippageBps,
+          autoRefuel,
         }),
       });
       if (!quoteRes.ok) throw new Error((await quoteRes.json()).error ?? "Quote failed");
@@ -552,6 +602,8 @@ export function SwapPageClient() {
           sellBalance={sellBalance}
           sellBalanceLoading={sellBalanceLoading}
           onPreviewChange={setPreview}
+          autoRefuel={autoRefuel}
+          onAutoRefuelChange={setAutoRefuel}
         />
 
         <SlippageControl bps={slippageBps} onChange={setSlippageBps} />
@@ -723,6 +775,12 @@ export function SwapPageClient() {
                 <span className="text-xs text-ink-faint">Network gas</span>
                 <span className="text-xs text-ink-muted">Paid separately, varies by chain</span>
               </div>
+              {autoRefuel && preview?.autoRefuelAvailable && (
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-ink-faint">Destination gas top-up</span>
+                  <span className="text-xs text-ink-muted">~$2 requested</span>
+                </div>
+              )}
               {isCrossChain && (
                 // 2026-08-04 (security hardening pass) — was a single
                 // `justify-between` row with `truncate` (CSS ellipsis

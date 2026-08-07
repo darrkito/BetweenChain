@@ -76,6 +76,8 @@ export function SwapPanel({
   sellBalance,
   sellBalanceLoading,
   onPreviewChange,
+  autoRefuel,
+  onAutoRefuelChange,
 }: {
   sellToken: SelectedToken | null;
   buyToken: SelectedToken | null;
@@ -98,7 +100,15 @@ export function SwapPanel({
     destAmountUsd: string | null;
     feeBreakdown?: Array<{ label: string; bps: number; amountUsd: string | null }>;
     route?: Array<{ label: string; engine: "jupiter" | "relay" }>;
+    autoRefuelAvailable?: boolean;
   } | null) => void;
+  /** Just-In-Time Gas toggle (2026-08-07) — controlled from SwapPageClient
+   * so the same value reaches both this panel's live preview AND the real
+   * POST /api/quote call at execution time. Default off (see
+   * lib/chains/relay.ts's getRelayQuote doc — Relay itself no-ops the
+   * request for a non-EVM/already-native destination). */
+  autoRefuel: boolean;
+  onAutoRefuelChange: (v: boolean) => void;
 }) {
   const [sellModalOpen, setSellModalOpen] = useState(false);
   const [buyModalOpen, setBuyModalOpen] = useState(false);
@@ -107,6 +117,7 @@ export function SwapPanel({
     destAmountUsd: string | null;
     feeBreakdown?: Array<{ label: string; bps: number; amountUsd: string | null }>;
     route?: Array<{ label: string; engine: "jupiter" | "relay" }>;
+    autoRefuelAvailable?: boolean;
   } | null>(
     null,
   );
@@ -146,6 +157,7 @@ export function SwapPanel({
         sourceAmount: toAtomicAmount(sellAmount, sellToken.decimals),
         destChainId: String(buyToken.chainId),
         destToken: buyToken.chainId === SOLANA_CHAIN_ID ? "SOL" : buyToken.address,
+        autoRefuel: String(autoRefuel),
       });
 
       fetch(`/api/quote/preview?${params}`, { signal: controller.signal })
@@ -158,7 +170,7 @@ export function SwapPanel({
     }, 400);
 
     return () => clearTimeout(handle);
-  }, [sellToken, buyToken, sellAmount, hasValidInput]);
+  }, [sellToken, buyToken, sellAmount, hasValidInput, autoRefuel]);
 
   // Mirrors `preview` up to the parent whenever it changes — see
   // onPreviewChange's own doc above for why.
@@ -267,6 +279,24 @@ export function SwapPanel({
               {destAddressError && <span className="text-[11px] text-danger">{destAddressError}</span>}
             </label>
           </div>
+        )}
+
+        {/* Just-In-Time Gas toggle (2026-08-07) — only shown once the live
+            preview confirms Relay's topupGas actually applies to this
+            destination (EVM only — see getRelayQuote's doc). Default off; a
+            real opt-in, not an auto-enabled-below-a-threshold heuristic,
+            since probing an arbitrary destination address's balance on an
+            arbitrary EVM chain isn't a capability this app has. */}
+        {hasValidInput && preview?.autoRefuelAvailable && (
+          <label className="mt-3 flex items-center justify-between gap-2 border-t border-hairline pt-3 text-xs text-ink-muted">
+            <span>Add ~$2 destination gas so you can use your new tokens immediately</span>
+            <input
+              type="checkbox"
+              checked={autoRefuel}
+              onChange={(e) => onAutoRefuelChange(e.target.checked)}
+              className="h-4 w-4 shrink-0 accent-[var(--accent)]"
+            />
+          </label>
         )}
       </div>
 

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { AppHeader } from "@/app/components/AppHeader";
 import { PointsCalculator } from "@/app/components/PointsCalculator";
 import { TierBadge } from "@/app/components/TierBadge";
+import { DustBurner } from "@/app/components/DustBurner";
 
 export default function DashboardPage() {
   const [balance, setBalance] = useState<number | null>(null);
@@ -54,6 +55,8 @@ export default function DashboardPage() {
         </section>
 
         <PointsCalculator />
+
+        <DustBurner />
 
         <section className="flex flex-col gap-2 rounded-2xl border border-hairline bg-surface p-5 shadow-sm">
           <p className="text-sm text-ink-muted">Your invite code</p>

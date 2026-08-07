@@ -135,6 +135,9 @@ const COLLECTIONS_QUERY = (chain: TradeportChain, orderBy: string) => `
         cover_url
         floor
         supply
+        discord
+        twitter
+        website
       }
     }
   }
@@ -156,6 +159,9 @@ const COLLECTION_BY_SLUG_QUERY = (chain: TradeportChain) => `
         cover_url
         floor
         supply
+        discord
+        twitter
+        website
       }
     }
   }
@@ -211,10 +217,7 @@ const FLOOR_24H_QUERY = (chain: TradeportChain) => `
   }
 `;
 
-async function enrichCollection(
-  chain: TradeportChain,
-  c: { id: string; slug: string; title: string; cover_url?: string; floor?: number; supply?: number },
-): Promise<NftCollection> {
+async function enrichCollection(chain: TradeportChain, c: TradeportCollectionRow): Promise<NftCollection> {
   const decimals = CHAIN_DECIMALS[chain];
   const currency = CHAIN_CURRENCY[chain];
 
@@ -256,7 +259,21 @@ async function enrichCollection(
     volume24hr: fromAtomic(dayVolume, decimals),
     volume24hrCurrency: currency,
     floorChange24hrPct,
+    externalUrl: c.website ?? undefined,
+    twitterUsername: normalizeTwitterHandle(c.twitter),
+    discordUrl: c.discord ?? undefined,
   };
+}
+
+// Tradeport's `twitter` field format isn't documented and hasn't been seen
+// live with a real value yet (2026-08-07) — normalizing defensively so
+// NftCollection.twitterUsername stays a bare handle either way (matching
+// OpenSea's twitter_username shape), whether Tradeport returns a full URL
+// or a bare handle.
+function normalizeTwitterHandle(value: string | null | undefined): string | undefined {
+  if (!value) return undefined;
+  const match = value.match(/(?:x\.com|twitter\.com)\/([^/?]+)/i);
+  return (match ? match[1] : value.replace(/^@/, "")) || undefined;
 }
 
 // Enrichment (listed count, 24h volume, 24h floor change) costs 3 extra
@@ -276,7 +293,17 @@ async function enrichCollection(
 // time, so this is a pure API-hit reduction with no real staleness cost.
 const TRADEPORT_COLLECTIONS_TTL_MS = 15 * 60_000;
 
-type TradeportCollectionRow = { id: string; slug: string; title: string; cover_url?: string; floor?: number; supply?: number };
+type TradeportCollectionRow = {
+  id: string;
+  slug: string;
+  title: string;
+  cover_url?: string;
+  floor?: number;
+  supply?: number;
+  discord?: string | null;
+  twitter?: string | null;
+  website?: string | null;
+};
 
 async function fetchTradeportCollectionsByOrder(chain: TradeportChain, orderBy: string, limit: number): Promise<TradeportCollectionRow[]> {
   const data = await tradeportQuery<{ [K in TradeportChain]?: { collections: TradeportCollectionRow[] } }>(COLLECTIONS_QUERY(chain, orderBy), {
@@ -379,7 +406,7 @@ export async function searchTradeportCollections(chain: TradeportChain, query: s
 export async function getTradeportCollection(chain: TradeportChain, slug: string): Promise<NftCollection | undefined> {
   return cached(`tradeport:collection:${chain}:${slug}`, TRADEPORT_COLLECTIONS_TTL_MS, async () => {
     const data = await tradeportQuery<{
-      [K in TradeportChain]?: { collections: Array<{ id: string; slug: string; title: string; cover_url?: string; floor?: number; supply?: number }> };
+      [K in TradeportChain]?: { collections: TradeportCollectionRow[] };
     }>(COLLECTION_BY_SLUG_QUERY(chain), { slug });
     const row = data[chain]?.collections?.[0];
     if (!row) return undefined;

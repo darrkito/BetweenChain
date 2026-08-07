@@ -29,6 +29,10 @@ const bodySchema = z.object({
   destToken: z.string().min(1),
   destAddress: z.string().min(1),
   slippageBps: z.number().int().min(1).max(1000).default(100),
+  // Just-In-Time Gas (2026-08-07) — see lib/chains/relay.ts's getRelayQuote
+  // doc for why this is safe to pass unconditionally: Relay itself is a
+  // no-op for a non-EVM or already-native-currency destination.
+  autoRefuel: z.boolean().default(false),
 });
 
 export async function POST(req: Request) {
@@ -117,6 +121,7 @@ export async function POST(req: Request) {
           destToken: input.destToken,
           destAddress: input.destAddress,
           userSolanaAddress: session.solanaPubkey,
+          topupGas: input.autoRefuel,
         });
         relayRoute = rq.quote;
         expectedOutputMin = rq.expectedOutAmount;
@@ -148,6 +153,7 @@ export async function POST(req: Request) {
         originChainId: input.sourceChainId,
         originCurrency: input.sourceMint,
         userOriginAddress: input.sourceAddress,
+        topupGas: input.autoRefuel,
       });
       relayRoute = rq.quote;
       expectedOutputMin = rq.expectedOutAmount;

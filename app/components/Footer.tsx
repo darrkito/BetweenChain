@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { SocialXLink } from "@/app/components/SocialXLink";
 
 // 2026-08-05 (SEO/landing-page overhaul) — this app had zero footer
 // anywhere before this. Real internal-linking value (every real route,
@@ -37,7 +38,10 @@ export function Footer() {
           ))}
         </nav>
 
-        <p className="text-xs text-ink-faint">© {new Date().getFullYear()} Blockchains.Click</p>
+        <div className="flex items-center gap-3">
+          <SocialXLink className="text-ink-faint transition-colors hover:text-accent" />
+          <p className="text-xs text-ink-faint">© {new Date().getFullYear()} Blockchains.Click</p>
+        </div>
       </div>
     </footer>
   );

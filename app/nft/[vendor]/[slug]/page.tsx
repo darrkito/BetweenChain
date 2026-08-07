@@ -5,6 +5,7 @@ import { getCryptoPunksOnchainListings } from "@/lib/nft/cryptopunksOnchain";
 import { CRYPTOPUNKS_SLUG } from "@/lib/nft/cryptopunksShared";
 import { getTradeportListings } from "@/lib/nft/tradeport";
 import { NFT_VENDOR_CLIENTS } from "@/lib/nft/vendorClients";
+import { getSolUsdPrice, getEthUsdPrice } from "@/lib/pricing";
 import { CollectionPageClient } from "./CollectionPageClient";
 import type { NftListing, NftVendor } from "@/lib/nft/types";
 
@@ -106,10 +107,19 @@ export default async function NftCollectionPage({ params }: { params: Promise<{ 
 
   const client = NFT_VENDOR_CLIENTS[vendor];
 
-  const [collectionResult, listingsResult] = await Promise.allSettled([
+  const [collectionResult, listingsResult, solPriceResult, ethPriceResult] = await Promise.allSettled([
     client ? client.getCollection(slug) : Promise.resolve(undefined),
     client ? fetchInitialListings(vendor, slug) : Promise.resolve({ listings: [], nextCursor: undefined }),
+    // 2026-08-07 (cross-chain floor price display) — independent of the
+    // collection/listings fetch, same Promise.allSettled reasoning as those
+    // two: a price-API hiccup shouldn't affect (or be affected by) real
+    // collection data, it just means the secondary converted-price line
+    // doesn't render (see NftCollectionStats.tsx).
+    getSolUsdPrice(),
+    getEthUsdPrice(),
   ]);
+  const solUsdPrice = solPriceResult.status === "fulfilled" ? solPriceResult.value : null;
+  const ethUsdPrice = ethPriceResult.status === "fulfilled" ? ethPriceResult.value : null;
 
   const initialCollection = collectionResult.status === "fulfilled" ? (collectionResult.value ?? null) : null;
   const initialCollectionError =
@@ -133,6 +143,8 @@ export default async function NftCollectionPage({ params }: { params: Promise<{ 
       initialCursor={initialCursor}
       initialHasMore={Boolean(initialCursor)}
       initialListingsError={initialListingsError}
+      solUsdPrice={solUsdPrice}
+      ethUsdPrice={ethUsdPrice}
     />
   );
 }

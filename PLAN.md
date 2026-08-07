@@ -414,6 +414,34 @@ actually active outside local dev.
 
 ## Not yet scheduled
 
+- **Cross-chain feature batch follow-ups (deferred from the 2026-08-07d pass, see
+  `STATE.md`)** — Phases 1-7 (auto-refuel, NFT floor conversion, dust burner, portfolio
+  drawer, Meme Radar, NFT collection socials, site-wide X link) all shipped and verified;
+  these are the real, separate items flagged along the way, not silently dropped:
+  - **Paying for an NFT with an arbitrary SPL token (e.g. BONK)** — `NftBuyModal.tsx`
+    still hardcodes native SOL/ETH only. The backend param might accept another token but
+    this has never been exercised — needs its own careful pass (real, untested risk), not
+    bundled into an already-large batch.
+  - **Meme Radar: real fresh-launch (minutes-old) detection** — v1 reuses
+    `lib/chains/trending.ts`'s existing already-liquid trending data, not brand-new-token
+    discovery. Building real fresh-launch detection is separate, higher-risk scope —
+    newer tokens are exactly the highest-rug-risk category to be pushing a quick-buy
+    button on; needs its own safety-first design pass.
+  - **Meme Radar: EVM rows / EVM safety scores** — RugCheck.xyz is Solana-only; v1 Radar
+    is Solana-only end to end (trending list, safety, quick-buy). Extending to EVM
+    trending tokens needs either a second safety-score provider or an honest "Not
+    available" column, plus revisits the (currently moot) gas-refuel micro-pill idea from
+    the original audit for cross-chain EVM quick-buy rows.
+  - **Magic Eden collection social links** — hit Magic Eden's rate limit mid-research this
+    session, couldn't verify `project_url`/`twitter`/`discord`-equivalent field presence.
+    `CollectionSocialsBar.tsx`/`NftCollection`'s social fields are vendor-agnostic already
+    (see `lib/nft/types.ts`) — adding Magic Eden support is just wiring
+    `lib/nft/magiceden.ts` once fields are actually live-confirmed, not a redesign.
+  - **Portfolio drawer: multi-coin Sui balances** — `lib/chains/sui.ts` only has
+    `getSuiBalanceMist` (native SUI). The drawer is honestly labeled "native only" for
+    Sui; a real multi-coin Sui balance reader would need new research into Sui's coin
+    object model, not a small addition.
+
 - **Blog tutorial-hub follow-ups (deferred from the 2026-08-07c blog audit pass, see
   `STATE.md`)** — the HowTo/FAQ JSON-LD, sticky TOC, route diagram, embedded swap
   widget, and OG chain-badge infrastructure from that pass is done and exercised by one
