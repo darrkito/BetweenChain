@@ -30,6 +30,7 @@ const NAV: Array<{ href: string; label: string; shortLabel?: string }> = [
   { href: "/dust-sweeper", label: "Dust Sweeper", shortLabel: "Dust" },
   { href: "/basket", label: "Portfolio Baskets", shortLabel: "Baskets" },
   { href: "/pay/create", label: "ClickPay", shortLabel: "Pay" },
+  { href: "/orders", label: "Trigger Orders", shortLabel: "Orders" },
   { href: "/dashboard", label: "Rewards" },
 ];
 

@@ -778,3 +778,21 @@ actually active outside local dev.
   Still nothing scheduled — Part 1 + Part 2 together are the full triage of the
   external audit. Next real decision point is the IA/tab-structure question
   (item 4 above), since it affects scope of everything else in this list.
+
+## Not yet scheduled (added 2026-08-08i)
+
+- **Multi-chain stop-loss/take-profit starting FROM an EVM token** (part of the Trigger
+  Orders pitch) — needs a real EVM limit-order protocol integration (1inch Limit Order
+  Protocol, CoW Protocol) or the same custodial-auto-bridge blocker as the cross-chain
+  delivery case below. Not researched this pass.
+- **Cross-Chain "Bridge & Yield" Vaults** (part of the same pitch) — needs a real yield
+  protocol integration (Aave, Ethena, etc.), not researched/verified.
+- **Fully-unattended cross-chain Trigger Order delivery** — Trigger Orders (`/orders`)
+  ships with a one-click "deliver to <chain> now" follow-up after a fill instead of
+  fully automatic bridging, because automatic bridging needs a custodial relayer wallet
+  or a delegated signing key with nobody present to sign — same blocker as Universal Gas
+  Tank. Unblocks the same way: either a funded operational wallet this app custodies, or
+  a real session-key/smart-account delegation mechanism, neither in place today.
+- **Trigger Orders for arbitrary (non-SOL) Solana input tokens sold cross-chain**,
+  webhook/push notification when a Trigger Order fills (currently the user must revisit
+  `/orders` to see fill status and trigger delivery) — real, scoped follow-ups.

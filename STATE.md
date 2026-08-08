@@ -4221,3 +4221,47 @@ against real mainnet funds.**
 4. Rate limiting is in-memory/single-instance — fine for now, not for multi-instance prod.
 5. Dedicated mainnet RPC provider (Helius/QuickNode/Triton) — currently using the public
    rate-limited endpoint.
+
+## 2026-08-08i — Trigger Orders (Solana limit orders + DCA), Relay gas top-up already shipped
+
+Two more growth pitches researched and scoped like every other one this session — real
+capability first, custody-requiring pieces named and deferred rather than faked.
+
+**Relay gas top-up ("Universal Gas Tank" v2 idea)**: turned out to already be fully
+shipped, in an earlier commit (`f49e036`, before ClickPay) — `lib/chains/relay.ts`'s
+`getRelayQuote` already supports `topupGas`/`topupGasAmount`, wired through
+`/api/quote` as `autoRefuel`, with a live checkbox in `SwapPageClient.tsx`
+("Destination gas top-up"). No new work needed; just confirmed live during this pass.
+
+**Trigger Orders** (`/orders`, migration `0020_trigger_orders.sql`,
+`lib/chains/jupiterTrigger.ts`, `app/api/orders/*`, `OrdersClient.tsx`): Solana-native
+limit/price orders and recurring DCA, built on Jupiter's real Trigger + Recurring APIs
+(`lite-api.jup.ag/trigger/v1`, `lite-api.jup.ag/recurring/v1`) — verified live via direct
+`curl`, not docs (developers.jup.ag had broken redirects during this pass). No API key
+needed on the lite tier (confirmed: every response was a schema/business error, never an
+auth error). Non-custodial — Jupiter's own on-chain program escrows funds in a PDA and
+Jupiter's own keeper network executes fills, so this app runs no keeper/cron
+infrastructure at all for the "unattended execution" half of the pitch, which is normally
+the hardest part.
+
+Real schema quirks found only by live-probing (not in any doc found):
+- DCA minimum is **$50/cycle**, not the $10 figure third-party docs/search results quoted
+  — confirmed via a real `400` rejecting a $38.04/cycle order.
+- `getRecurringOrders`'s response keys the order array by the `recurringType` value
+  (`"time"`), not a generic `"orders"` field like the Trigger API does — would have been a
+  silent `[]`-forever bug if copied from the Trigger shape without probing.
+- `getRecurringOrders` requires an `includeFailedTx` query param the Trigger API doesn't
+  have.
+
+**Cross-chain delivery scoped honestly, same discipline as Universal Gas Tank
+(2026-08-08g/h)**: the pitch's headline example (SOL hits $250 → auto-deliver ETH on Base
+with zero user interaction) needs a second, unattended leg after the Jupiter fill with
+nobody present to sign it — that requires a custodial relayer wallet or a delegated
+signing key, which this session will not fabricate. v1 ships the honest version: the
+order's output is a Solana-native token, and once Jupiter reports it filled, `/orders`
+shows a one-click "Deliver to <chain> now" card that reuses the existing `executeSwapFlow`
+against the wallet's REAL current balance of that output token (fetched live via
+`/api/tokens/balances`, not guessed from the order's original amounts — a limit order's
+actual fill price can differ from the trigger price, and DCA accumulates across many
+fills). Real, non-custodial, just not zero-click. Multi-chain stop-loss *starting from* an
+EVM token, and "Bridge & Yield vaults", are not built — logged in `PLAN.md`.

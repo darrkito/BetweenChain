@@ -160,10 +160,10 @@ export default async function LandingPage() {
         </Reveal>
       )}
 
-      {/* Dust Sweeper + Portfolio Baskets + ClickPay promo (2026-08-08) —
-          single-feature cards side by side once there were several of
-          these to promote, rather than stacking full-width rows. */}
-      <Reveal className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      {/* Dust Sweeper + Portfolio Baskets + ClickPay + Trigger Orders promo
+          (2026-08-08) — single-feature cards side by side once there were
+          several of these to promote, rather than stacking full-width rows. */}
+      <Reveal className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Link
           href="/dust-sweeper"
           className="flex flex-col gap-2 rounded-2xl border border-hairline bg-surface p-6 shadow-sm transition-all hover:border-accent/40"
@@ -201,6 +201,19 @@ export default async function LandingPage() {
           </p>
           <span className="mt-1 self-start rounded-full bg-accent px-4 py-2 text-sm font-semibold text-accent-ink">
             Create a link →
+          </span>
+        </Link>
+        <Link
+          href="/orders"
+          className="flex flex-col gap-2 rounded-2xl border border-hairline bg-surface p-6 shadow-sm transition-all hover:border-accent/40"
+        >
+          <h2 className="font-display text-xl font-normal text-ink">⏱️ Trigger Orders</h2>
+          <p className="text-sm text-ink-muted">
+            Set a Solana price target or a recurring DCA schedule — filled automatically, even while you&apos;re
+            offline.
+          </p>
+          <span className="mt-1 self-start rounded-full bg-accent px-4 py-2 text-sm font-semibold text-accent-ink">
+            Set an order →
           </span>
         </Link>
       </Reveal>
