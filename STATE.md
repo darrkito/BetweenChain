@@ -6,6 +6,72 @@ delete history (superseded entries stay for context, just note what replaced the
 
 ---
 
+## 2026-08-08b — Bitcoin (Xverse) wallet support, Phase 1: NFT purchases via ChangeNOW
+
+User asked for Bitcoin wallet support (Xverse). First instinct was Relay (confirmed live
+via its own `/chains` endpoint: Bitcoin IS listed, `id: 8253038`, `vmType: "bvm"`,
+deposit-address execution model) — corrected by the user to **ChangeNOW** instead, which
+was already integrated in this app for the existing ETH/SOL→SUI NFT-purchase flow
+(`lib/chains/changenow.ts`, built in a prior session, never had its own `SECURITY.md`
+entry until this pass added one). Confirmed live: ChangeNOW already lists `btc`/`btc` as
+an active, fixed-rate-capable currency, and a real BTC→SUI reverse-estimate quote
+succeeded (`curl`, real `rateId` returned, `0.00021728 BTC` for exactly 20 SUI out).
+
+**Scope, confirmed with user**: Phase 1 (this pass) extends the existing NFT-purchase
+ChangeNOW flow to accept BTC as a third origin currency alongside ETH/SOL. General BTC
+support on the main `/swap` page is a separate, bigger Phase 2 — deferred, not detailed
+yet (Jupiter/Relay don't touch ChangeNOW at all today).
+
+**Built:**
+- `package.json`: added `sats-connect` (`^4.2.1`, Xverse's real wallet-connect library).
+  Read its own type declarations directly rather than trusting docs/search results —
+  found its older `getAddress`/`sendBtcTransaction` callback pair are marked
+  `@deprecated` in favor of a generic `request<Method>(method, params, providerId?)` RPC
+  call that already returns a real Promise; used the modern API throughout, not the
+  deprecated one.
+- `lib/chains/changenow.ts`: `ChangeNowOriginCurrency` widened from `"eth" | "sol"` to
+  include `"btc"` — every function already treated this as an opaque string, zero other
+  changes needed.
+- `lib/pricing.ts`: new `getBtcUsdPrice()`, same CoinGecko-`simple/price` pattern as the
+  existing `getEthUsdPrice`/`getSuiUsdPrice`.
+- New `lib/client/BtcWalletProvider.tsx` (Context + `useBtcWallet()` hook, modeled
+  directly on `EvmWalletProvider.tsx`'s shape) — connect-only, deliberately no separate
+  sign-in/auth step, mirroring Sui's real existing pattern ("Sui has no SIWS/SIWE-
+  equivalent of its own... only used here to pay") — Bitcoin is purely a payment rail
+  here too, account identity stays whatever the existing Solana/Ethereum session already
+  is. Same 12s connect-timeout guard as the Phantom "stuck on Connecting…" fix earlier
+  this session — same failure mode is just as possible for any wallet's approval popup.
+- New `app/components/BtcConnectPicker.tsx` (mirrors `SuiConnectPicker.tsx`), wired into
+  `app/providers.tsx` and a 4th `ChainSection` in `ConnectWalletMenu.tsx`.
+- `app/api/nft/purchase/sui/quote/route.ts`: `payWith` zod enum widened to include
+  `"btc"` — needs neither `originChainId` nor `sourceAddress` (same shape as `"sol"`,
+  Bitcoin has no per-request chain ambiguity and ChangeNOW's own exchange-creation call
+  only needs a payout address, not the sender's BTC address). **No DB migration
+  needed** — `origin_chain_id` was already nullable (migration `0011`),
+  `origin_chain_slug`/`origin_currency` are free-text, same shape `"sol"` already uses.
+  Confirmed `execute`/`confirm-deposit` routes needed zero changes — both already fully
+  currency-agnostic, reading `origin_chain_slug` generically.
+- `app/components/NftBuyModalSui.tsx`: 4th "Pay with BTC" toggle + connect block (mirrors
+  the SOL/ETH blocks' shape), new `payAndBuyFromBtc()` — simpler than the ETH/SOL deposit
+  sends since sats-connect's `sendTransfer` handles the whole payment in one call, no
+  manual transaction construction needed.
+
+**Real dependency CVE found and documented** (not force-fixed): `sats-connect` pulls in
+`valibot`, which has a real disclosed ReDoS vulnerability — client-side only (hangs a
+browser tab, not this app's server), no patched fix available without a 2-major-version
+downgrade to a materially different API shape. Same "document, don't blindly force-fix a
+money-adjacent dependency" discipline as three other known dependency CVEs in this app.
+
+### Verification
+`npx tsc --noEmit`, `npm run lint`, `npm test` (163 passing, +3 new:
+`getBtcUsdPrice` tests in `lib/pricing.test.ts`), `npm run build` all clean. No browser
+automation available this session — a full real BTC deposit→NFT-purchase round-trip
+needs real BTC funds and the user's own testing with a real Xverse wallet; not verified
+end-to-end. Flagging this explicitly, same as every other unverified-in-browser change
+this session.
+
+---
+
 ## 2026-08-08 — Full security review (user-requested)
 
 User asked for a full security review across the site, APIs, and processes, and to check

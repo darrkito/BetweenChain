@@ -1,8 +1,8 @@
 import "server-only";
 
 // ChangeNOW (api.changenow.io) — the bridging engine for cross-chain NFT
-// purchases on Sui (pay with ETH or SOL, buy a SUI NFT), replacing an
-// earlier Squid Router attempt. Squid's own /chains and /tokens listed Sui,
+// purchases on Sui (pay with ETH, SOL, or BTC — added 2026-08-08 — buy a SUI
+// NFT), replacing an earlier Squid Router attempt. Squid's own /chains and /tokens listed Sui,
 // but every real ETH→Sui quote tried (2026-07-22, multiple amounts/tokens/
 // addresses) failed with "Low liquidity" — Squid's Sui-side token list was
 // only 5 tokens, reading as a genuinely thin integration on their end.
@@ -34,16 +34,20 @@ const CHANGENOW_API_KEY = process.env.CHANGENOW_API_KEY;
 
 function requireChangeNowKey() {
   if (!CHANGENOW_API_KEY) {
-    throw new Error("CHANGENOW_API_KEY is not set — required for ETH/SOL→SUI cross-chain NFT purchases. See .env.example.");
+    throw new Error("CHANGENOW_API_KEY is not set — required for ETH/SOL/BTC→SUI cross-chain NFT purchases. See .env.example.");
   }
   return CHANGENOW_API_KEY!;
 }
 
-// ChangeNOW's own ticker/network names for the two supported origin
-// currencies — both confirmed live 2026-07-22 (eth/eth, sol/sol; native
-// currency ticker equals network name for both, unlike some EVM L2s where
-// they'd diverge).
-export type ChangeNowOriginCurrency = "eth" | "sol";
+// ChangeNOW's own ticker/network names for the supported origin currencies —
+// eth/eth and sol/sol confirmed live 2026-07-22 (native currency ticker
+// equals network name for both, unlike some EVM L2s where they'd diverge).
+// btc/btc added 2026-08-08 — confirmed live: GET /v2/exchange/currencies
+// lists {ticker:"btc", network:"btc", supportsFixedRate:true, buy:true,
+// sell:true}, and a real reverse-estimate quote (fromCurrency=btc, exact 20
+// SUI out) succeeded with a real rateId — every function below already
+// treats this as an opaque string, no BTC-specific branching needed.
+export type ChangeNowOriginCurrency = "eth" | "sol" | "btc";
 
 function changenowHeaders(): HeadersInit {
   return { "content-type": "application/json", "x-changenow-api-key": requireChangeNowKey() };

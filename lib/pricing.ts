@@ -69,6 +69,17 @@ export function mistToUsd(mist: string | number, suiUsdPrice: number): number {
   return (Number(mist) / 1e9) * suiUsdPrice;
 }
 
+// Same role as getEthUsdPrice/getSuiUsdPrice, for BTC-origin NFT purchases'
+// points-crediting USD volume (2026-08-08, ChangeNOW BTC support).
+export async function getBtcUsdPrice(): Promise<number> {
+  const res = await fetch(`${COINGECKO_SIMPLE_PRICE_API}?ids=bitcoin&vs_currencies=usd`, { cache: "no-store" });
+  if (!res.ok) throw new Error(`BTC price lookup failed (${res.status})`);
+  const body = await res.json();
+  const price = Number(body?.bitcoin?.usd);
+  if (!Number.isFinite(price) || price <= 0) throw new Error("Invalid BTC price response");
+  return price;
+}
+
 // chainId -> CoinGecko's own platform slug, for the per-contract price
 // endpoint below. Matches lib/chains/evm.ts's CHAIN_CONFIG exactly — the
 // same 6 chains this app has a real RPC client for (no point pricing a

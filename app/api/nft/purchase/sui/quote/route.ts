@@ -5,7 +5,7 @@ import { supabaseAdmin } from "@/lib/supabase/server";
 import { isTradeportListingStillActive, type TradeportChain } from "@/lib/nft/tradeport";
 import { estimateTradeportBuyCostMist } from "@/lib/nft/tradeportBuy";
 import { getChangeNowReverseEstimate, ChangeNowAmountOutOfRangeError, type ChangeNowOriginCurrency } from "@/lib/chains/changenow";
-import { getEthUsdPrice, getSolUsdPrice, getSuiUsdPrice } from "@/lib/pricing";
+import { getEthUsdPrice, getSolUsdPrice, getSuiUsdPrice, getBtcUsdPrice } from "@/lib/pricing";
 import { SOLANA_CHAIN_ID } from "@/lib/chains/relay";
 import { SuiInsufficientBalanceError } from "@/lib/chains/sui";
 import { TRADEPORT_FEE_SAFETY_MARGIN, CROSS_CHAIN_BRIDGE_BUFFER } from "@/lib/nft/tradeportFee";
@@ -28,10 +28,14 @@ const bodySchema = z.object({
   listingId: z.string().min(1),
   listingPriceSui: z.string().min(1),
   moveChain: z.enum(["sui", "aptos", "movement"]).default("sui"),
-  payWith: z.enum(["sui", "eth", "sol"]),
+  // "btc" added 2026-08-08 — same as "sol", needs neither originChainId nor
+  // sourceAddress below (Bitcoin has no per-request chain ambiguity, and
+  // ChangeNOW's own createChangeNowExchange only needs a payoutAddress, not
+  // the sender's BTC address).
+  payWith: z.enum(["sui", "eth", "sol", "btc"]),
   // Required when payWith === "eth": who signs the ChangeNOW deposit
   // transfer, and which EVM chain they're paying from (Ethereum mainnet
-  // only for now — see NftBuyModalSui.tsx). Not used for "sol" — the
+  // only for now — see NftBuyModalSui.tsx). Not used for "sol"/"btc" — the
   // Solana signer is always the session's own solanaPubkey (see below),
   // same convention as the OpenSea purchase quote's Solana-origin path.
   originChainId: z.number().int().optional(),
@@ -140,20 +144,29 @@ export async function POST(req: Request) {
       originChainId = null;
       originAddress = null;
     } else {
-      const changeNowCurrency: ChangeNowOriginCurrency = input.payWith === "sol" ? "sol" : "eth";
+      const changeNowCurrency: ChangeNowOriginCurrency =
+        input.payWith === "sol" ? "sol" : input.payWith === "btc" ? "btc" : "eth";
       // Reverse fixed-rate estimate: exact SUI amount needed -> exact
-      // ETH/SOL cost, no safety-margin/leftover math needed (unlike the
+      // ETH/SOL/BTC cost, no safety-margin/leftover math needed (unlike the
       // earlier Squid EXACT_INPUT-only attempt) — see
       // getChangeNowReverseEstimate's doc.
       const estimate = await getChangeNowReverseEstimate({ fromCurrency: changeNowCurrency, toAmountSui: totalSui.toString() });
       bridgeQuote = { rateId: estimate.rateId, validUntil: estimate.validUntil, estimate };
       originAmountForDb = estimate.fromAmount;
       originAmountFormatted = estimate.fromAmount;
-      originCurrencySymbol = changeNowCurrency === "sol" ? "SOL" : "ETH";
-      originAmountUsd = (Number(estimate.fromAmount) * (await (changeNowCurrency === "sol" ? getSolUsdPrice() : getEthUsdPrice()))).toString();
+      originCurrencySymbol = changeNowCurrency === "sol" ? "SOL" : changeNowCurrency === "btc" ? "BTC" : "ETH";
+      const originUsdPrice =
+        changeNowCurrency === "sol" ? await getSolUsdPrice() : changeNowCurrency === "btc" ? await getBtcUsdPrice() : await getEthUsdPrice();
+      originAmountUsd = (Number(estimate.fromAmount) * originUsdPrice).toString();
       originChainSlug = changeNowCurrency;
-      originChainId = changeNowCurrency === "sol" ? SOLANA_CHAIN_ID : input.originChainId!;
-      originAddress = changeNowCurrency === "sol" ? session.solanaPubkey! : input.sourceAddress!;
+      // BTC has no per-request numeric chain id (same reasoning as SOL —
+      // Bitcoin has no per-request chain ambiguity to resolve).
+      originChainId = changeNowCurrency === "sol" ? SOLANA_CHAIN_ID : changeNowCurrency === "btc" ? null : input.originChainId!;
+      // No sender address is persisted for BTC — ChangeNOW's own
+      // createChangeNowExchange only needs a payoutAddress, and unlike
+      // SOL/ETH there's no msg.sender-style safety property that depends on
+      // recording the BTC payer's address here.
+      originAddress = changeNowCurrency === "sol" ? session.solanaPubkey! : changeNowCurrency === "btc" ? null : input.sourceAddress!;
     }
 
     const db = supabaseAdmin();
@@ -201,8 +214,8 @@ export async function POST(req: Request) {
       // derived. Also shown in SUI terms (what the buyer actually cares
       // about, since the listing price is in SUI) — both figures rounded
       // UP to 2 decimals so neither ever understates the real minimum.
-      const symbol = err.fromCurrency === "sol" ? "SOL" : "ETH";
-      const originUsdPrice = await (err.fromCurrency === "sol" ? getSolUsdPrice() : getEthUsdPrice());
+      const symbol = err.fromCurrency === "sol" ? "SOL" : err.fromCurrency === "btc" ? "BTC" : "ETH";
+      const originUsdPrice = await (err.fromCurrency === "sol" ? getSolUsdPrice() : err.fromCurrency === "btc" ? getBtcUsdPrice() : getEthUsdPrice());
       const suiUsdPrice = await getSuiUsdPrice();
       const minAmountSui = (err.minAmount * originUsdPrice) / suiUsdPrice;
       return NextResponse.json(

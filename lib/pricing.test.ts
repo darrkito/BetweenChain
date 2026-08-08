@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach, vi } from "vitest";
-import { getSolUsdPrice, getEthUsdPrice, getSuiUsdPrice, lamportsToUsd, weiToUsd, mistToUsd, formatAtomicAmount } from "./pricing";
+import { getSolUsdPrice, getEthUsdPrice, getSuiUsdPrice, getBtcUsdPrice, lamportsToUsd, weiToUsd, mistToUsd, formatAtomicAmount } from "./pricing";
 
 // This file directly guards the exact class of bug that has ALREADY happened
 // in production once (Jupiter silently retired price/v2 for price/v3, a
@@ -90,6 +90,23 @@ describe("getSuiUsdPrice", () => {
   it("throws on a missing/malformed body", async () => {
     mockFetchOnce(200, { notSui: { usd: 3.14 } });
     await expect(getSuiUsdPrice()).rejects.toThrow("Invalid SUI price response");
+  });
+});
+
+describe("getBtcUsdPrice", () => {
+  it("parses a real CoinGecko simple/price response", async () => {
+    mockFetchOnce(200, { bitcoin: { usd: 65000.42 } });
+    await expect(getBtcUsdPrice()).resolves.toBe(65000.42);
+  });
+
+  it("throws on a missing/malformed body", async () => {
+    mockFetchOnce(200, { notBitcoin: { usd: 65000 } });
+    await expect(getBtcUsdPrice()).rejects.toThrow("Invalid BTC price response");
+  });
+
+  it("throws on non-ok status", async () => {
+    mockFetchOnce(429, {});
+    await expect(getBtcUsdPrice()).rejects.toThrow("BTC price lookup failed (429)");
   });
 });
 

@@ -6,6 +6,7 @@ import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { useCurrentAccount, useSignAndExecuteTransaction } from "@mysten/dapp-kit";
 import { Transaction } from "@mysten/sui/transactions";
 import { useEvmWallet } from "@/lib/client/EvmWalletProvider";
+import { useBtcWallet } from "@/lib/client/BtcWalletProvider";
 import { useAuth } from "@/lib/client/AuthProvider";
 import { buildSolTransferTransaction } from "@/lib/client/solanaTransfer";
 import { roundUpTo3Decimals } from "@/lib/client/amount";
@@ -15,6 +16,7 @@ import { EvmWalletButton } from "@/app/components/EvmWalletButton";
 import { EvmConnectPicker } from "@/app/components/EvmConnectPicker";
 import { SuiConnectPicker } from "@/app/components/SuiConnectPicker";
 import { SuiWalletButton } from "@/app/components/SuiWalletButton";
+import { BtcConnectPicker } from "@/app/components/BtcConnectPicker";
 import type { NftListing } from "@/lib/nft/types";
 
 const WalletMultiButton = dynamic(
@@ -23,11 +25,11 @@ const WalletMultiButton = dynamic(
 );
 
 // Same-chain (pay with native SUI, one signature) vs cross-chain (pay with
-// ETH or SOL, bridged via ChangeNOW since Relay has no Sui support — see
-// lib/chains/changenow.ts) — mirrors NftBuyModal.tsx's sol/eth toggle,
-// inverted: here Sui is the NFT's native chain and ETH/SOL are "bring your
-// own chain" options, not the other way around.
-type PayWith = "sui" | "eth" | "sol";
+// ETH, SOL, or BTC — added 2026-08-08 — bridged via ChangeNOW since Relay has
+// no Sui support — see lib/chains/changenow.ts) — mirrors NftBuyModal.tsx's
+// sol/eth toggle, inverted: here Sui is the NFT's native chain and ETH/SOL/
+// BTC are "bring your own chain" options, not the other way around.
+type PayWith = "sui" | "eth" | "sol" | "btc";
 
 type Step =
   | "idle"
@@ -54,6 +56,7 @@ export function NftBuyModalSui({ listing, onClose }: { listing: NftListing; onCl
   const suiAccount = useCurrentAccount();
   const { mutateAsync: signAndExecuteSuiTransaction } = useSignAndExecuteTransaction();
   const evmWallet = useEvmWallet();
+  const btcWallet = useBtcWallet();
   const { publicKey, signTransaction } = useWallet();
   const { connection } = useConnection();
   const auth = useAuth();
@@ -79,8 +82,18 @@ export function NftBuyModalSui({ listing, onClose }: { listing: NftListing; onCl
   // verified session address — same rule the existing cross-chain ETH flow
   // already enforces.
   const hasAnySession = Boolean(auth.sessionPubkey || auth.evmVerifiedAddress);
+  // Bitcoin has no sign-in of its own (same reasoning as Sui — see
+  // BtcWalletProvider.tsx's own doc comment), so it only needs the wallet
+  // itself connected + the existing Solana/EVM session, not a per-address
+  // signed-in check the way eth/sol (which ARE the account identity) do.
   const walletsReady =
-    payWith === "eth" ? Boolean(evmWallet.address && suiAccount) : payWith === "sol" ? Boolean(publicKey && suiAccount) : Boolean(suiAccount);
+    payWith === "eth"
+      ? Boolean(evmWallet.address && suiAccount)
+      : payWith === "sol"
+        ? Boolean(publicKey && suiAccount)
+        : payWith === "btc"
+          ? Boolean(btcWallet.address && suiAccount)
+          : Boolean(suiAccount);
   const signedIn =
     payWith === "eth"
       ? Boolean(evmWallet.address && auth.evmVerifiedAddress === evmWallet.address)
@@ -127,6 +140,10 @@ export function NftBuyModalSui({ listing, onClose }: { listing: NftListing; onCl
     }
     if (payWith === "sol") {
       await payAndBuyFromSol();
+      return;
+    }
+    if (payWith === "btc") {
+      await payAndBuyFromBtc();
       return;
     }
     setStep("depositing");
@@ -189,6 +206,35 @@ export function NftBuyModalSui({ listing, onClose }: { listing: NftListing; onCl
 
       setStep("confirming_deposit");
       setMessage("Deposit submitted — bridging to Sui (this can take a few minutes)…");
+      await pollDeposit(execBody.purchaseId);
+    } catch (err) {
+      setMessage((err as Error).message);
+      setStep("failed");
+    }
+  }
+
+  // Cross-chain BTC origin (2026-08-08) — a plain BTC payment to ChangeNOW's
+  // deposit address via sats-connect's real sendTransfer request. Simpler
+  // than the ETH/SOL paths above: BtcWalletProvider.tsx's sendPayment
+  // already handles the whole send (no manual transaction construction
+  // needed here, unlike buildSolTransferTransaction/evmWallet.sendStepAndWait).
+  async function payAndBuyFromBtc() {
+    if (!quote) return;
+    setStep("depositing");
+    setMessage("Confirm the payment in your Bitcoin wallet…");
+    try {
+      const execRes = await fetch("/api/nft/purchase/sui/execute", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ quoteId: quote.quoteId }),
+      });
+      const execBody = await execRes.json();
+      if (!execRes.ok) throw new Error(execBody.error ?? "Failed to create exchange");
+
+      await btcWallet.sendPayment(execBody.depositAddress, Number(execBody.depositAmount));
+
+      setStep("confirming_deposit");
+      setMessage("Payment submitted — bridging to Sui (this can take a few minutes)…");
       await pollDeposit(execBody.purchaseId);
     } catch (err) {
       setMessage((err as Error).message);
@@ -344,6 +390,12 @@ export function NftBuyModalSui({ listing, onClose }: { listing: NftListing; onCl
             >
               Pay with ETH
             </button>
+            <button
+              onClick={() => setPayWith("btc")}
+              className={`flex-1 rounded-lg py-1.5 transition-colors ${payWith === "btc" ? "bg-accent text-accent-ink" : "text-ink-muted"}`}
+            >
+              Pay with BTC
+            </button>
           </div>
         )}
 
@@ -425,6 +477,32 @@ export function NftBuyModalSui({ listing, onClose }: { listing: NftListing; onCl
               <span className="text-xs text-ink-faint">Sui (receives &amp; buys)</span>
               {suiAccount ? <SuiWalletButton address={suiAccount.address} /> : <SuiConnectPicker />}
             </div>
+          </div>
+        )}
+
+        {!readyToQuote && payWith === "btc" && (
+          <div className="flex flex-col gap-2 rounded-xl bg-surface-hover p-3">
+            <p className="text-xs text-ink-muted">Paying in BTC on Bitcoin, buying a Sui NFT — connect a Bitcoin wallet to continue.</p>
+            <div className="flex flex-col gap-1">
+              <span className="text-xs text-ink-faint">Bitcoin (pays)</span>
+              {btcWallet.address ? (
+                <p className="num text-[11px] text-success">
+                  {btcWallet.address.slice(0, 6)}…{btcWallet.address.slice(-4)} connected
+                </p>
+              ) : (
+                <BtcConnectPicker />
+              )}
+            </div>
+            <div className="flex flex-col gap-1">
+              <span className="text-xs text-ink-faint">Sui (receives &amp; buys)</span>
+              {suiAccount ? <SuiWalletButton address={suiAccount.address} /> : <SuiConnectPicker />}
+            </div>
+            {!hasAnySession && (
+              <p className="text-[11px] text-ink-faint">
+                Sign in with Solana or Ethereum elsewhere in the app first — Bitcoin has no sign-in of its own, it&apos;s only used here to
+                pay.
+              </p>
+            )}
           </div>
         )}
 

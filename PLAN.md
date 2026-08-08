@@ -414,6 +414,16 @@ actually active outside local dev.
 
 ## Not yet scheduled
 
+- **Bitcoin general swap support (Phase 2, deferred from the 2026-08-08b BTC pass, see
+  `STATE.md`)** — Phase 1 (BTC as a 3rd ChangeNOW origin for Sui NFT purchases, via
+  Xverse/sats-connect) shipped and verified. Phase 2 is real, separate, bigger scope,
+  confirmed with the user explicitly as later work: adding BTC as a real origin/
+  destination on the main `/swap` page — general token swaps, not NFT purchases. Neither
+  Jupiter nor Relay (the two engines `/swap` uses today) touch ChangeNOW at all, so this
+  needs its own quote/execute/confirm routes and `swap_transactions` handling for a
+  custodial-exchange model (ChangeNOW), distinct from the on-chain-bridge model Relay
+  uses everywhere else in the swap flow. Not started.
+
 - **Cross-chain feature batch follow-ups (deferred from the 2026-08-07d pass, see
   `STATE.md`)** — Phases 1-7 (auto-refuel, NFT floor conversion, dust burner, portfolio
   drawer, Meme Radar, NFT collection socials, site-wide X link) all shipped and verified;

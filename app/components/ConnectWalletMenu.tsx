@@ -6,10 +6,12 @@ import { useWallet } from "@solana/wallet-adapter-react";
 import type { WalletName } from "@solana/wallet-adapter-base";
 import { useCurrentAccount, useDisconnectWallet } from "@mysten/dapp-kit";
 import { useEvmWallet } from "@/lib/client/EvmWalletProvider";
+import { useBtcWallet } from "@/lib/client/BtcWalletProvider";
 import { useAuth } from "@/lib/client/AuthProvider";
 import { useConnectWalletModal } from "@/lib/client/ConnectWalletModalProvider";
 import { EvmConnectPicker } from "@/app/components/EvmConnectPicker";
 import { SuiConnectPicker } from "@/app/components/SuiConnectPicker";
+import { BtcConnectPicker } from "@/app/components/BtcConnectPicker";
 
 function shorten(address: string): string {
   return `${address.slice(0, 4)}…${address.slice(-4)}`;
@@ -70,6 +72,7 @@ export function ConnectWalletMenu() {
   const auth = useAuth();
   const suiAccount = useCurrentAccount();
   const { mutate: disconnectSui } = useDisconnectWallet();
+  const btc = useBtcWallet();
 
   useEffect(() => {
     Promise.resolve().then(() => setMounted(true));
@@ -130,7 +133,7 @@ export function ConnectWalletMenu() {
 
   const solanaPubkeyStr = solana.publicKey?.toBase58() ?? null;
   const isSignedIn = auth.checked && solanaPubkeyStr !== null && auth.sessionPubkey === solanaPubkeyStr;
-  const anyConnected = Boolean(solana.publicKey) || Boolean(evm.address) || Boolean(suiAccount);
+  const anyConnected = Boolean(solana.publicKey) || Boolean(evm.address) || Boolean(suiAccount) || Boolean(btc.address);
 
   const modal = open ? (
     <div
@@ -223,11 +226,22 @@ export function ConnectWalletMenu() {
           )}
         </ChainSection>
 
-        <ChainSection title="Sui" last>
+        <ChainSection title="Sui">
           {suiAccount ? (
             <ConnectedRow label={shorten(suiAccount.address)} onDisconnect={() => disconnectSui()} />
           ) : (
             <SuiConnectPicker />
+          )}
+        </ChainSection>
+
+        {/* Bitcoin (2026-08-08) — connect-only, same as Sui: no separate
+            sign-in step, purely a payment rail for the ChangeNOW-powered
+            BTC→SUI/EVM/Solana NFT-purchase flow. */}
+        <ChainSection title="Bitcoin" last>
+          {btc.address ? (
+            <ConnectedRow label={shorten(btc.address)} onDisconnect={btc.disconnect} />
+          ) : (
+            <BtcConnectPicker />
           )}
         </ChainSection>
       </div>

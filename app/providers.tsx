@@ -4,6 +4,7 @@ import { ConnectionProvider, WalletProvider } from "@solana/wallet-adapter-react
 import { WalletModalProvider } from "@solana/wallet-adapter-react-ui";
 import { EvmWalletProvider } from "@/lib/client/EvmWalletProvider";
 import { SuiWalletProvider } from "@/lib/client/SuiWalletProvider";
+import { BtcWalletProvider } from "@/lib/client/BtcWalletProvider";
 import { AuthProvider } from "@/lib/client/AuthProvider";
 import { ConnectWalletModalProvider } from "@/lib/client/ConnectWalletModalProvider";
 import "@solana/wallet-adapter-react-ui/styles.css";
@@ -38,9 +39,11 @@ export function Providers({ children }: { children: React.ReactNode }) {
         <WalletModalProvider>
           <EvmWalletProvider>
             <SuiWalletProvider>
-              <AuthProvider>
-                <ConnectWalletModalProvider>{children}</ConnectWalletModalProvider>
-              </AuthProvider>
+              <BtcWalletProvider>
+                <AuthProvider>
+                  <ConnectWalletModalProvider>{children}</ConnectWalletModalProvider>
+                </AuthProvider>
+              </BtcWalletProvider>
             </SuiWalletProvider>
           </EvmWalletProvider>
         </WalletModalProvider>

@@ -41,6 +41,38 @@ it directly from the connected EVM wallet** (`evmWallet.address` in `page.tsx`) 
 free-text field, never user-editable. If you're adding a new call site that builds a
 quote request, do not add a manual "enter your address" field for this value.
 
+## ChangeNOW trust model (ETH/SOL/BTC → SUI NFT purchases)
+
+The Sui NFT-purchase cross-chain path (`lib/chains/changenow.ts`, `app/api/nft/purchase/
+sui/**`) uses ChangeNOW, not Relay/Squid — Relay has no Sui support. This deserved its own
+entry here and didn't have one until this was noticed during the 2026-08-08 BTC-support
+addition; documented now, not a new gap.
+
+**Different trust model from Relay** — Relay is an on-chain bridge (the buyer's own wallet
+calls a smart contract; cryptographic/contract guarantees move the funds). ChangeNOW is a
+**custodial exchange**: the buyer sends ETH/SOL/BTC to a deposit address ChangeNOW
+controls (a plain wallet-to-wallet transfer, no contract call), and ChangeNOW's own
+systems send SUI to the payout address afterward, off-chain-matched. Real counterparty
+risk — same category as using Coinbase/Binance to convert currency, not asserted to be
+trustless. Still safe for this app's architecture specifically because it preserves the
+core guarantee the two-signature NFT-buy design has always relied on: the buyer's own Sui
+wallet is what ultimately holds the SUI and signs the Tradeport buy itself, so there's no
+scenario where funds could be silently redirected mid-flow. If ChangeNOW simply never
+delivers, the buyer is out whatever they sent — flagged explicitly, not glossed over.
+
+`getChangeNowExchangeStatus` is polled server-side to confirm real settlement before ever
+handing back a signable buy transaction — never trusts a client-reported deposit result,
+same "never trust client-reported destination outcomes" rule as Relay's own
+`getRelayIntentStatus` elsewhere in this app.
+
+**Bitcoin origin added 2026-08-08** (via Xverse/sats-connect) — same trust model as
+ETH/SOL, no new risk category. `sendTransfer` (sats-connect's real, current, non-
+deprecated request method — its older `getAddress`/`sendBtcTransaction` callback pair are
+marked `@deprecated` in the library's own type declarations, confirmed by reading them
+directly rather than assumed from docs) sends a plain BTC payment, same "no contract call"
+shape as the ETH/SOL deposit sends. Bitcoin has no separate sign-in/auth flow (mirrors
+Sui's own pattern) — it's purely a payment rail, never the account identity.
+
 ## Auth: Sign-In with Solana, and standalone Sign-In with Ethereum
 
 - Nonce-based challenge (`auth_challenges`), single-use (`consumed_at`), 5-minute TTL.
@@ -341,6 +373,16 @@ confirms existing protections still hold, a few new items below.
    actual usage — decodes real on-chain SPL account data, not arbitrary attacker-supplied
    bytes. Monitor for an upstream patch; same "don't force a blind downgrade of a
    money-adjacent dependency" discipline as item 6 above.
+8. **Fourth dependency CVE, found 2026-08-08**: `valibot` (transitive via
+   `@sats-connect/core`, added same day for Bitcoin/Xverse support) — a real disclosed
+   ReDoS vulnerability in its `EMOJI_REGEX` validator (`GHSA-vqpr-j7v3-hqw9`, high). Client
+   -side only (runs in the visitor's browser validating wallet responses, not this app's
+   server) — a real hang risk for that one browser tab, not a server DoS or fund-loss
+   vector. `npm audit`'s suggested fix is a MAJOR downgrade to `sats-connect@3.5.0` (two
+   major versions back from the current, actively-published `4.2.1`) — not applied,
+   same "don't force a blind dependency change on a money-adjacent library" discipline as
+   items 6-7 above; a 2-major-version downgrade risks landing on a materially different,
+   less-maintained API shape for no confirmed real-world exploitation path here.
 
 ## Explicitly out of scope
 
