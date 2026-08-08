@@ -154,6 +154,12 @@ export interface ArticleSchemaInput {
   datePublished: string; // ISO 8601
   dateModified?: string;
   image?: string;
+  // 2026-08-08 — named entities (brands/projects/tokens) this post is
+  // substantively about, e.g. ["Claynosaurz", "Doggy"]. Real schema.org
+  // `mentions` property (Thing[]) — a documented signal search engines and
+  // AI answer engines use to associate a page with specific named entities,
+  // beyond whatever they infer from prose alone.
+  mentions?: string[];
 }
 
 export function articleSchema(post: ArticleSchemaInput) {
@@ -165,6 +171,7 @@ export function articleSchema(post: ArticleSchemaInput) {
     url: `${SITE_URL}/blog/${post.slug}`,
     datePublished: post.datePublished,
     dateModified: post.dateModified ?? post.datePublished,
+    mentions: post.mentions?.map((name) => ({ "@type": "Thing", name })),
     image: post.image ? [post.image] : undefined,
     author: { "@id": `${SITE_URL}/#organization` },
     publisher: { "@id": `${SITE_URL}/#organization` },

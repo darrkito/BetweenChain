@@ -9,12 +9,7 @@ import { JsonLd, breadcrumbListSchema, videoGameSchema } from "@/lib/seo/jsonld"
 import { NFT_VENDOR_CLIENTS } from "@/lib/nft/vendorClients";
 import { applyNftImageOverride } from "@/lib/nft/imageOverrides";
 import { getJupiterTokenStats } from "@/lib/chains/jupiter";
-
-function formatUsdCompact(value: number): string {
-  if (value >= 1_000_000) return `$${(value / 1_000_000).toFixed(2)}M`;
-  if (value >= 1_000) return `$${(value / 1_000).toFixed(1)}K`;
-  return `$${value.toFixed(value < 1 ? 6 : 2)}`;
-}
+import { formatUsdCompact } from "@/lib/client/amount";
 
 export function generateStaticParams() {
   return getAllGames().map((g) => ({ slug: g.slug }));

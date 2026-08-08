@@ -47,6 +47,13 @@ export interface BlogPostMeta {
   chains?: string[]; // SWAP_CHAINS slugs, e.g. ["solana", "ethereum"]
   howTo?: HowToData;
   faq?: FaqData[];
+  // 2026-08-08 (SEO/entity-recognition pass) — named entities (brands,
+  // projects, tokens) this post is substantively about, e.g.
+  // ["Claynosaurz", "Doggy"] — feeds articleSchema's `mentions` (real
+  // schema.org property, helps search engines and AI answer engines
+  // associate this page with those specific entities) rather than relying
+  // on prose alone.
+  mentions?: string[];
 }
 
 export interface BlogPost extends BlogPostMeta {
@@ -80,6 +87,7 @@ function readPostFile(slug: string): { meta: BlogPostMeta; content: string } {
       chains: Array.isArray(data.chains) ? data.chains.map(String) : undefined,
       howTo: data.howTo as HowToData | undefined,
       faq: data.faq as FaqData[] | undefined,
+      mentions: Array.isArray(data.mentions) ? data.mentions.map(String) : undefined,
     },
     content,
   };

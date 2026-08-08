@@ -10,6 +10,8 @@ import { RouteDiagram } from "@/app/components/RouteDiagram";
 import { BlogSwapPreview } from "@/app/components/BlogSwapPreview";
 import { BlogTip } from "@/app/components/BlogTip";
 import { Callout, StatBar, QuickFacts } from "@/app/components/BlogComponents";
+import { BlogTokenStats } from "@/app/components/BlogTokenStats";
+import { BlogCollectionCard } from "@/app/components/BlogCollectionCard";
 import { JsonLd, articleSchema, breadcrumbListSchema, howToSchema, faqPageSchema } from "@/lib/seo/jsonld";
 import { getAllBlogSlugs, getBlogPost } from "@/lib/content/blog";
 import { extractHeadings, rehypeHeadingIds, slugifyHeading } from "@/lib/content/headingSlug";
@@ -17,7 +19,7 @@ import { swapChainForSlug } from "@/lib/chains/swapChains";
 
 const SITE_URL = "https://blockchains.click";
 
-const MDX_COMPONENTS = { Callout, StatBar, QuickFacts, RouteDiagram, BlogSwapPreview, BlogTip };
+const MDX_COMPONENTS = { Callout, StatBar, QuickFacts, RouteDiagram, BlogSwapPreview, BlogTip, BlogTokenStats, BlogCollectionCard };
 const MDX_OPTIONS = { mdxOptions: { rehypePlugins: [rehypeHeadingIds] } };
 
 export function generateStaticParams() {
@@ -129,6 +131,7 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
           datePublished: post.date,
           dateModified: post.updatedDate,
           image: coverImageUrl,
+          mentions: post.mentions,
         })}
       />
       <JsonLd data={breadcrumbListSchema(breadcrumbItems, postUrl)} />

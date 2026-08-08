@@ -37,3 +37,15 @@ export function roundUpTo3Decimals(value: number): string {
   const cleanedThousandths = Math.round(value * 1000 * 1e6) / 1e6;
   return (Math.ceil(cleanedThousandths) / 1000).toFixed(3);
 }
+
+// Compact USD display ("$101.4K", "$1.24M") for market-cap/large-figure
+// contexts (2026-08-08, game/blog token stats cards) — distinct from
+// roundUpTo3Decimals above (that's for exact on-chain amounts a buyer
+// needs; this is for glanceable large numbers where exactness to the cent
+// doesn't matter). Sub-$1 values get more decimals (a sub-cent memecoin
+// price rounding to "$0.00" would be actively misleading).
+export function formatUsdCompact(value: number): string {
+  if (value >= 1_000_000) return `$${(value / 1_000_000).toFixed(2)}M`;
+  if (value >= 1_000) return `$${(value / 1_000).toFixed(1)}K`;
+  return `$${value.toFixed(value < 1 ? 6 : 2)}`;
+}
