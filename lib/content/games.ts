@@ -34,6 +34,16 @@ export interface GameMeta {
   twitterUsername?: string;
   discordUrl?: string;
   telegramUrl?: string;
+  // Added 2026-08-08 (Doggy Racing Chart) — `developer` stays a plain
+  // display string (works for a single credited dev/studio, e.g. Crash
+  // Dummy's), but a game can have more than one dev with their own X
+  // account each; kept separate from `twitterUsername` (the game/project's
+  // own account) and from `developer` (display text) rather than
+  // overloading either.
+  developerTwitterUsernames?: string[];
+  // A separate "built with/powered by" credit (e.g. an indie tools/engine
+  // builder) — distinct from the dev credit above.
+  poweredByTwitterUsername?: string;
   addedDate: string;
 }
 
@@ -72,6 +82,35 @@ export const GAMES: GameMeta[] = [
     ],
     twitterUsername: "Degen_Bald_Boy",
     addedDate: "2026-08-07",
+  },
+  {
+    slug: "doggy-racing-chart",
+    name: "Doggy Racing Chart",
+    developer: "adriansanpei & isracryptoeth",
+    description: "Ride motocross on real memecoin price charts. Survive the pumps, conquer the dumps — do backflips on DOGGY, race through BONK crashes. Built on real Solana price data.",
+    gameplay: "Motocross meets crypto: your bike's terrain is generated live from a memecoin's actual price chart, so every run is different depending on what the market is doing.",
+    genre: "Motocross / Endless Runner",
+    category: "token",
+    // Real og:image from racing.eldoggy.com's own <head> (confirmed live,
+    // 1200x628, resolves 200) — same discipline as Crash Dummy's coverImage.
+    coverImage: "https://racing.eldoggy.com/share-card.png",
+    bannerImage: "https://racing.eldoggy.com/share-card.png",
+    playUrl: "https://racing.eldoggy.com/",
+    // Confirmed live 2026-08-08 via `curl -sI https://racing.eldoggy.com/`:
+    // no x-frame-options or content-security-policy header at all — nothing
+    // blocks framing from another origin, unlike Crash Dummy.
+    embeddable: true,
+    // $DOGGY — confirmed live via Jupiter's token search (exact mint match):
+    // symbol DOGGY, real liquidity (~$17.5k) and holder count (1,487+),
+    // isVerified: true, and its own listed X account
+    // (https://x.com/elholder__) matches the "powered by" credit given —
+    // real cross-confirmation, not just taken on trust.
+    tokenMint: "BS7HxRitaY5ipGfbek1nmatWLbaS9yoWRSEQzCb3pump",
+    twitterUsername: "soyeldoggy",
+    discordUrl: "https://discord.gg/cJfja9XZ23",
+    developerTwitterUsernames: ["adriansanpei", "isracryptoeth"],
+    poweredByTwitterUsername: "elholder__",
+    addedDate: "2026-08-08",
   },
 ];
 

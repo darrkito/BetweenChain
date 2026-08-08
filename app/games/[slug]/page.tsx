@@ -8,6 +8,13 @@ import { getAllGames, getGame } from "@/lib/content/games";
 import { JsonLd, breadcrumbListSchema, videoGameSchema } from "@/lib/seo/jsonld";
 import { NFT_VENDOR_CLIENTS } from "@/lib/nft/vendorClients";
 import { applyNftImageOverride } from "@/lib/nft/imageOverrides";
+import { getJupiterTokenStats } from "@/lib/chains/jupiter";
+
+function formatUsdCompact(value: number): string {
+  if (value >= 1_000_000) return `$${(value / 1_000_000).toFixed(2)}M`;
+  if (value >= 1_000) return `$${(value / 1_000).toFixed(1)}K`;
+  return `$${value.toFixed(value < 1 ? 6 : 2)}`;
+}
 
 export function generateStaticParams() {
   return getAllGames().map((g) => ({ slug: g.slug }));
@@ -64,7 +71,18 @@ export default async function GameDetailPage({ params }: { params: Promise<{ slu
     game.twitterUsername ? { label: "X", url: sanitizeUrl(`https://x.com/${game.twitterUsername}`) } : null,
     game.discordUrl ? { label: "Discord", url: sanitizeUrl(game.discordUrl) } : null,
     game.telegramUrl ? { label: "Telegram", url: sanitizeUrl(game.telegramUrl) } : null,
+    ...(game.developerTwitterUsernames ?? []).map((u) => ({ label: `Dev: @${u}`, url: sanitizeUrl(`https://x.com/${u}`) })),
+    game.poweredByTwitterUsername
+      ? { label: `Powered by @${game.poweredByTwitterUsername}`, url: sanitizeUrl(`https://x.com/${game.poweredByTwitterUsername}`) }
+      : null,
   ].filter((l): l is { label: string; url: string } => Boolean(l?.url));
+
+  // Live price/market cap for a token-backed game (2026-08-08) — real
+  // Jupiter data fetched server-side, never fabricated or left as a stale
+  // hardcoded figure in games.ts (price/mcap move constantly). null when
+  // unavailable — the Details panel simply omits the row rather than
+  // showing a guessed number.
+  const tokenStats = game.tokenMint ? await getJupiterTokenStats(game.tokenMint).catch(() => null) : null;
 
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-col gap-4 p-6">
@@ -109,6 +127,20 @@ export default async function GameDetailPage({ params }: { params: Promise<{ slu
               <dt className="text-ink-faint">Genre</dt>
               <dd className="text-ink">{game.genre}</dd>
             </div>
+            {tokenStats && (
+              <>
+                <div className="flex justify-between gap-2">
+                  <dt className="text-ink-faint">Price</dt>
+                  <dd className="num text-ink">{formatUsdCompact(tokenStats.usdPrice)}</dd>
+                </div>
+                {tokenStats.marketCapUsd != null && (
+                  <div className="flex justify-between gap-2">
+                    <dt className="text-ink-faint">Market Cap</dt>
+                    <dd className="num text-ink">{formatUsdCompact(tokenStats.marketCapUsd)}</dd>
+                  </div>
+                )}
+              </>
+            )}
             {game.tokenMint && (
               <div className="flex justify-between gap-2">
                 <dt className="text-ink-faint">Token</dt>

@@ -6,6 +6,28 @@ delete history (superseded entries stay for context, just note what replaced the
 
 ---
 
+## 2026-08-08g — New game: Doggy Racing Chart ($DOGGY) + live token price/mcap on game pages
+
+Real user request — added `racing.eldoggy.com` (a memecoin-themed motocross game, terrain
+generated from real price charts) to the Games Hub. Verified live before adding:
+`curl -sI` confirmed no `x-frame-options`/CSP header at all (unlike Crash Dummy —
+`embeddable: true`, real sandboxed iframe, not an external-launch fallback), the real
+og:image resolves, the Discord invite (`discord.gg/cJfja9XZ23`) resolves via Discord's
+own API and its inviter username matches the given dev handle (`adriansanpei`), and the
+token (`BS7HxRitaY5ipGfbek1nmatWLbaS9yoWRSEQzCb3pump`) is a real, `isVerified: true`
+Jupiter-indexed mint whose own listed X account matches the "powered by" credit given —
+real cross-confirmation, not just taken on trust.
+
+Also added: **live price + market cap on any token-backed game's detail page**
+(`app/games/[slug]/page.tsx`) — new `getJupiterTokenStats(mint)`
+(`lib/chains/jupiter.ts`, same `/tokens/v2/search`-by-exact-mint endpoint already used
+elsewhere this session for live token verification) fetched server-side on each page
+load, never a hardcoded/stale figure baked into `games.ts` — same "unknown stays
+unknown, never fabricated" rule as every other price display in this app. Extended
+`GameMeta` with `developerTwitterUsernames?: string[]` (more than one credited dev, each
+with their own X account) and `poweredByTwitterUsername?: string` (a separate
+"built with" credit) — both render as additional social links on the detail page.
+
 ## 2026-08-08f — Robinhood Chain + 2 more Portfolio Baskets
 
 Real user request ("add solana, robinhood") — clarified via AskUserQuestion into: add

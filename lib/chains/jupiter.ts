@@ -58,6 +58,38 @@ export async function searchJupiterTokens(term: string, limit = 30): Promise<Tok
   });
 }
 
+export interface JupiterTokenStats {
+  usdPrice: number;
+  marketCapUsd: number | null; // Jupiter's own computed mcap (price x circulating supply) — never re-derived here
+}
+
+const STATS_TTL_MS = 60_000; // price/mcap move fast — short TTL, just enough to absorb a page's own concurrent requests
+
+/**
+ * Live price + market cap for a single Solana mint (2026-08-08, Games Hub
+ * token stats — app/games/[slug]/page.tsx) — same `/tokens/v2/search`
+ * endpoint as searchJupiterTokens above, but querying by exact mint address
+ * returns that token as the first (and effectively only relevant) result,
+ * carrying real `usdPrice`/`mcap` fields Jupiter itself computes. Returns
+ * null on any failure or an unrecognized mint — never a fabricated $0,
+ * same "unknown stays unknown" rule as every other price display in this
+ * app (see lib/pricing.ts's own doc comments).
+ */
+export async function getJupiterTokenStats(mint: string): Promise<JupiterTokenStats | null> {
+  return cached(`jupiter:stats:${mint}`, STATS_TTL_MS, async () => {
+    try {
+      const res = await fetchWithTimeout(`${JUPITER_TOKENS_API}/search?query=${encodeURIComponent(mint)}`, { cache: "no-store" });
+      if (!res.ok) return null;
+      const tokens = (await res.json()) as Array<{ id: string; usdPrice?: number; mcap?: number }>;
+      const match = tokens.find((t) => t.id === mint);
+      if (!match || !Number.isFinite(match.usdPrice) || (match.usdPrice ?? 0) <= 0) return null;
+      return { usdPrice: match.usdPrice!, marketCapUsd: Number.isFinite(match.mcap) ? match.mcap! : null };
+    } catch {
+      return null;
+    }
+  });
+}
+
 export interface JupiterQuote {
   inputMint: string;
   outputMint: string;
