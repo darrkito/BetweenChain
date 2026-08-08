@@ -48,6 +48,14 @@ export const EVM_CHAINS: EvmChainOption[] = [
   { slug: "arbitrum", label: "Arbitrum", chainId: 42161, iconUrl: "https://assets.relay.link/icons/42161/light.png" },
   { slug: "optimism", label: "Optimism", chainId: 10, iconUrl: "https://assets.relay.link/icons/10/light.png" },
   { slug: "avalanche", label: "Avalanche", chainId: 43114, iconUrl: "https://assets.relay.link/icons/43114/light.png" },
+  // Robinhood Chain added 2026-08-08 (real user request) — verified live
+  // before adding: Relay's own /chains lists it (id 4663, vmType "evm",
+  // depositEnabled true, disabled false), OpenSea's
+  // `/v2/collections?chain=robinhood` returns real collections (confirming
+  // "robinhood" is OpenSea's actual chain slug, not a guess), and viem
+  // ships a built-in `robinhood` chain definition (viem/chains) with the
+  // same chain id — no custom `defineChain` needed, see lib/chains/evm.ts.
+  { slug: "robinhood", label: "Robinhood Chain", chainId: 4663, iconUrl: "https://assets.relay.link/icons/4663/light.png" },
 ];
 
 export function evmChainForSlug(slug: string): EvmChainOption | undefined {

@@ -29,6 +29,7 @@ export interface BasketMeta {
 const BASE_CHAIN_ID = 8453;
 const ETHEREUM_CHAIN_ID = 1;
 const SOLANA_CHAIN_ID = 792703809;
+const ROBINHOOD_CHAIN_ID = 4663;
 
 export const BASKETS: BasketMeta[] = [
   {
@@ -105,6 +106,84 @@ export const BASKETS: BasketMeta[] = [
         logoURI: "https://coin-images.coingecko.com/coins/images/5681/large/ASI.png",
         isNative: false,
         percentage: 25,
+      },
+    ],
+    addedDate: "2026-08-08",
+  },
+  {
+    slug: "solana-ecosystem",
+    name: "Solana Ecosystem",
+    description: "The DEX/staking/oracle infrastructure powering Solana — Jupiter, Jito, and Pyth in one swap.",
+    icon: "🟣",
+    allocations: [
+      {
+        chainId: SOLANA_CHAIN_ID,
+        address: "JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN",
+        symbol: "JUP",
+        name: "Jupiter",
+        decimals: 6,
+        logoURI: "https://static.jup.ag/jup/icon.png",
+        isNative: false,
+        percentage: 40,
+      },
+      {
+        chainId: SOLANA_CHAIN_ID,
+        address: "jtojtomepa8beP8AuQc6eXt5FriJwfFMwQx2v2f9mCL",
+        symbol: "JTO",
+        name: "Jito",
+        decimals: 9,
+        logoURI: "https://metadata.jito.network/token/jto/image",
+        isNative: false,
+        percentage: 30,
+      },
+      {
+        chainId: SOLANA_CHAIN_ID,
+        address: "HZ1JovNiVvGrGNiiYvEozEVgZ58xaU3RKwX8eACQBCt3",
+        symbol: "PYTH",
+        name: "Pyth Network",
+        decimals: 6,
+        logoURI: "https://pyth.network/token.svg",
+        isNative: false,
+        percentage: 30,
+      },
+    ],
+    addedDate: "2026-08-08",
+  },
+  {
+    slug: "robinhood-chain-starter",
+    name: "Robinhood Chain Starter",
+    description: "A blue-chip starter set on Robinhood's new L2 — native ETH, Global Dollar, and ApeCoin. The chain is brand new; most other tokens there are unverified, so this stays deliberately conservative.",
+    icon: "🪶",
+    allocations: [
+      {
+        chainId: ROBINHOOD_CHAIN_ID,
+        address: "0x0000000000000000000000000000000000000000",
+        symbol: "ETH",
+        name: "Ether",
+        decimals: 18,
+        logoURI: "https://assets.relay.link/icons/1/light.png",
+        isNative: true,
+        percentage: 50,
+      },
+      {
+        chainId: ROBINHOOD_CHAIN_ID,
+        address: "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+        symbol: "USDG",
+        name: "Global Dollar",
+        decimals: 6,
+        logoURI: "https://assets.coingecko.com/coins/images/51281/standard/GDN_USDG_Token_200x200.png",
+        isNative: false,
+        percentage: 30,
+      },
+      {
+        chainId: ROBINHOOD_CHAIN_ID,
+        address: "0x8f86a15ec17cb3369d8b3e666dadbc11daa82b79",
+        symbol: "APE",
+        name: "ApeCoin",
+        decimals: 18,
+        logoURI: "https://coin-images.coingecko.com/coins/images/24383/large/APECOIN.png?1756551529",
+        isNative: false,
+        percentage: 20,
       },
     ],
     addedDate: "2026-08-08",

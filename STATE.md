@@ -6,6 +6,36 @@ delete history (superseded entries stay for context, just note what replaced the
 
 ---
 
+## 2026-08-08f — Robinhood Chain + 2 more Portfolio Baskets
+
+Real user request ("add solana, robinhood") — clarified via AskUserQuestion into: add
+Robinhood Chain as a swap-supported chain, and add new Solana/Robinhood-themed
+baskets. Solana itself needed no "adding" — already the flagship chain — so this
+became: Robinhood Chain as a 7th EVM chain, plus 2 new curated baskets.
+
+- **Robinhood Chain** (id 4663) added to `lib/nft/evmChains.ts`'s `EVM_CHAINS` — the
+  single shared array every consumer reads from (NFT browse chain picker, the swap
+  chain picker via `lib/chains/swapChains.ts`'s `SWAP_CHAINS`, `/api/tokens/chains`'
+  allow-list, `SWAP_PAIRS`' programmatic `/swap/[pair]` landing pages). Verified live
+  before adding: Relay's own `/chains` lists it (`vmType: "evm"`, `depositEnabled:
+  true`), OpenSea's `/v2/collections?chain=robinhood` returns real collections
+  (confirms the chain slug), and — a real time-saver — viem ships a **built-in**
+  `robinhood` chain definition (`viem/chains`), so `lib/chains/evm.ts`'s RPC client
+  needed no custom `defineChain`. Fallback RPC (`rpc.mainnet.chain.robinhood.com`,
+  their own official endpoint — no publicnode.com mirror exists yet) confirmed live
+  via a raw `eth_chainId` call returning the correct `0x1237` (4663). `SWAP_PAIRS`
+  going from 12→14 entries (6→7 EVM chains × 2 directions) broke a test that had the
+  count hardcoded — fixed to assert against `EVM_CHAINS.length * 2` instead, so a
+  future chain addition can't silently desync it again.
+- **2 new baskets** (`lib/content/baskets.ts`): "Solana Ecosystem" (JUP 40% / JTO 30%
+  / PYTH 30% — Jupiter/Jito/Pyth, all live-verified real liquidity) and "Robinhood
+  Chain Starter" (ETH 50% / USDG 30% / APE 20%). The Robinhood Chain token landscape
+  is thin and mostly unverified meme-coin squatting on the "Robinhood" name
+  (`HOODROIDS`, `CASHOOD`, `BRODIE Robinhood Dog`, etc., confirmed via a live Relay
+  currency search) — deliberately kept to the 3 `verified: true` tokens only rather
+  than building a "themed" basket out of low-quality/scam-risk tokens just to hit a
+  meme-coin aesthetic.
+
 ## 2026-08-08e — Portfolio Baskets (`/basket`)
 
 Split one source token into a curated basket of destination tokens across chains in one

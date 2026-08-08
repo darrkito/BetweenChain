@@ -1,9 +1,14 @@
 import { describe, it, expect } from "vitest";
+import { EVM_CHAINS } from "@/lib/nft/evmChains";
 import { SWAP_PAIRS, pairForSlug, relatedPairs, swapPairCopy } from "./swapPairs";
 
 describe("SWAP_PAIRS", () => {
-  it("has exactly 12 entries", () => {
-    expect(SWAP_PAIRS).toHaveLength(12);
+  it("has exactly 2 entries per configured EVM chain (Solana<->chain, both directions)", () => {
+    // Was a hardcoded "12" until this went stale the moment Robinhood
+    // Chain became the 7th EVM_CHAINS entry (2026-08-08) — asserted against
+    // EVM_CHAINS' own length now so a future chain addition can't silently
+    // desync this test again.
+    expect(SWAP_PAIRS).toHaveLength(EVM_CHAINS.length * 2);
   });
 
   it("every pair includes Solana on exactly one side", () => {

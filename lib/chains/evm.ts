@@ -1,6 +1,6 @@
 import "server-only";
 import { createPublicClient, http, parseEther, type Chain } from "viem";
-import { mainnet, base, polygon, arbitrum, optimism, avalanche } from "viem/chains";
+import { mainnet, base, polygon, arbitrum, optimism, avalanche, robinhood } from "viem/chains";
 
 // Server-side EVM RPC — distinct from lib/client/useEvmWallet.ts's client,
 // which only ever talks through the browser's injected provider. This one
@@ -38,6 +38,12 @@ const CHAIN_CONFIG: Record<number, { chain: Chain; envVar: string; fallbackRpc: 
   42161: { chain: arbitrum, envVar: "ARBITRUM_RPC_URL", fallbackRpc: "https://arbitrum-one-rpc.publicnode.com" },
   10: { chain: optimism, envVar: "OPTIMISM_RPC_URL", fallbackRpc: "https://optimism-rpc.publicnode.com" },
   43114: { chain: avalanche, envVar: "AVALANCHE_RPC_URL", fallbackRpc: "https://avalanche-c-chain-rpc.publicnode.com" },
+  // Robinhood Chain added 2026-08-08, matching lib/nft/evmChains.ts's
+  // addition — fallback is their own official RPC (no publicnode.com
+  // mirror exists for this chain yet), confirmed live via a raw
+  // eth_chainId call returning 0x1237 (4663), same discipline as every
+  // other fallback URL in this file.
+  4663: { chain: robinhood, envVar: "ROBINHOOD_RPC_URL", fallbackRpc: "https://rpc.mainnet.chain.robinhood.com" },
 };
 
 const clientCache = new Map<number, ReturnType<typeof createPublicClient>>();
