@@ -414,6 +414,19 @@ actually active outside local dev.
 
 ## Not yet scheduled
 
+- **Portfolio Baskets — custom baskets + shareable creator links (Stage 3)** — Stage 1+2
+  (`/basket`, 2 curated baskets, full execution flow via `executeSwapFlow()`) shipped
+  2026-08-08e. Deferred: a build-your-own-allocation flow with a stateless,
+  URL-encoded shareable link (real, buildable on the same Stage 1 core, just deferred
+  to keep the first ship small), and the pitch's "creator earns a split on every
+  bundle executed" idea — that one specifically needs a persisted, attributable
+  basket identity (a `baskets` DB table) plus real fee-splitting/payout logic, a
+  distinct monetization feature from the swap mechanics themselves. Not started.
+
+- **Portfolio Baskets — Sui allocations** — same root gap as the Dust Sweeper's Sui
+  dust: no Sui swap execution path exists anywhere in this app. Any basket wanting a
+  Cetus/Sui-ecosystem allocation hits the same wall.
+
 - **Bitcoin general swap support (Phase 2)** — shipped 2026-08-08, merged directly into
   the main `/swap` picker 2026-08-08d (superseding the earlier standalone
   `BtcSwapPanel`, now deleted). BTC<->SOL and BTC<->ETH swaps via a dedicated

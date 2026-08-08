@@ -160,23 +160,34 @@ export default async function LandingPage() {
         </Reveal>
       )}
 
-      {/* Dust Sweeper promo (2026-08-08) — single-feature card, not a grid,
-          since there's one thing being promoted here, not a list of items
-          like Games/Trending collections above. */}
-      <Reveal>
+      {/* Dust Sweeper + Portfolio Baskets promo (2026-08-08) — two
+          single-feature cards side by side once there were two of these to
+          promote, rather than stacking two full-width rows. */}
+      <Reveal className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Link
           href="/dust-sweeper"
-          className="flex flex-col gap-2 rounded-2xl border border-hairline bg-surface p-6 shadow-sm transition-all hover:border-accent/40 sm:flex-row sm:items-center sm:justify-between"
+          className="flex flex-col gap-2 rounded-2xl border border-hairline bg-surface p-6 shadow-sm transition-all hover:border-accent/40"
         >
-          <div className="flex flex-col gap-1">
-            <h2 className="font-display text-2xl font-normal text-ink">🧹 Dust Sweeper</h2>
-            <p className="max-w-xl text-sm text-ink-muted">
-              Small stranded token balances add up across chains. Scan your wallets, see what is worth reclaiming,
-              and consolidate it into one token in a guided flow.
-            </p>
-          </div>
-          <span className="shrink-0 self-start rounded-full bg-accent px-4 py-2 text-sm font-semibold text-accent-ink sm:self-center">
+          <h2 className="font-display text-xl font-normal text-ink">🧹 Dust Sweeper</h2>
+          <p className="text-sm text-ink-muted">
+            Small stranded token balances add up across chains. Scan your wallets and consolidate them into one
+            token in a guided flow.
+          </p>
+          <span className="mt-1 self-start rounded-full bg-accent px-4 py-2 text-sm font-semibold text-accent-ink">
             Sweep your dust →
+          </span>
+        </Link>
+        <Link
+          href="/basket"
+          className="flex flex-col gap-2 rounded-2xl border border-hairline bg-surface p-6 shadow-sm transition-all hover:border-accent/40"
+        >
+          <h2 className="font-display text-xl font-normal text-ink">🧺 Portfolio Baskets</h2>
+          <p className="text-sm text-ink-muted">
+            Split one token into a curated basket of destination tokens across chains — one guided flow instead of
+            several manual swaps.
+          </p>
+          <span className="mt-1 self-start rounded-full bg-accent px-4 py-2 text-sm font-semibold text-accent-ink">
+            Browse baskets →
           </span>
         </Link>
       </Reveal>

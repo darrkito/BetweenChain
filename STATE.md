@@ -6,6 +6,40 @@ delete history (superseded entries stay for context, just note what replaced the
 
 ---
 
+## 2026-08-08e — Portfolio Baskets (`/basket`)
+
+Split one source token into a curated basket of destination tokens across chains in one
+guided flow — the mirror image of the Dust Sweeper (many→one) shipped earlier the same
+session (one→many). Real reuse of infra built for that feature:
+`lib/client/executeSwapFlow.ts` (the shared quote→swap→confirm→bridge→confirm sequence)
+is now used by a second feature, called once per basket allocation instead of once per
+dust item.
+
+- `lib/baskets/split.ts`: pure, unit-tested `splitAmount`/`normalizePercentages` — BigInt
+  math throughout, last allocation absorbs any rounding remainder so a split always sums
+  to exactly the input amount (never over- or under-spends the wallet's balance).
+- `lib/content/baskets.ts`: 2 curated baskets (content-as-code, same pattern as
+  `games.ts`/`blog.ts`) — "Base Ecosystem Starter" (DEGEN/BRETT/TOSHI, all Base) and
+  "AI Agent Index" (VIRTUAL on Base / GOAT on Solana / FET on Ethereum — a genuine
+  cross-chain basket). Every address live-verified before hardcoding (Relay's
+  `/currencies/v2` search for the EVM tokens, Jupiter's token search + a real
+  liquidity/price check for GOAT — several near-identical "GOAT" tokens exist on
+  pump.fun, confirmed the ~$1.24M-liquidity one matching the well-known
+  "Goatseus Maximus" is the real one, not a knockoff).
+- `app/basket/[slug]/BasketClient.tsx`: source-token picker (reuses
+  `TokenSelectModal`), percentage sliders (re-normalize to 100% on drag), live per-leg
+  preview via the existing public `/api/quote/preview`, sequential execution via
+  `executeSwapFlow()` with a per-leg progress list (same pattern
+  `DustSweeperClient.tsx` already established for its sweep loop).
+- Corrected the pitch doc's framing before building: no single-signature atomic batch
+  (Jupiter/Relay have no such primitive here — same finding as the Dust Sweeper);
+  "local DEX routing" is already handled a layer down by Jupiter/Relay, no new
+  integration needed, EXCEPT Sui (Cetus) — this app has zero Sui swap execution
+  anywhere, so Sui allocations are out of scope, not silently promised. Custom
+  baskets + shareable creator links + a creator-revenue split were scoped as an
+  explicit, separate Stage 3 follow-up (not built this pass) — a real
+  monetization/attribution feature, not a swap-mechanics one.
+
 ## 2026-08-08d — Bitcoin merged into the main swap widget + security review
 
 Real user finding: Relay's own `/chains` (confirmed live: id `8253038`, `vmType: "bvm"`,

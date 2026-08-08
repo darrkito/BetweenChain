@@ -28,6 +28,7 @@ const NAV: Array<{ href: string; label: string; shortLabel?: string }> = [
   { href: "/radar", label: "Meme Radar", shortLabel: "Radar" },
   { href: "/games", label: "Games" },
   { href: "/dust-sweeper", label: "Dust Sweeper", shortLabel: "Dust" },
+  { href: "/basket", label: "Portfolio Baskets", shortLabel: "Baskets" },
   { href: "/dashboard", label: "Rewards" },
 ];
 
