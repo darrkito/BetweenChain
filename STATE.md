@@ -6,6 +6,62 @@ delete history (superseded entries stay for context, just note what replaced the
 
 ---
 
+## 2026-08-08c — Dust Sweeper (`/dust-sweeper`) + Bitcoin general swap support (Phase 2)
+
+Two features, one session, user request bundled both.
+
+**Dust Sweeper** — new `/dust-sweeper` page. Detects small stranded token balances:
+Solana via a full real wallet scan (`getParsedTokenAccountsByOwner`, same enumeration
+`DustBurner` already did for zero-balance accounts) priced through a new
+`getJupiterMintUsdPrices` (arbitrary mints, not just this app's curated token list —
+Jupiter's `price/v3` genuinely supports comma-separated multi-mint requests, confirmed
+live); EVM via the existing `/api/tokens/balances` endpoint (curated-list-only, same
+disclosed limitation `PortfolioDrawer` already has); Sui native-SUI-only (detect, not
+sweepable — no Sui swap execution path exists anywhere in this app). Also folds in
+`DustBurner`'s existing empty-account rent reclaim. Consolidates selected dust into SOL,
+ETH-on-Base, or USDC-on-Base via a sequential guided flow (one signature per token) built
+on a new shared `lib/client/executeSwapFlow.ts` — the same quote->swap->confirm->bridge
+->confirm sequence `SwapPageClient.tsx`'s `runSwap()` already runs, pulled out so the
+sweep loop doesn't reimplement the signing/polling logic. `runSwap()` itself was left
+untouched (regression-risk call, see that file's comment) rather than refactored to share
+the extraction.
+
+Evaluated deBridge's DLN (the originally pitched engine, from a pasted growth-feature
+doc) against its real API before building: `dln.debridge.finance/v1.0/supported-chains`
+lists Ethereum/Optimism/BSC/Polygon/Base/Arbitrum/Avalanche/Linea/Solana + a few custom
+L1/L2s — **no Bitcoin, no Sui**. Relay (already live in this app, with built-in gas
+top-up via `topupGas`) covers Solana+EVM more broadly already — reused that instead of
+adding a second bridge dependency.
+
+Also shipped: discovery entry points (swap page banner, portfolio drawer footer CTA,
+Meme Radar banner, dashboard link, header nav item), a stateless "Dust Recovered" OG
+share card (`next/og` `ImageResponse`, no DB row — see `lib/seo/ogImage.tsx`), and a
+benefits-only blog post (`content/blog/unlock-crypto-dust-across-chains.mdx`) that
+doesn't name the underlying vendors, per explicit request.
+
+**Bitcoin general swap support (Phase 2)** — new `app/components/BtcSwapPanel.tsx` on
+`/swap`, backed by `app/api/quote/btc` + `app/api/swap/btc/{execute,confirm}` — separate
+routes from the main `/api/quote`+`/api/swap`+`/api/bridge` pipeline, not a branch inside
+it, since ChangeNOW's custodial deposit-address model has no signable "leg 1" the way
+Jupiter/Relay do. New migration `0018_btc_swap_changenow.sql` (applied to production)
+adds `changenow_rate_id`/`changenow_estimate` to `swap_quotes` and
+`changenow_exchange_id`/`changenow_deposit_address` to `swap_transactions` — both purely
+additive/nullable. `lib/chains/changenow.ts`'s `getChangeNowReverseEstimate`/
+`createChangeNowExchange` generalized to accept an arbitrary destination currency/network
+(defaults to `"sui"`, so the existing Sui NFT-purchase call sites are unchanged). Scoped
+to BTC<->SOL and BTC<->ETH only — the two ChangeNOW currencies already live-verified in
+this app; BTC<->other EVM chains is real follow-up work, not built. Only ChangeNOW's
+"reverse" (exact-output) estimate mode is used, matching the only mode ever live-verified
+here — could not verify the "direct"/forward mode live in this environment (no
+`CHANGENOW_API_KEY` available), so it was deliberately not relied on rather than guessed.
+Added `isPlausibleBtcAddress` (`lib/validation.ts`) — format-only regex over the three
+real BTC address prefixes, no checksum verification.
+
+**Not done / explicitly deferred**: Sui dust sweeping (no Sui swap execution path exists
+yet), true arbitrary-token EVM dust scanning (would need a wallet-indexer vendor like
+Alchemy/Moralis, deliberately not added), BTC<->other-EVM-chain swaps. See `PLAN.md`'s
+"Not yet scheduled" section.
+
 ## 2026-08-08b — Bitcoin (Xverse) wallet support, Phase 1: NFT purchases via ChangeNOW
 
 User asked for Bitcoin wallet support (Xverse). First instinct was Relay (confirmed live

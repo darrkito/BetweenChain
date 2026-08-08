@@ -414,15 +414,27 @@ actually active outside local dev.
 
 ## Not yet scheduled
 
-- **Bitcoin general swap support (Phase 2, deferred from the 2026-08-08b BTC pass, see
-  `STATE.md`)** — Phase 1 (BTC as a 3rd ChangeNOW origin for Sui NFT purchases, via
-  Xverse/sats-connect) shipped and verified. Phase 2 is real, separate, bigger scope,
-  confirmed with the user explicitly as later work: adding BTC as a real origin/
-  destination on the main `/swap` page — general token swaps, not NFT purchases. Neither
-  Jupiter nor Relay (the two engines `/swap` uses today) touch ChangeNOW at all, so this
-  needs its own quote/execute/confirm routes and `swap_transactions` handling for a
-  custodial-exchange model (ChangeNOW), distinct from the on-chain-bridge model Relay
-  uses everywhere else in the swap flow. Not started.
+- **Bitcoin general swap support (Phase 2)** — shipped 2026-08-08. BTC<->SOL and BTC<->ETH
+  swaps on `/swap` via a dedicated ChangeNOW-backed flow (`app/api/quote/btc`,
+  `app/api/swap/btc/*`, `app/components/BtcSwapPanel.tsx`, migration
+  `0018_btc_swap_changenow.sql`) — separate routes from the main Jupiter/Relay pipeline,
+  not a branch inside it (ChangeNOW's custodial deposit-address model has no signable
+  "leg 1" the way Jupiter/Relay do). Scoped to BTC<->SOL/ETH only (the two ChangeNOW
+  currencies already integrated) — **BTC<->other EVM chains (MATIC, AVAX, Base/Arbitrum/
+  Optimism native tokens) is a real, separate follow-up, not yet built.** Only ChangeNOW's
+  "reverse" (exact-output) estimate mode is used — the only mode ever live-verified in this
+  codebase; the "direct"/forward mode has not been exercised.
+
+- **Dust Sweeper — Sui sweep support** — `/dust-sweeper` (shipped 2026-08-08) detects
+  native SUI dust but cannot sweep it: no Sui swap execution path exists anywhere in this
+  app yet (`SWAP_CHAINS` has no Sui entry). Building one is a separate, large effort.
+
+- **Dust Sweeper — EVM full-wallet scan** — EVM dust detection is scoped to tokens this
+  app's own curated list already knows about (same limitation `PortfolioDrawer` already
+  discloses), not a true arbitrary-token wallet scan the way the Solana side is (which
+  enumerates every real SPL account directly). A true EVM scan needs a wallet-indexer
+  vendor (Alchemy/Moralis-style "get all token balances" API) — deliberately not added as
+  a new dependency in the initial pass.
 
 - **Cross-chain feature batch follow-ups (deferred from the 2026-08-07d pass, see
   `STATE.md`)** — Phases 1-7 (auto-refuel, NFT floor conversion, dust burner, portfolio

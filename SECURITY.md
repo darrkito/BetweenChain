@@ -73,6 +73,23 @@ directly rather than assumed from docs) sends a plain BTC payment, same "no cont
 shape as the ETH/SOL deposit sends. Bitcoin has no separate sign-in/auth flow (mirrors
 Sui's own pattern) — it's purely a payment rail, never the account identity.
 
+**Extended 2026-08-08 to a second surface: general BTC<->SOL/ETH swaps on `/swap`**
+(`app/api/quote/btc`, `app/api/swap/btc/*`, `app/components/BtcSwapPanel.tsx`) — same
+ChangeNOW custodial model and same trust disclosure as above, just a different pair than
+BTC->SUI. Deliberately a separate route/table-column set from the main `/api/quote` +
+`/api/swap` + `/api/bridge` pipeline (see migration `0018_btc_swap_changenow.sql`) rather
+than a new branch inside it — ChangeNOW has no signable "leg 1" transaction the way
+Jupiter/Relay do, so folding it into that state machine would have been a worse fit, not a
+security improvement. `isPlausibleBtcAddress` (`lib/validation.ts`) is format-only (regex
+over the three real BTC address prefixes) — no checksum verification the way
+`isPlausibleEvmAddress` has via EIP-55; a malformed-but-regex-passing address would simply
+fail at ChangeNOW's own end when the exchange is created, not silently misdeliver funds
+(the destination is still bound at quote time and never re-derived from later input, same
+MITM-prevention guarantee as everywhere else in this app). Only ChangeNOW's "reverse"
+estimate mode (exact destination amount -> required origin amount) is used — the only mode
+this app has live-verified; the more familiar "I'm selling X, what do I get" forward mode
+has not been exercised and is not relied on.
+
 ## Auth: Sign-In with Solana, and standalone Sign-In with Ethereum
 
 - Nonce-based challenge (`auth_challenges`), single-use (`consumed_at`), 5-minute TTL.

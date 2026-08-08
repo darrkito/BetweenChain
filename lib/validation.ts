@@ -14,3 +14,17 @@ import { isAddress } from "viem";
 export function isPlausibleEvmAddress(address: string): boolean {
   return isAddress(address);
 }
+
+// Format-only (no checksum/network validation the way isPlausibleEvmAddress
+// has via EIP-55) — covers the three real Bitcoin address formats a
+// sats-connect wallet can return: legacy P2PKH ("1..."), P2SH ("3..."),
+// and native segwit/bech32 ("bc1..."). Same role as isPlausibleEvmAddress:
+// a cheap sanity check on a destination address before it's bound into a
+// quote, not a substitute for ChangeNOW's own validation when the exchange
+// is actually created.
+const BTC_LEGACY_OR_P2SH = /^[13][a-km-zA-HJ-NP-Z1-9]{25,34}$/;
+const BTC_BECH32 = /^bc1[a-z0-9]{25,62}$/;
+
+export function isPlausibleBtcAddress(address: string): boolean {
+  return BTC_LEGACY_OR_P2SH.test(address) || BTC_BECH32.test(address);
+}

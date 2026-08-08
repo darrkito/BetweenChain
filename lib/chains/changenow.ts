@@ -86,24 +86,39 @@ export class ChangeNowAmountOutOfRangeError extends Error {
 }
 
 /**
- * Reverse fixed-rate estimate: "I need exactly `toAmountSui` SUI delivered,
- * how much ETH/SOL does that cost right now" — ChangeNOW's `type=reverse` +
- * `flow=fixed-rate` combination, confirmed live 2026-07-22 for both origins
- * (0.00816136 ETH for an exact 20 SUI output; 0.15099337 SOL for an exact
- * 15.05 SUI output). This is the ChangeNOW equivalent of Relay's
- * EXACT_OUTPUT `/quote/v2` — deterministic, no leftover-amount safety-margin
- * math needed the way Squid's EXACT_INPUT-only model required.
+ * Reverse fixed-rate estimate: "I need exactly `toAmount` of the destination
+ * currency delivered, how much of the origin currency does that cost right
+ * now" — ChangeNOW's `type=reverse` + `flow=fixed-rate` combination,
+ * confirmed live 2026-07-22 for the original SUI destination (0.00816136
+ * ETH for an exact 20 SUI output; 0.15099337 SOL for an exact 15.05 SUI
+ * output). This is the ChangeNOW equivalent of Relay's EXACT_OUTPUT
+ * `/quote/v2` — deterministic, no leftover-amount safety-margin math needed
+ * the way Squid's EXACT_INPUT-only model required. `toCurrency`/`toNetwork`
+ * generalized 2026-08-08 for BTC<->SOL/ETH general swaps
+ * (app/api/quote/btc/route.ts) — still only the reverse/exact-output mode,
+ * the one live-verified shape; ChangeNOW's forward/"direct" mode has not
+ * been exercised in this codebase.
  */
 export async function getChangeNowReverseEstimate(params: {
   fromCurrency: ChangeNowOriginCurrency;
-  toAmountSui: string;
+  toAmount: string; // decimal amount of the destination currency
+  // Destination currency/network — defaults to "sui" for the original NFT-
+  // purchase call sites (app/api/nft/purchase/sui/*), which is the only
+  // caller this function had until 2026-08-08's general BTC swap support
+  // on /swap needed an arbitrary destination too. Opaque strings, same as
+  // ChangeNowOriginCurrency — ChangeNOW's own ticker/network naming, never
+  // branched on here.
+  toCurrency?: string;
+  toNetwork?: string;
 }): Promise<ChangeNowReverseEstimate> {
+  const toCurrency = params.toCurrency ?? "sui";
+  const toNetwork = params.toNetwork ?? toCurrency;
   const url = new URL(`${CHANGENOW_API}/exchange/estimated-amount`);
   url.searchParams.set("fromCurrency", params.fromCurrency);
   url.searchParams.set("fromNetwork", params.fromCurrency);
-  url.searchParams.set("toCurrency", "sui");
-  url.searchParams.set("toNetwork", "sui");
-  url.searchParams.set("toAmount", params.toAmountSui);
+  url.searchParams.set("toCurrency", toCurrency);
+  url.searchParams.set("toNetwork", toNetwork);
+  url.searchParams.set("toAmount", params.toAmount);
   url.searchParams.set("flow", "fixed-rate");
   url.searchParams.set("type", "reverse");
 
@@ -152,15 +167,19 @@ export async function createChangeNowExchange(params: {
   fromAmount: string;
   rateId: string;
   payoutAddress: string;
+  toCurrency?: string; // defaults to "sui", see getChangeNowReverseEstimate's doc
+  toNetwork?: string;
 }): Promise<ChangeNowExchange> {
+  const toCurrency = params.toCurrency ?? "sui";
+  const toNetwork = params.toNetwork ?? toCurrency;
   const res = await fetch(`${CHANGENOW_API}/exchange`, {
     method: "POST",
     headers: changenowHeaders(),
     body: JSON.stringify({
       fromCurrency: params.fromCurrency,
       fromNetwork: params.fromCurrency,
-      toCurrency: "sui",
-      toNetwork: "sui",
+      toCurrency,
+      toNetwork,
       fromAmount: Number(params.fromAmount),
       address: params.payoutAddress,
       flow: "fixed-rate",

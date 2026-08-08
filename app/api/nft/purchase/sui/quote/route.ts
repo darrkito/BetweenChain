@@ -150,7 +150,7 @@ export async function POST(req: Request) {
       // ETH/SOL/BTC cost, no safety-margin/leftover math needed (unlike the
       // earlier Squid EXACT_INPUT-only attempt) — see
       // getChangeNowReverseEstimate's doc.
-      const estimate = await getChangeNowReverseEstimate({ fromCurrency: changeNowCurrency, toAmountSui: totalSui.toString() });
+      const estimate = await getChangeNowReverseEstimate({ fromCurrency: changeNowCurrency, toAmount: totalSui.toString() });
       bridgeQuote = { rateId: estimate.rateId, validUntil: estimate.validUntil, estimate };
       originAmountForDb = estimate.fromAmount;
       originAmountFormatted = estimate.fromAmount;

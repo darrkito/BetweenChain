@@ -20,6 +20,7 @@ import { SwapPanel, isBuyTokenAllowed } from "@/app/components/SwapPanel";
 import { SlippageControl } from "@/app/components/SlippageControl";
 import { TrustBar } from "@/app/components/TrustBar";
 import { PointsSummaryCard } from "@/app/components/PointsSummaryCard";
+import { BtcSwapPanel } from "@/app/components/BtcSwapPanel";
 import type { SwapStep } from "@/app/components/SwapStepper";
 import { SwapProgressDrawer } from "@/app/components/SwapProgressDrawer";
 import type { SelectedToken } from "@/app/components/TokenSelectModal";
@@ -758,6 +759,8 @@ export function SwapPageClient() {
       >
         🧹 Small stranded balances sitting in your wallet? <span className="font-semibold text-accent">Sweep them into one token →</span>
       </Link>
+
+      <BtcSwapPanel />
 
       {/*
         Real gap fixed 2026-08-03: clicking "Swap" used to go straight from
