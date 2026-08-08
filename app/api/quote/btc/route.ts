@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireSession, SessionError } from "@/lib/auth/session";
 import { supabaseAdmin } from "@/lib/supabase/server";
-import { getChangeNowReverseEstimate, ChangeNowAmountOutOfRangeError, type ChangeNowOriginCurrency } from "@/lib/chains/changenow";
+import { getChangeNowDirectEstimate, ChangeNowAmountOutOfRangeError, type ChangeNowOriginCurrency } from "@/lib/chains/changenow";
 import { isPlausibleEvmAddress, isPlausibleBtcAddress } from "@/lib/validation";
 import { rateLimit, clientKey } from "@/lib/rate-limit";
 import { safeErrorResponse } from "@/lib/apiError";
@@ -13,35 +13,24 @@ import { safeErrorResponse } from "@/lib/apiError";
 // lib/fetchWithTimeout.ts's doc comment for the failure mode this closes).
 export const maxDuration = 20;
 
-const QUOTE_TTL_MS = 10 * 60_000; // matches ChangeNOW's own rateId validity window (see changenow.ts)
-
-// General BTC<->SOL/ETH swaps on /swap (2026-08-08, Phase 2 of BTC support —
-// Phase 1 was BTC as a pay-with option for Sui NFT purchases). Deliberately
-// a SEPARATE route from /api/quote rather than a new branch inside it:
-// /api/quote's whole shape (sourceChainId/destChainId as Relay/Jupiter chain
-// ids, jupiter_route/relay_route storage) assumes an on-chain bridge
-// execution model. ChangeNOW is custodial (deposit-address, no signable
-// "leg 1" transaction the way Jupiter/Relay have) — bolting that onto the
-// existing route's branching would risk regressing the highest-traffic
-// execution path in this app. Scoped to BTC<->SOL and BTC<->ETH only for
-// now (the two ChangeNOW currencies already integrated and live-verified in
-// this app — see changenow.ts) — BTC<->other EVM chains (MATIC, AVAX, ...)
-// is a real, separate follow-up, not silently promised here.
+// General BTC<->SOL/ETH swaps on /swap, embedded directly in the main
+// Sell/Buy pickers (2026-08-08b — Bitcoin is a real, selectable "chain" in
+// SwapPanel's picker via lib/chains/swapChains.ts's BTC_CHAIN_ID, same
+// picker every other chain uses). Deliberately a SEPARATE route from
+// /api/quote rather than a new branch inside it — see that route's/this
+// file's earlier version doc for why (ChangeNOW's custodial model has no
+// signable "leg 1" the way Jupiter/Relay do).
 //
-// Only the ChangeNOW "reverse" estimate is used (exact destination amount ->
-// required origin amount) — the only mode this app has ever live-verified
-// against ChangeNOW's real API (see the NFT-purchase flow). The "direct"
-// mode (exact origin amount -> estimated destination amount, the more
-// familiar "I'm selling X, what do I get" swap UX) has NOT been verified
-// live in this environment and is deliberately not used here rather than
-// guessed at. Practical effect: the user always types the amount they want
-// to RECEIVE, not the amount they're spending — same shape the NFT-purchase
-// flow already uses.
+// Uses ChangeNOW's "direct" (forward) estimate mode — sourceAmount is what
+// the user actually typed into the Sell field (their spend amount),
+// destAmount is the estimate shown as the Buy-side preview — matching the
+// same "type how much you're selling" UX every other pair in this app
+// already uses. Verified live before switching to this from the previous
+// reverse-only design (see STATE.md 2026-08-08c/d).
 const bodySchema = z.object({
-  // Which side of the pair BTC is on.
-  direction: z.enum(["receive_btc", "send_btc"]),
-  counterCurrency: z.enum(["sol", "eth"]),
-  amount: z.string().regex(/^\d+(\.\d+)?$/), // decimal amount of the RECEIVED currency
+  sourceCurrency: z.enum(["btc", "sol", "eth"]),
+  sourceAmount: z.string().regex(/^\d+(\.\d+)?$/),
+  destCurrency: z.enum(["btc", "sol", "eth"]),
   destAddress: z.string().min(1),
 });
 
@@ -59,28 +48,32 @@ export async function POST(req: Request) {
   if (!parsed.success) return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   const input = parsed.data;
 
-  const receivedCurrency = input.direction === "receive_btc" ? "btc" : input.counterCurrency;
-  const fromCurrency: ChangeNowOriginCurrency = input.direction === "receive_btc" ? input.counterCurrency : "btc";
+  if (input.sourceCurrency === input.destCurrency) {
+    return NextResponse.json({ error: "Sell and Buy can't be the same currency" }, { status: 400 });
+  }
+  if (input.sourceCurrency !== "btc" && input.destCurrency !== "btc") {
+    return NextResponse.json({ error: "This route only handles pairs involving BTC" }, { status: 400 });
+  }
 
-  if (receivedCurrency === "btc") {
-    if (!isPlausibleBtcAddress(input.destAddress)) {
-      return NextResponse.json({ error: "Invalid Bitcoin destination address" }, { status: 400 });
-    }
-  } else if (receivedCurrency === "sol") {
+  if (input.destCurrency === "sol") {
     try {
       new (await import("@solana/web3.js")).PublicKey(input.destAddress);
     } catch {
       return NextResponse.json({ error: "Invalid Solana destination address" }, { status: 400 });
+    }
+  } else if (input.destCurrency === "btc") {
+    if (!isPlausibleBtcAddress(input.destAddress)) {
+      return NextResponse.json({ error: "Invalid Bitcoin destination address" }, { status: 400 });
     }
   } else if (!isPlausibleEvmAddress(input.destAddress)) {
     return NextResponse.json({ error: "Invalid EVM destination address" }, { status: 400 });
   }
 
   try {
-    const estimate = await getChangeNowReverseEstimate({
-      fromCurrency,
-      toAmount: input.amount,
-      toCurrency: receivedCurrency,
+    const estimate = await getChangeNowDirectEstimate({
+      fromCurrency: input.sourceCurrency,
+      fromAmount: input.sourceAmount,
+      toCurrency: input.destCurrency,
     });
 
     const db = supabaseAdmin();
@@ -88,16 +81,20 @@ export async function POST(req: Request) {
       .from("swap_quotes")
       .insert({
         user_id: session.userId,
-        source_chain: fromCurrency,
-        source_mint: fromCurrency.toUpperCase(),
+        source_chain: input.sourceCurrency,
+        source_mint: input.sourceCurrency.toUpperCase(),
+        // ChangeNOW's own echoed fromAmount, not the raw client input —
+        // same "never persist an unconfirmed client claim when the vendor
+        // has already validated and echoed the real figure" discipline as
+        // every other quote-bound amount in this app.
         source_amount: estimate.fromAmount,
-        dest_chain: receivedCurrency,
-        dest_token: receivedCurrency.toUpperCase(),
+        dest_chain: input.destCurrency,
+        dest_token: input.destCurrency.toUpperCase(),
         dest_address: input.destAddress,
-        expected_output_min: input.amount,
+        expected_output_min: estimate.toAmount,
         changenow_rate_id: estimate.rateId,
         changenow_estimate: estimate,
-        expires_at: new Date(Date.now() + QUOTE_TTL_MS).toISOString(),
+        expires_at: new Date(Date.now() + 10 * 60_000).toISOString(), // matches ChangeNOW's own rateId validity window
       })
       .select("id, expires_at")
       .single();
@@ -106,10 +103,10 @@ export async function POST(req: Request) {
     return NextResponse.json({
       quoteId: quoteRow.id,
       expiresAt: quoteRow.expires_at,
-      fromCurrency,
+      fromCurrency: input.sourceCurrency as ChangeNowOriginCurrency,
       fromAmount: estimate.fromAmount,
-      toCurrency: receivedCurrency,
-      toAmount: input.amount,
+      toCurrency: input.destCurrency,
+      toAmount: estimate.toAmount,
     });
   } catch (err) {
     if (err instanceof ChangeNowAmountOutOfRangeError) {

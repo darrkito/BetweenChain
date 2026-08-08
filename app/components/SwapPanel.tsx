@@ -8,8 +8,10 @@ import { normalizeSolanaSourceMint } from "@/lib/client/constants";
 import type { TokenListItem } from "@/lib/chains/types";
 import { chainBrandColor } from "@/lib/chainBrandColors";
 import { RoutePathVisualizer } from "@/app/components/RoutePathVisualizer";
+import { BTC_CHAIN_ID } from "@/lib/chains/swapChains";
 
 const SOLANA_CHAIN_ID = 792703809;
+const ETHEREUM_CHAIN_ID = 1;
 
 function shortenAddress(address: string): string {
   return `${address.slice(0, 4)}…${address.slice(-4)}`;
@@ -73,7 +75,24 @@ function TokenPill({ token, onClick }: { token: SelectedToken | null; onClick: (
  * enabled — see app/swap/SwapPageClient.tsx's needsRelayLeg2 for the
  * execution side.
  */
+// Bitcoin (2026-08-08b): ChangeNOW is the execution engine for any BTC leg
+// (see app/api/quote/btc/route.ts), and this app has only ever verified it
+// live for BTC<->SOL and BTC<->ETH — never an arbitrary SPL/ERC20 or a
+// non-Ethereum EVM chain. Both directions of that constraint live here: a
+// BTC buy target is only reachable from a native-SOL or native-Ethereum-ETH
+// sell side, and (symmetrically) once BTC is the sell side, only native SOL
+// or native Ethereum ETH are valid buy targets.
+function isNativeSolOrEth(t: { chainId: number; isNative: boolean }): boolean {
+  return (t.chainId === SOLANA_CHAIN_ID || t.chainId === ETHEREUM_CHAIN_ID) && t.isNative;
+}
+
 export function isBuyTokenAllowed(sellChainId: number | undefined, t: { chainId: number; isNative: boolean }): boolean {
+  if (t.chainId === BTC_CHAIN_ID) {
+    return sellChainId === SOLANA_CHAIN_ID || sellChainId === ETHEREUM_CHAIN_ID;
+  }
+  if (sellChainId === BTC_CHAIN_ID) {
+    return isNativeSolOrEth(t);
+  }
   if (t.chainId === SOLANA_CHAIN_ID && !t.isNative) {
     return sellChainId === SOLANA_CHAIN_ID;
   }
@@ -167,9 +186,22 @@ export function SwapPanel({
 
   const amount = Number(sellAmount);
   const hasValidInput = Boolean(sellToken && buyToken && sellAmount && Number.isFinite(amount) && amount > 0);
+  const isBtcPair = sellToken?.chainId === BTC_CHAIN_ID || buyToken?.chainId === BTC_CHAIN_ID;
+
+  // "btc" | "sol" | "eth" ticker for a token known to be one of the three
+  // currencies /api/quote/btc handles — only ever called when isBtcPair is
+  // true, i.e. the non-BTC side is already guaranteed native SOL or native
+  // Ethereum ETH by isBuyTokenAllowed's own constraint above.
+  function btcPairCurrency(t: SelectedToken): "btc" | "sol" | "eth" {
+    if (t.chainId === BTC_CHAIN_ID) return "btc";
+    return t.chainId === SOLANA_CHAIN_ID ? "sol" : "eth";
+  }
 
   // Live "how much would I get" preview — public/unauthenticated (see
   // app/api/quote/preview), so it works even before a wallet is connected.
+  // Branches to /api/quote/btc/preview for any pair involving Bitcoin —
+  // that currency isn't covered by /api/quote/preview's Jupiter/Relay logic
+  // (see app/api/quote/btc/route.ts's doc for why BTC is a separate engine).
   useEffect(() => {
     if (!hasValidInput || !sellToken || !buyToken) return;
 
@@ -179,23 +211,30 @@ export function SwapPanel({
 
     const handle = setTimeout(() => {
       setPreviewLoading(true);
-      const params = new URLSearchParams({
-        sourceChainId: String(sellToken.chainId),
-        sourceMint: normalizeSolanaSourceMint(sellToken.address),
-        sourceAmount: toAtomicAmount(sellAmount, sellToken.decimals),
-        destChainId: String(buyToken.chainId),
-        // "SOL" sentinel only for an actual native-SOL pick — real gap fixed
-        // 2026-08-07: this used to force "SOL" for ANY Solana buyToken,
-        // which meant picking a different SPL token as Buy silently priced
-        // native SOL instead. destDecimals lets the preview route format an
-        // arbitrary SPL token's raw atomic amount correctly (see that
-        // route's own doc — it doesn't have a token registry of its own).
-        destToken: buyToken.chainId === SOLANA_CHAIN_ID ? (buyToken.isNative ? "SOL" : buyToken.address) : buyToken.address,
-        destDecimals: String(buyToken.decimals),
-        autoRefuel: String(autoRefuel),
-      });
 
-      fetch(`/api/quote/preview?${params}`, { signal: controller.signal })
+      const url = isBtcPair
+        ? `/api/quote/btc/preview?${new URLSearchParams({
+            sourceCurrency: btcPairCurrency(sellToken),
+            sourceAmount: sellAmount,
+            destCurrency: btcPairCurrency(buyToken),
+          })}`
+        : `/api/quote/preview?${new URLSearchParams({
+            sourceChainId: String(sellToken.chainId),
+            sourceMint: normalizeSolanaSourceMint(sellToken.address),
+            sourceAmount: toAtomicAmount(sellAmount, sellToken.decimals),
+            destChainId: String(buyToken.chainId),
+            // "SOL" sentinel only for an actual native-SOL pick — real gap fixed
+            // 2026-08-07: this used to force "SOL" for ANY Solana buyToken,
+            // which meant picking a different SPL token as Buy silently priced
+            // native SOL instead. destDecimals lets the preview route format an
+            // arbitrary SPL token's raw atomic amount correctly (see that
+            // route's own doc — it doesn't have a token registry of its own).
+            destToken: buyToken.chainId === SOLANA_CHAIN_ID ? (buyToken.isNative ? "SOL" : buyToken.address) : buyToken.address,
+            destDecimals: String(buyToken.decimals),
+            autoRefuel: String(autoRefuel),
+          })}`;
+
+      fetch(url, { signal: controller.signal })
         .then((r) => r.json())
         .then((d) => setPreview(d))
         .catch((err) => {
@@ -205,7 +244,7 @@ export function SwapPanel({
     }, 400);
 
     return () => clearTimeout(handle);
-  }, [sellToken, buyToken, sellAmount, hasValidInput, autoRefuel]);
+  }, [sellToken, buyToken, sellAmount, hasValidInput, autoRefuel, isBtcPair]);
 
   // Mirrors `preview` up to the parent whenever it changes — see
   // onPreviewChange's own doc above for why.

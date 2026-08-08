@@ -3,6 +3,8 @@ import { isBuyTokenAllowed } from "./SwapPanel";
 
 const SOLANA_CHAIN_ID = 792703809;
 const BASE_CHAIN_ID = 8453;
+const ETHEREUM_CHAIN_ID = 1;
+const BTC_CHAIN_ID = 8253038;
 
 describe("isBuyTokenAllowed", () => {
   it("allows native SOL as a Buy target regardless of the Sell chain", () => {
@@ -22,5 +24,23 @@ describe("isBuyTokenAllowed", () => {
     expect(isBuyTokenAllowed(SOLANA_CHAIN_ID, { chainId: BASE_CHAIN_ID, isNative: false })).toBe(true);
     expect(isBuyTokenAllowed(BASE_CHAIN_ID, { chainId: BASE_CHAIN_ID, isNative: false })).toBe(true);
     expect(isBuyTokenAllowed(1, { chainId: BASE_CHAIN_ID, isNative: false })).toBe(true);
+  });
+
+  describe("Bitcoin (2026-08-08b) — only ever paired with native SOL or native Ethereum ETH", () => {
+    it("allows BTC as a Buy target when Sell is native SOL or native Ethereum ETH", () => {
+      expect(isBuyTokenAllowed(SOLANA_CHAIN_ID, { chainId: BTC_CHAIN_ID, isNative: true })).toBe(true);
+      expect(isBuyTokenAllowed(ETHEREUM_CHAIN_ID, { chainId: BTC_CHAIN_ID, isNative: true })).toBe(true);
+    });
+
+    it("blocks BTC as a Buy target from any other Sell chain (e.g. Base, Arbitrum — ChangeNOW support never verified for those)", () => {
+      expect(isBuyTokenAllowed(BASE_CHAIN_ID, { chainId: BTC_CHAIN_ID, isNative: true })).toBe(false);
+    });
+
+    it("once Sell is BTC, only allows native SOL or native Ethereum ETH as a Buy target", () => {
+      expect(isBuyTokenAllowed(BTC_CHAIN_ID, { chainId: SOLANA_CHAIN_ID, isNative: true })).toBe(true);
+      expect(isBuyTokenAllowed(BTC_CHAIN_ID, { chainId: ETHEREUM_CHAIN_ID, isNative: true })).toBe(true);
+      expect(isBuyTokenAllowed(BTC_CHAIN_ID, { chainId: BASE_CHAIN_ID, isNative: true })).toBe(false);
+      expect(isBuyTokenAllowed(BTC_CHAIN_ID, { chainId: SOLANA_CHAIN_ID, isNative: false })).toBe(false);
+    });
   });
 });

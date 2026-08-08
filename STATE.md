@@ -6,6 +6,52 @@ delete history (superseded entries stay for context, just note what replaced the
 
 ---
 
+## 2026-08-08d — Bitcoin merged into the main swap widget + security review
+
+Real user finding: Relay's own `/chains` (confirmed live: id `8253038`, `vmType: "bvm"`,
+`name: "bitcoin"`) was already being surfaced unfiltered through
+`/api/tokens/chains` → the token-select modal's chain sidebar — Bitcoin (and ~78 other
+Relay chains this app has zero execution support for) was already "in the selector,"
+just non-functional. Rather than keep the standalone `BtcSwapPanel` from 2026-08-08c
+alongside a redundant, confusing entry in the main picker, removed the standalone panel
+entirely and wired Bitcoin into the SAME Sell/Buy pickers/execution flow every other
+chain uses:
+
+- **`lib/chains/changenow.ts`**: added `getChangeNowDirectEstimate` (forward/`type=direct`
+  mode — verified live, real SOL→BTC quote: 1 SOL → 0.0011348 BTC). The earlier
+  reverse-only design (2026-08-08c) required the user to type a RECEIVE amount, which
+  doesn't fit the main swap widget's "type how much you're selling" UX; this was the
+  missing piece, verified live specifically to unblock this integration (previously
+  deferred as "not exercised" for lack of a way to test it in this sandbox — a
+  `CHANGENOW_API_KEY` was found in `.env.local` and used for the live check).
+- **`app/api/quote/btc`**: redesigned around the new direct-mode shape
+  (`sourceCurrency/sourceAmount/destCurrency/destAddress`) instead of the old
+  receive-amount-first shape. New public `app/api/quote/btc/preview` mirrors
+  `/api/quote/preview`'s role for BTC pairs (SwapPanel's live "how much would I get").
+- **`app/api/tokens/chains`**: filtered to `SWAP_CHAINS` + Bitcoin (`BTC_CHAIN_ID` in
+  `lib/chains/swapChains.ts`, reusing Relay's own real chain id as a stable
+  identifier even though ChangeNOW, not Relay, executes the BTC leg) — fixes the
+  latent "68 chains shown, 7 executable" bug this review surfaced.
+- **`app/components/SwapPanel.tsx`**: `isBuyTokenAllowed` now constrains BTC to only
+  pair with native SOL or native Ethereum ETH (both directions); preview effect
+  branches to the new BTC preview endpoint for that pair.
+- **`app/swap/SwapPageClient.tsx`**: new `runBtcSwap()` — a fully separate flow from
+  `runSwap()` (ChangeNOW has no signable "leg 1" the way Jupiter/Relay do), triggered
+  from the same Review-modal "Confirm swap" button based on whether either side is
+  BTC. `sellWalletReady`/`ownDestAddress`/`isValidDestAddress`/the EVM `ensureChain`
+  effect all extended for a BTC side. `BtcSwapPanel.tsx` deleted.
+- **Better Dust Sweeper CTA** on `/swap` (real user request: "close accounts and get
+  back some cash") — replaced a plain text link with a benefit-led card leading with
+  the guaranteed part (empty-account rent reclaim, no swap/price risk) rather than the
+  vaguer "sweep dust" framing alone.
+
+**Security review** (see `SECURITY.md`'s 2026-08-08d entry for full detail) — 3 real
+findings fixed: missing rate limit on `/api/dust-sweeper/share-image` (arbitrary
+query params made it easy to force fresh, costly image renders), `/api/quote/btc`
+persisting the client's raw claimed amount instead of ChangeNOW's own echoed figure,
+and the `/api/tokens/chains` unfiltered-chain-list bug above. One gap documented but
+not fixed: `isPlausibleBtcAddress` has no bech32 checksum verification (format-only).
+
 ## 2026-08-08c — Dust Sweeper (`/dust-sweeper`) + Bitcoin general swap support (Phase 2)
 
 Two features, one session, user request bundled both.

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getRelayChains } from "@/lib/chains/relayChains";
+import { SWAP_CHAINS, BTC_CHAIN_ID } from "@/lib/chains/swapChains";
 import { rateLimit, clientKey } from "@/lib/rate-limit";
 import { safeErrorResponse } from "@/lib/apiError";
 
@@ -9,6 +10,20 @@ import { safeErrorResponse } from "@/lib/apiError";
 // lib/fetchWithTimeout.ts's doc comment for the failure mode this closes).
 export const maxDuration = 20;
 
+// Real bug found 2026-08-08b: this used to return getRelayChains() entirely
+// unfiltered — Relay's real /chains lists 85+ chains, but this app only has
+// actual execution support (RPC client, wallet integration, Jupiter/Relay/
+// ChangeNOW routing) for the 7 in ALLOWED_CHAIN_IDS below. Every other
+// chain was still shown as pickable in the token-select modal's sidebar,
+// leading to a dead end: no balance fetch, no wallet to sign with, and
+// (for the ~78 EVM-shaped ones) a Relay quote that would build fine but
+// then fail at signing time since evmWallet.address only ever holds an
+// address for the 6 EVM chains this app configures RPC clients for.
+// Bitcoin is the one addition beyond SWAP_CHAINS — it DOES have real
+// execution support now (ChangeNOW, see app/api/quote/btc/route.ts), just
+// through a different engine than Relay.
+const ALLOWED_CHAIN_IDS = new Set<number>([...SWAP_CHAINS.map((c) => c.chainId), BTC_CHAIN_ID]);
+
 // Public market data — no auth required. Powers the token-select modal's
 // left-hand chain list.
 export async function GET(req: Request) {
@@ -16,7 +31,7 @@ export async function GET(req: Request) {
   if (!rl.ok) return NextResponse.json({ error: "Too many requests" }, { status: 429 });
 
   try {
-    const chains = await getRelayChains();
+    const chains = (await getRelayChains()).filter((c) => ALLOWED_CHAIN_IDS.has(c.id));
     return NextResponse.json({ chains });
   } catch (err) {
     return safeErrorResponse("tokens/chains", err, 502);

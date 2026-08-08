@@ -142,6 +142,63 @@ export async function getChangeNowReverseEstimate(params: {
   };
 }
 
+export interface ChangeNowDirectEstimate {
+  fromAmount: string; // echoes the requested input, decimal
+  toAmount: string; // estimated decimal amount of the destination currency
+  rateId: string;
+  validUntil: string;
+}
+
+/**
+ * Forward fixed-rate estimate: "I'm sending exactly `fromAmount` of the
+ * origin currency, how much of the destination currency do I get" —
+ * ChangeNOW's `type=direct` + `flow=fixed-rate` combination. Added
+ * 2026-08-08b for BTC's integration into the main /swap widget's Sell-
+ * amount-first UX (the widget always collects "how much are you selling,"
+ * never "how much do you want to receive" — getChangeNowReverseEstimate's
+ * exact-output shape doesn't fit that). Verified live before use (real
+ * SOL->BTC quote: 1 SOL -> 0.0011348 BTC, rateId returned) — same
+ * `x-changenow-api-key` auth, same response shape family as the reverse
+ * endpoint, just `fromAmount`/`toAmount` roles swapped and `type=direct`.
+ */
+export async function getChangeNowDirectEstimate(params: {
+  fromCurrency: string;
+  fromAmount: string;
+  toCurrency: string;
+  toNetwork?: string;
+  fromNetwork?: string;
+}): Promise<ChangeNowDirectEstimate> {
+  const fromNetwork = params.fromNetwork ?? params.fromCurrency;
+  const toNetwork = params.toNetwork ?? params.toCurrency;
+  const url = new URL(`${CHANGENOW_API}/exchange/estimated-amount`);
+  url.searchParams.set("fromCurrency", params.fromCurrency);
+  url.searchParams.set("fromNetwork", fromNetwork);
+  url.searchParams.set("toCurrency", params.toCurrency);
+  url.searchParams.set("toNetwork", toNetwork);
+  url.searchParams.set("fromAmount", params.fromAmount);
+  url.searchParams.set("flow", "fixed-rate");
+  url.searchParams.set("type", "direct");
+
+  const res = await fetch(url, { headers: changenowHeaders(), cache: "no-store" });
+  if (!res.ok) {
+    const text = await res.text();
+    if (res.status === 400) {
+      const parsed = JSON.parse(text) as { error?: string; payload?: { range?: { minAmount: number; maxAmount: number } } };
+      if (parsed.error === "not_valid_params" && parsed.payload?.range) {
+        throw new ChangeNowAmountOutOfRangeError(parsed.payload.range.minAmount, parsed.payload.range.maxAmount, params.fromCurrency as ChangeNowOriginCurrency);
+      }
+    }
+    throw new Error(`ChangeNOW direct estimate failed (${res.status}): ${text}`);
+  }
+  const body = (await res.json()) as { fromAmount: number; toAmount: number; rateId: string; validUntil: string };
+  return {
+    fromAmount: body.fromAmount.toString(),
+    toAmount: body.toAmount.toString(),
+    rateId: body.rateId,
+    validUntil: body.validUntil,
+  };
+}
+
 export interface ChangeNowExchange {
   id: string;
   depositAddress: string; // where the buyer sends ETH/SOL — a plain transfer, no contract call

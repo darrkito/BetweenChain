@@ -348,6 +348,76 @@ confirms existing protections still hold, a few new items below.
 - **One stale entry corrected**: see "Known open gaps" #3 below — EVM checksum
   validation was already fixed in a prior session but this file still listed it as open.
 
+## 2026-08-08d — Security review of Dust Sweeper + Bitcoin swap-widget integration
+
+User-requested review after two feature passes in the same session: the Dust Sweeper
+(`/dust-sweeper`) and Bitcoin's move from a standalone panel into the main `/swap`
+picker (BTC is now a real, selectable chain there — see `lib/chains/swapChains.ts`'s
+`BTC_CHAIN_ID`). Systematically checked: auth gating, quote-binding/MITM protection,
+rate limiting, RLS/row scoping, and the ChangeNOW custodial trust disclosure, across
+every new/changed route from both this pass and the earlier BTC Phase 1/2 work.
+
+**Confirmed safe (no change needed)**:
+- Destination address is bound once at quote time (`/api/quote/btc`, session-scoped,
+  single-use `consumed_at`) and never re-read from client input at execute/confirm
+  time — same MITM-prevention guarantee every other quote-bound flow in this app has.
+- `createChangeNowExchange`'s `fromAmount`/`rateId` are always replayed from the DB
+  row, never client-supplied at execute time — a locked ChangeNOW `rateId` is
+  authoritative on ChangeNOW's own end regardless, so this is defense-in-depth, not
+  the only guard.
+- Points crediting only fires after ChangeNOW's own status poll reports `"finished"`
+  (never a client-reported result), and `creditSwapPoints`' own idempotency guard
+  (`points_credited` race-guarded update) prevents double-crediting even under
+  concurrent confirm polls.
+- Every new route requires a session where money moves (`/api/quote/btc`,
+  `/api/swap/btc/execute`, `/api/swap/btc/confirm`) and is public/read-only where
+  appropriate (`/api/quote/btc/preview`, `/api/tokens/mint-prices`,
+  `/api/tokens/chains`) — same split the rest of this app already uses.
+- Migration `0018` is additive-only (nullable columns), inherits existing table
+  grants/RLS, adds no new anon-accessible surface.
+- The Dust Sweeper's sweep flow only ever quotes a destination address pulled from
+  the connected wallet itself (`publicKey.toBase58()` / `evmWallet.address`) — never
+  free-text user input — so there's no address-injection path to redirect swept funds
+  elsewhere.
+
+**Real findings, fixed this pass**:
+1. **Missing rate limit on `/api/dust-sweeper/share-image`.** Unlike every other
+   public route in this app, this one had no `rateLimit()` guard — and unlike the
+   pre-existing blog/root `opengraph-image.tsx` routes (bounded by real, app-controlled
+   slugs), it accepts arbitrary `amount`/`count` query params, making it trivial to
+   generate unlimited unique cache-busting URLs and force fresh Satori image renders
+   (real CPU cost) on every hit. Added the standard `rateLimit(clientKey(...), 30,
+   60_000)` guard, matching every other route in this app.
+2. **`/api/quote/btc` persisted the client's raw claimed `sourceAmount` instead of
+   ChangeNOW's own echoed `fromAmount`.** Not independently exploitable (ChangeNOW's
+   `rateId` lock is authoritative regardless — a mismatched amount would just 400 at
+   exchange-creation time, not silently move the wrong amount), but inconsistent with
+   this app's own "persist the vendor-confirmed figure, not the unconfirmed client
+   claim" discipline used everywhere else quote amounts are stored. Fixed to store
+   `estimate.fromAmount`.
+3. **Real latent correctness/trust bug found and fixed, adjacent to but broader than
+   the BTC work**: `/api/tokens/chains` returned Relay's full ~85-chain catalog
+   completely unfiltered — this app only has actual execution support (RPC client,
+   wallet integration, Jupiter/Relay/ChangeNOW routing) for 7 of them. Every other
+   chain (Cronos, ApeChain, dozens more) was still shown as pickable in the
+   token-select modal's sidebar, leading to a dead end: no balance fetch, no wallet to
+   sign with, and for the EVM-shaped ones, a Relay quote that would build fine but then
+   fail at signing time (`evmWallet.address` has no meaning for a chain this app has no
+   RPC client for). Filtered to `SWAP_CHAINS` + Bitcoin — the only chains with real
+   execution support behind them.
+
+**Noted, not fixed (documented as an accepted, low-severity gap)**:
+- `isPlausibleBtcAddress` (`lib/validation.ts`) is format-only (legacy/P2SH base58
+  alphabet check, bech32 prefix+charset check) — no BIP173 bech32 checksum
+  verification, unlike `isPlausibleEvmAddress`'s real EIP-55 checksum check. A
+  checksum-invalid-but-format-valid address would fail at ChangeNOW's own end when the
+  exchange is created (delayed failure, not silent fund misdelivery — the destination
+  is still bound and immutable from quote time). Real bech32 checksum validation would
+  need a decoding library as a new dependency for marginal benefit; deferred, same
+  spirit as the EVM-checksum gap this app already fixed once before but scoped smaller
+  here given the lower stakes (failure mode is "exchange creation rejected," not "funds
+  sent to the wrong place").
+
 ## Known open gaps (fix before meaningful volume)
 
 1. **`lib/cache.ts` is still in-memory, single-instance** (token-list/trending/preview
@@ -400,6 +470,9 @@ confirms existing protections still hold, a few new items below.
    same "don't force a blind dependency change on a money-adjacent library" discipline as
    items 6-7 above; a 2-major-version downgrade risks landing on a materially different,
    less-maintained API shape for no confirmed real-world exploitation path here.
+9. **`isPlausibleBtcAddress` has no bech32 checksum verification** (format-only) —
+   see the 2026-08-08d review above for the full reasoning on why this was left as a
+   documented gap rather than fixed immediately.
 
 ## Explicitly out of scope
 

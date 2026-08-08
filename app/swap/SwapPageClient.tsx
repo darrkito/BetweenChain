@@ -4,15 +4,16 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useConnection, useWallet } from "@solana/wallet-adapter-react";
-import { PublicKey, VersionedTransaction } from "@solana/web3.js";
+import { PublicKey, SystemProgram, Transaction, VersionedTransaction } from "@solana/web3.js";
 import { SOLANA_CHAIN_ID_CLIENT, normalizeSolanaSourceMint } from "@/lib/client/constants";
 import { toAtomicAmount } from "@/lib/client/amount";
 import { buildRelayDepositTransaction } from "@/lib/client/relayTransaction";
 import { useEvmWallet } from "@/lib/client/EvmWalletProvider";
+import { useBtcWallet } from "@/lib/client/BtcWalletProvider";
 import { useSolanaBalance } from "@/lib/client/useSolanaBalance";
 import { useEvmTokenBalance } from "@/lib/client/useEvmTokenBalance";
 import { useConnectWalletModal } from "@/lib/client/ConnectWalletModalProvider";
-import { isPlausibleEvmAddress } from "@/lib/validation";
+import { isPlausibleEvmAddress, isPlausibleBtcAddress } from "@/lib/validation";
 import { AppHeader } from "@/app/components/AppHeader";
 import { TrendingBar } from "@/app/components/TrendingBar";
 import { Reveal } from "@/app/components/Reveal";
@@ -20,7 +21,6 @@ import { SwapPanel, isBuyTokenAllowed } from "@/app/components/SwapPanel";
 import { SlippageControl } from "@/app/components/SlippageControl";
 import { TrustBar } from "@/app/components/TrustBar";
 import { PointsSummaryCard } from "@/app/components/PointsSummaryCard";
-import { BtcSwapPanel } from "@/app/components/BtcSwapPanel";
 import type { SwapStep } from "@/app/components/SwapStepper";
 import { SwapProgressDrawer } from "@/app/components/SwapProgressDrawer";
 import type { SelectedToken } from "@/app/components/TokenSelectModal";
@@ -28,7 +28,7 @@ import { useRecentPairs } from "@/lib/client/useRecentPairs";
 import { useSavedAddresses } from "@/lib/client/useSavedAddresses";
 import { useSessionActivity } from "@/lib/client/useSessionActivity";
 import { fetchNativeToken } from "@/lib/client/nativeToken";
-import { swapChainForSlug } from "@/lib/chains/swapChains";
+import { swapChainForSlug, BTC_CHAIN_ID } from "@/lib/chains/swapChains";
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -46,7 +46,16 @@ function isValidDestAddress(address: string, chainId: number): boolean {
       return false;
     }
   }
+  if (chainId === BTC_CHAIN_ID) return isPlausibleBtcAddress(address);
   return isPlausibleEvmAddress(address);
+}
+
+// btc/sol/eth ticker for a token on one of the 3 currencies the BTC swap
+// flow handles — only ever called on a pair isBtcPair has already confirmed
+// is one of these three (see SwapPanel.tsx's isBuyTokenAllowed constraint).
+function btcFlowCurrency(t: SelectedToken): "btc" | "sol" | "eth" {
+  if (t.chainId === BTC_CHAIN_ID) return "btc";
+  return t.chainId === SOLANA_CHAIN_ID_CLIENT ? "sol" : "eth";
 }
 
 export function SwapPageClient() {
@@ -99,6 +108,7 @@ export function SwapPageClient() {
   const [swapId, setSwapId] = useState<string | null>(null);
 
   const evmWallet = useEvmWallet();
+  const btcWallet = useBtcWallet();
 
   // Meaningful in both directions now that Sell isn't Solana-only — see
   // STATE.md 2026-07-18i.
@@ -116,22 +126,32 @@ export function SwapPageClient() {
   // truth instead of some checking the right wallet and some not.
   const sellIsSolana = sellToken?.chainId === SOLANA_CHAIN_ID_CLIENT;
 
+  // BTC pairs (2026-08-08b) — Bitcoin is a real, selectable chain in the
+  // main picker now (see SwapPanel.tsx's isBuyTokenAllowed constraint: a
+  // BTC side is only ever paired with native SOL or native Ethereum ETH),
+  // but its execution engine is ChangeNOW, not Jupiter/Relay — runBtcSwap()
+  // below is an entirely separate code path from runSwap(), never entered
+  // unless one side is BTC.
+  const isBtcPair = sellToken?.chainId === BTC_CHAIN_ID || buyToken?.chainId === BTC_CHAIN_ID;
+
   // Whether a Relay leg (the "leg2_pending" phase below) is needed at all —
   // broader than isCrossChain since 2026-08-06 (same-chain EVM support):
   // same-chain Solana needs no Relay leg (pure Jupiter, unchanged); every
   // other combination — cross-chain from either origin, AND same-chain EVM,
   // new — routes through Relay. See app/components/SwapPanel.tsx's
   // isBuyTokenAllowed doc for why same-chain EVM is real and supported now.
-  const needsRelayLeg2 = isCrossChain || !sellIsSolana;
+  // BTC pairs never need this — runBtcSwap() has its own single-leg flow.
+  const needsRelayLeg2 = !isBtcPair && (isCrossChain || !sellIsSolana);
 
   // The user's own connected wallet address on the Buy side's chain family,
   // when they have one connected — null if they don't (e.g. only a Solana
   // wallet connected, but buying on an EVM chain), in which case there's
   // nothing to auto-fill and the field behaves exactly as before (manual
-  // paste required). This app's swap feature is Solana<->EVM only, so a
-  // buyToken chainId is always exactly one of those two families.
+  // paste required).
   const ownDestAddress = buyToken
-    ? buyToken.chainId === SOLANA_CHAIN_ID_CLIENT
+    ? buyToken.chainId === BTC_CHAIN_ID
+      ? (btcWallet.address ?? null)
+      : buyToken.chainId === SOLANA_CHAIN_ID_CLIENT
       ? (publicKey?.toBase58() ?? null)
       : (evmWallet.address ?? null)
     : null;
@@ -190,13 +210,21 @@ export function SwapPageClient() {
   // balance now work for an EVM sell token too, reusing the same
   // /api/tokens/balances endpoint the token picker's "Your tokens" section
   // already calls (lib/client/useEvmTokenBalance.ts).
+  // BTC has no balance fetcher (no blockchain-explorer API wired into this
+  // app) — sellToken.chainId === BTC_CHAIN_ID deliberately excluded from
+  // both hooks below so it stays null (hides the balance row/Max button
+  // entirely, same "null = honestly unknown" convention every other
+  // unpriced/unfetched value in this app follows) rather than querying
+  // Bitcoin's chain id against the EVM balances endpoint for a meaningless
+  // empty result.
+  const sellIsBtc = sellToken?.chainId === BTC_CHAIN_ID;
   const { balance: evmSellBalance, loading: evmSellBalanceLoading } = useEvmTokenBalance(
-    !sellIsSolana && sellToken ? sellToken.chainId : null,
-    !sellIsSolana ? evmWallet.address : null,
-    !sellIsSolana && sellToken ? sellToken.address : null,
+    !sellIsSolana && !sellIsBtc && sellToken ? sellToken.chainId : null,
+    !sellIsSolana && !sellIsBtc ? evmWallet.address : null,
+    !sellIsSolana && !sellIsBtc && sellToken ? sellToken.address : null,
   );
-  const sellBalance = sellIsSolana ? solanaSellBalance : evmSellBalance;
-  const sellBalanceLoading = sellIsSolana ? solanaSellBalanceLoading : evmSellBalanceLoading;
+  const sellBalance = sellIsBtc ? null : sellIsSolana ? solanaSellBalance : evmSellBalance;
+  const sellBalanceLoading = sellIsBtc ? false : sellIsSolana ? solanaSellBalanceLoading : evmSellBalanceLoading;
 
   // Real user report 2026-08-06: picking an Arbitrum (or any non-Ethereum
   // EVM) sell token and connecting a wallet still left the wallet on
@@ -212,7 +240,7 @@ export function SwapPageClient() {
   // just avoids re-firing on every unrelated re-render for the same pairing.
   const lastEnsuredChainRef = useRef<string | null>(null);
   useEffect(() => {
-    if (!evmWallet.address || !sellToken || sellToken.chainId === SOLANA_CHAIN_ID_CLIENT) return;
+    if (!evmWallet.address || !sellToken || sellToken.chainId === SOLANA_CHAIN_ID_CLIENT || sellToken.chainId === BTC_CHAIN_ID) return;
     const key = `${evmWallet.address}:${sellToken.chainId}`;
     if (lastEnsuredChainRef.current === key) return;
     lastEnsuredChainRef.current = key;
@@ -324,13 +352,13 @@ export function SwapPageClient() {
   const hasValidInput = Boolean(sellToken && buyToken && sellAmount && Number.isFinite(amount) && amount > 0);
   const destAddressError =
     isCrossChain && destAddress && buyToken && !isValidDestAddress(destAddress, buyToken.chainId)
-      ? `Doesn't look like a valid ${buyToken.chainId === SOLANA_CHAIN_ID_CLIENT ? "Solana" : "EVM"} address.`
+      ? `Doesn't look like a valid ${buyToken.chainId === SOLANA_CHAIN_ID_CLIENT ? "Solana" : buyToken.chainId === BTC_CHAIN_ID ? "Bitcoin" : "EVM"} address.`
       : null;
   // The wallet that actually needs to be connected to sell — Solana for a
-  // Solana sell token, the EVM wallet for anything else. Both the button
-  // and canOpenReview need this same check (see sellIsSolana's own comment
-  // above for the real bug this fixes).
-  const sellWalletReady = sellIsSolana ? Boolean(publicKey) : Boolean(evmWallet.address);
+  // Solana sell token, Bitcoin for a BTC sell token, the EVM wallet for
+  // anything else. Both the button and canOpenReview need this same check
+  // (see sellIsSolana's own comment above for the real bug this fixes).
+  const sellWalletReady = sellIsSolana ? Boolean(publicKey) : sellIsBtc ? Boolean(btcWallet.address) : Boolean(evmWallet.address);
   const canOpenReview =
     Boolean(sellWalletReady && sellToken && buyToken && hasValidInput) &&
     (!isCrossChain || (Boolean(destAddress) && !destAddressError)) &&
@@ -350,6 +378,115 @@ export function SwapPageClient() {
       if (isCrossChain && destAddress) {
         addAddress({ chainId: buyToken.chainId, chainDisplayName: buyToken.chainDisplayName, address: destAddress });
       }
+    }
+  }
+
+  // Entirely separate flow from runSwap() below — ChangeNOW's custodial
+  // deposit-address model has no signable "leg 1" the way Jupiter/Relay do
+  // (see app/api/quote/btc/route.ts's doc), so it doesn't fit that
+  // function's step model. Reuses the same `step`/`message`/`swapId` state
+  // (and the same progress-drawer/stepper UI, via needsRelayLeg2 being
+  // false for a BTC pair — see that flag's own comment) so the visible
+  // experience is one continuous flow to the user despite the different
+  // code path underneath.
+  async function runBtcSwap() {
+    if (!sellToken || !buyToken) {
+      setMessage("Pick both tokens first.");
+      return;
+    }
+    const sourceCurrency = btcFlowCurrency(sellToken);
+    const destCurrency = btcFlowCurrency(buyToken);
+    const destAddr = destCurrency === "btc" ? btcWallet.address : destCurrency === "sol" ? publicKey?.toBase58() : evmWallet.address;
+    if (sourceCurrency === "btc" && !btcWallet.address) {
+      setMessage("Connect a Bitcoin wallet to sell BTC.");
+      return;
+    }
+    if (sourceCurrency === "sol" && (!publicKey || !signTransaction)) {
+      setMessage("Connect a Solana wallet to sell SOL.");
+      return;
+    }
+    if (sourceCurrency === "eth" && !evmWallet.address) {
+      setMessage("Connect an EVM wallet to sell ETH.");
+      return;
+    }
+    if (!destAddr) {
+      setMessage(
+        destCurrency === "btc" ? "Connect a Bitcoin wallet first." : destCurrency === "sol" ? "Connect a Solana wallet first." : "Connect an EVM wallet first.",
+      );
+      return;
+    }
+
+    let phase: Step = "quoting";
+    let recordedSwapId = "";
+    setStep(phase);
+    setErroredAtStep(null);
+    setMessage(null);
+    try {
+      const quoteRes = await fetch("/api/quote/btc", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ sourceCurrency, sourceAmount: sellAmount, destCurrency, destAddress: destAddr }),
+      });
+      if (!quoteRes.ok) throw new Error((await quoteRes.json()).error ?? "Quote failed");
+      const { quoteId } = await quoteRes.json();
+
+      phase = "leg1_signing";
+      setStep(phase);
+      const execRes = await fetch("/api/swap/btc/execute", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ quoteId }),
+      });
+      if (!execRes.ok) throw new Error((await execRes.json()).error ?? "Failed to create exchange");
+      const execBody = await execRes.json();
+      setSwapId(execBody.swapId);
+      recordedSwapId = execBody.swapId;
+
+      setMessage(`Confirm the ${sourceCurrency.toUpperCase()} payment in your wallet…`);
+      if (execBody.depositCurrency === "btc") {
+        await btcWallet.sendPayment(execBody.depositAddress, Number(execBody.depositAmount));
+      } else if (execBody.depositCurrency === "sol") {
+        const lamports = Math.round(Number(execBody.depositAmount) * 1e9);
+        const { blockhash } = await connection.getLatestBlockhash();
+        const tx = new Transaction({ feePayer: publicKey!, recentBlockhash: blockhash }).add(
+          SystemProgram.transfer({ fromPubkey: publicKey!, toPubkey: new PublicKey(execBody.depositAddress), lamports }),
+        );
+        const signed = await signTransaction!(tx);
+        const sig = await connection.sendRawTransaction(signed.serialize());
+        await connection.confirmTransaction(sig, "confirmed");
+      } else {
+        const weiAmount = toAtomicAmount(execBody.depositAmount, 18);
+        await evmWallet.sendStepAndWait({ from: evmWallet.address!, to: execBody.depositAddress, data: "0x", value: weiAmount, chainId: 1 });
+      }
+
+      phase = "leg1_confirming";
+      setStep(phase);
+      setMessage("Payment sent — waiting for the exchange to settle (this can take a few minutes)…");
+      for (let attempt = 0; attempt < 60; attempt++) {
+        await sleep(5000);
+        const confirmRes = await fetch("/api/swap/btc/confirm", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ swapId: execBody.swapId }),
+        });
+        if (!confirmRes.ok) throw new Error((await confirmRes.json()).error ?? "Confirm failed");
+        const confirmed = await confirmRes.json();
+        if (confirmed.status === "complete") {
+          setStep("done");
+          recordSwapResult("done", recordedSwapId);
+          setMessage("Swap complete.");
+          return;
+        }
+        if (confirmed.status === "leg1_failed") {
+          throw new Error("Exchange failed — safe to retry, contact support if funds were already sent.");
+        }
+      }
+      throw new Error("Taking longer than expected — check back shortly, it may still settle.");
+    } catch (err) {
+      setStep("error");
+      setErroredAtStep(phase);
+      recordSwapResult("error", recordedSwapId);
+      setMessage((err as Error).message);
     }
   }
 
@@ -753,14 +890,33 @@ export function SwapPageClient() {
       </div>
       </div>
 
+      {/* Stronger CTA (2026-08-08d, real user request: "a better CTA...
+          close accounts and get back some cash") — replaced a plain text
+          link with a real benefit-led card: leads with the concrete,
+          guaranteed part (empty-account rent is real SOL, refundable on
+          click, no swap/price risk involved) rather than the vaguer "sweep
+          dust" framing alone. */}
       <Link
         href="/dust-sweeper"
-        className="mx-auto w-full max-w-lg rounded-2xl border border-hairline bg-surface px-4 py-3 text-sm text-ink-muted transition-colors hover:border-accent/40"
+        className="mx-auto flex w-full max-w-lg items-center gap-4 rounded-2xl border border-hairline bg-surface p-4 shadow-sm transition-all hover:border-accent/40 hover:shadow-md"
       >
-        🧹 Small stranded balances sitting in your wallet? <span className="font-semibold text-accent">Sweep them into one token →</span>
+        <span
+          aria-hidden="true"
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-accent-soft text-xl"
+        >
+          🧹
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-sm font-semibold text-ink">Close empty accounts, get real cash back</span>
+          <span className="block text-xs text-ink-faint">
+            Reclaim rent SOL from dead token accounts and consolidate stranded dust — free money sitting in your
+            wallet right now.
+          </span>
+        </span>
+        <span className="shrink-0 rounded-full bg-accent px-3 py-1.5 text-xs font-semibold text-accent-ink">
+          Check my wallet →
+        </span>
       </Link>
-
-      <BtcSwapPanel />
 
       {/*
         Real gap fixed 2026-08-03: clicking "Swap" used to go straight from
@@ -891,7 +1047,8 @@ export function SwapPageClient() {
             <button
               onClick={() => {
                 setReviewOpen(false);
-                runSwap();
+                if (isBtcPair) runBtcSwap();
+                else runSwap();
               }}
               className="rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-accent-ink transition-all hover:brightness-110 active:scale-[0.98]"
             >

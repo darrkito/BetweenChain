@@ -414,16 +414,21 @@ actually active outside local dev.
 
 ## Not yet scheduled
 
-- **Bitcoin general swap support (Phase 2)** — shipped 2026-08-08. BTC<->SOL and BTC<->ETH
-  swaps on `/swap` via a dedicated ChangeNOW-backed flow (`app/api/quote/btc`,
-  `app/api/swap/btc/*`, `app/components/BtcSwapPanel.tsx`, migration
-  `0018_btc_swap_changenow.sql`) — separate routes from the main Jupiter/Relay pipeline,
-  not a branch inside it (ChangeNOW's custodial deposit-address model has no signable
-  "leg 1" the way Jupiter/Relay do). Scoped to BTC<->SOL/ETH only (the two ChangeNOW
-  currencies already integrated) — **BTC<->other EVM chains (MATIC, AVAX, Base/Arbitrum/
-  Optimism native tokens) is a real, separate follow-up, not yet built.** Only ChangeNOW's
-  "reverse" (exact-output) estimate mode is used — the only mode ever live-verified in this
-  codebase; the "direct"/forward mode has not been exercised.
+- **Bitcoin general swap support (Phase 2)** — shipped 2026-08-08, merged directly into
+  the main `/swap` picker 2026-08-08d (superseding the earlier standalone
+  `BtcSwapPanel`, now deleted). BTC<->SOL and BTC<->ETH swaps via a dedicated
+  ChangeNOW-backed flow (`app/api/quote/btc` + `/preview`, `app/api/swap/btc/*`,
+  `runBtcSwap()` in `app/swap/SwapPageClient.tsx`, migration
+  `0018_btc_swap_changenow.sql`) — separate routes from the main Jupiter/Relay
+  pipeline, not a branch inside it (ChangeNOW's custodial deposit-address model has no
+  signable "leg 1" the way Jupiter/Relay do). Bitcoin is now selectable directly in
+  `SwapPanel`'s chain picker (`BTC_CHAIN_ID` in `lib/chains/swapChains.ts`), gated to
+  only pair with native SOL or native Ethereum ETH. Scoped to BTC<->SOL/ETH only (the
+  two ChangeNOW currencies already integrated) — **BTC<->other EVM chains (MATIC,
+  AVAX, Base/Arbitrum/Optimism native tokens) is a real, separate follow-up, not yet
+  built.** Both ChangeNOW estimate modes are now live-verified and used: "direct"
+  (forward, sell-amount-first — the main widget's UX) and "reverse" (exact-output,
+  still used by the Sui NFT-purchase flow).
 
 - **Dust Sweeper — Sui sweep support** — `/dust-sweeper` (shipped 2026-08-08) detects
   native SUI dust but cannot sweep it: no Sui swap execution path exists anywhere in this

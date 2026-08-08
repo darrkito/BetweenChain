@@ -19,6 +19,21 @@ export const SOLANA_SWAP_CHAIN: EvmChainOption = {
 
 export const SWAP_CHAINS: EvmChainOption[] = [SOLANA_SWAP_CHAIN, ...EVM_CHAINS];
 
+// Bitcoin (2026-08-08b) — Relay's own real chain id, confirmed live via
+// GET https://api.relay.link/chains (id: 8253038, vmType: "bvm",
+// name: "bitcoin"). Reused here as a stable, non-arbitrary identifier even
+// though this app does NOT execute BTC swaps through Relay (ChangeNOW is
+// the execution engine — see app/api/quote/btc/route.ts) — Relay's /chains
+// response is still what /api/tokens/chains and /api/tokens/list already
+// source their chain/token metadata from (getRelayChains/getTokenListForChain
+// in lib/chains/relayChains.ts / lib/chains/tokenList.ts), and Bitcoin's
+// single real currency entry there (symbol "BTC", decimals 8) is exactly
+// the token-list shape the picker needs — no separate hardcoded token
+// metadata required. Deliberately NOT added to SWAP_CHAINS itself — that
+// array feeds Relay-execution-assuming code (EVM RPC clients, Relay chain-id
+// maps) that Bitcoin doesn't participate in.
+export const BTC_CHAIN_ID = 8253038;
+
 export function swapChainForSlug(slug: string): EvmChainOption | undefined {
   return SWAP_CHAINS.find((c) => c.slug === slug);
 }
