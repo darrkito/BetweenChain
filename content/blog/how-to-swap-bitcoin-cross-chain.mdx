@@ -1,0 +1,45 @@
+---
+title: "How to Swap Bitcoin (BTC) Directly Into SOL or ETH"
+description: "No wrapped BTC, no separate bridge step — swap native Bitcoin directly into SOL or ETH in one guided flow, no KYC signup required."
+date: "2026-08-08"
+category: "Guides"
+chains:
+  - "solana"
+  - "ethereum"
+howTo:
+  summary: "Swap native BTC into SOL or ETH in a few steps."
+  totalTime: "PT4M"
+  tools:
+    - "A Bitcoin wallet you can send from"
+    - "A destination Solana or EVM wallet"
+  steps:
+    - name: "Pick BTC as Your Source"
+      text: "On the swap page, choose Bitcoin as the token you're selling and SOL or ETH (or another supported destination) as what you want to receive."
+    - name: "Review the Real Rate"
+      text: "The quote shows the real, live-priced amount you'll receive and the exact BTC deposit address for this specific swap — bound to your request, not a generic address."
+    - name: "Send BTC and Wait for Confirmation"
+      text: "Send the exact quoted BTC amount from your own wallet. Once the deposit confirms on the Bitcoin network, the destination asset is delivered automatically."
+faq:
+  - question: "Why does a BTC swap need a deposit address instead of a wallet signature?"
+    answer: "Bitcoin doesn't support the kind of smart-contract signing Solana and EVM chains use — the standard, secure way to move BTC into another ecosystem is a monitored deposit address bound to your specific swap request, confirmed live before anything is delivered."
+  - question: "Is this wrapped BTC (like WBTC)?"
+    answer: "No — you're sending real, native BTC in, and the execution engine (ChangeNOW) converts it directly to your requested destination asset. You never hold or need to unwrap a synthetic BTC token."
+  - question: "How long does a BTC swap take?"
+    answer: "Slower than a Solana or EVM-only swap, since it depends on Bitcoin network confirmation times — plan for at least one confirmation before the destination leg begins."
+  - question: "What if I send the wrong amount?"
+    answer: "Send exactly the quoted amount from a wallet you control — the deposit address and expected amount are bound together for this specific swap request."
+---
+
+Getting Bitcoin into a Solana or Ethereum position usually means a centralized exchange, a wrapped-token bridge, or both. Blockchains.Click routes it as one guided flow instead — no wrapped BTC token to manage, no separate manual bridge step.
+
+<QuickFacts items='["Swap native BTC directly into SOL, ETH, or other supported destination tokens", "No wrapped BTC (WBTC) involved — you send real BTC, the destination asset arrives directly", "No account signup or KYC form", "Execution runs through ChangeNOW, a real non-custodial exchange engine, not a Blockchains.Click-held wallet"]' />
+
+## Why BTC works differently from a Solana/EVM swap
+
+Every other swap on this app is wallet-to-wallet: connect a wallet, sign a transaction, done. Bitcoin doesn't have the same smart-contract signing model Solana and EVM chains do, so a BTC-sourced swap works the way real, non-custodial BTC exchanges always have — you get a deposit address specific to your swap request, send BTC to it from your own wallet, and the destination asset is delivered once that deposit is confirmed on-chain. It's slower than a same-ecosystem swap (Bitcoin's own confirmation times apply), but it's still non-custodial: nothing sits in a Blockchains.Click-controlled wallet at any point.
+
+## What executes it
+
+BTC swaps run through ChangeNOW, a real, established exchange engine — not the Jupiter/Relay pipeline the rest of this app uses for Solana/EVM swaps. Same principle as every engine choice on this app: BTC doesn't have a comparable on-chain aggregator the way Solana and EVM do, so a real, live-quoted third-party exchange is the honest way to support it rather than fabricating a bridge that doesn't exist.
+
+[Try a BTC swap](/swap) — pick Bitcoin as your source token and see a real, live quote before sending anything.

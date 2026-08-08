@@ -1,0 +1,50 @@
+---
+title: "Trigger Orders: Solana Limit Orders and DCA That Fill While You're Offline"
+description: "Set a price target or a recurring buy schedule and walk away — Jupiter's own on-chain program and keeper network execute the fill, non-custodially, even if you never come back."
+date: "2026-08-08"
+category: "Guides"
+chains:
+  - "solana"
+mentions: ["Trigger Orders", "Jupiter"]
+howTo:
+  summary: "Set a Solana limit order or a recurring DCA schedule in under a minute."
+  totalTime: "PT2M"
+  tools:
+    - "A connected Solana wallet"
+  steps:
+    - name: "Pick Limit Order or DCA"
+      text: "Open /orders and choose between a one-time price-triggered limit order or a recurring DCA schedule."
+    - name: "Set Your Terms"
+      text: "For a limit order: the amount to sell and your trigger price. For DCA: your total budget, how many cycles, and how often. Optionally add a one-click cross-chain delivery target."
+    - name: "Sign Once"
+      text: "Confirm the transaction in your wallet — this deposits your tokens into Jupiter's own on-chain escrow. From here, no further action is needed until it fills or you cancel."
+faq:
+  - question: "Who executes the order — do I need to keep this tab open?"
+    answer: "No. Jupiter's own on-chain program and its own keeper network watch the market and execute the fill whenever your condition is met — completely independent of whether you're online, same as leaving a limit order on a centralized exchange."
+  - question: "Is this custodial — does Blockchains.Click or Jupiter hold my funds?"
+    answer: "No. Your tokens sit in a Jupiter-program-owned escrow account (a PDA) from the moment you sign until the order fills or you cancel — neither this app nor Jupiter's team can move them arbitrarily."
+  - question: "What's the minimum for a DCA order?"
+    answer: "Each individual cycle must be worth at least $50 — a real floor enforced by Jupiter's own API, not a Blockchains.Click limit."
+  - question: "Can this deliver to a wallet on a different chain automatically?"
+    answer: "Not fully automatically yet. Trigger Orders fill into a Solana token; if you set a cross-chain delivery target, Blockchains.Click shows a one-click \"Deliver now\" step once the order fills — real and non-custodial, just one extra click rather than fully unattended, since automatic bridging with nobody present to sign would require this app to hold a delegated signing key."
+  - question: "Can I cancel an order before it fills?"
+    answer: "Yes, any time — cancelling also just needs one wallet signature, no fee beyond network gas."
+---
+
+Watching a price chart to catch a target, or manually buying the same amount every week, doesn't scale. Trigger Orders let you set the condition once and walk away — the fill happens whether or not you're around to see it.
+
+<QuickFacts items='["Two order types: price/limit orders and recurring DCA schedules", "Built on Jupiter’s own real Trigger and Recurring APIs — non-custodial, executed by Jupiter’s own keeper network", "This app runs no bot or server watching prices on your behalf — Jupiter’s on-chain program does that entirely", "DCA minimum is $50 per individual cycle, a real floor enforced by Jupiter’s own API"]' />
+
+## Why this can be fully unattended
+
+The hardest part of any "set it and forget it" order is who watches the market and pulls the trigger when you're not around. Trigger Orders don't need Blockchains.Click to run that infrastructure: creating an order deposits your tokens into a real, on-chain escrow account owned by Jupiter's own limit-order/DCA program, and Jupiter's own keeper network is what actually executes the fill once your price or schedule condition is met. Your funds are never in a wallet this app or Jupiter's team controls directly — they sit in that program-owned account from the moment you sign until it fills or you cancel.
+
+## Limit orders vs. DCA
+
+A **limit order** sells a fixed amount of one token for at least a target amount of another — a real, on-chain equivalent of a limit order on a centralized exchange, filled whenever the market reaches your price. A **DCA order** splits a total budget into equal buys spaced out over time (e.g. $500 split into 10 buys, one every 24 hours) — useful for averaging into a position without timing the market on every individual buy. Jupiter enforces a real $50-per-cycle minimum on DCA orders.
+
+## Delivering to another chain
+
+Trigger Orders fill into a Solana-native token — that's where Jupiter's program lives. If you want the result somewhere else (say, ETH on Base), set a delivery target when creating the order: once it fills, `/orders` shows a one-click "Deliver now" card that runs the normal cross-chain swap flow against your real, live post-fill balance. It's not fully automatic — completing that last hop with zero clicks would require this app to hold a signing key on your behalf while you're away, which it deliberately doesn't do.
+
+[Set your first order](/orders) — connect a Solana wallet and pick a price target or a recurring schedule.

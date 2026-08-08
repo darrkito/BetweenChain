@@ -1,0 +1,33 @@
+---
+title: "Never Get Stranded With No Gas: Automatic Destination Gas Top-Up"
+description: "Bridge to a new chain and land with zero native gas token — a common trap. Here's the one-checkbox fix built into every cross-chain swap on Blockchains.Click."
+date: "2026-08-08"
+category: "Guides"
+chains:
+  - "ethereum"
+  - "base"
+  - "arbitrum"
+faq:
+  - question: "How much gas do I get?"
+    answer: "About $2 worth of the destination chain's native token by default (e.g. ETH on Base or Arbitrum) — enough for several transactions on most chains."
+  - question: "Does this cost extra, separate from my swap?"
+    answer: "No — it's funded out of the same swap you're already doing. Check the box, and the quote adjusts to include it."
+  - question: "Does this work when I'm bridging into a chain's native token itself?"
+    answer: "No — if you're already receiving that chain's native gas token (e.g. bridging into ETH on Base), there's nothing to top up. The option only applies when your destination token isn't the gas token."
+  - question: "Does this work for a Solana destination?"
+    answer: "No — this is specifically an EVM-destination feature. A Solana destination doesn't have the same \"stranded with zero gas\" problem in the same way."
+---
+
+Bridge into a new EVM chain holding only the token you asked for, and you can hit an immediate wall: you can't move, sell, or do anything with it without a small amount of that chain's native gas token first — and you don't have any. It's a common, avoidable trap.
+
+<QuickFacts items='["One checkbox on the swap page, available for any non-Solana destination", "Delivers roughly $2 of the destination chain’s native gas token by default, funded from the same swap", "Automatically skipped when it would be pointless — e.g. your destination token already IS that chain’s gas token", "No separate transaction or extra signature — it’s part of the same quote you already confirm"]' />
+
+## How it works
+
+This isn't a separate custodial balance or a second transaction — it's a real feature of the routing engine (Relay) this app already uses for cross-chain swaps. When you check "Destination gas top-up," the quote request asks Relay to bundle a small amount of the destination chain's native currency into the same fill that delivers your requested token. Relay's solver network handles sourcing it, priced into your one quote, delivered in your one signature.
+
+It's opt-in and automatically inapplicable in cases where it wouldn't make sense — for example, if you're bridging directly into a chain's own native token, there's nothing to "top up" since you're already receiving gas currency.
+
+## Where to find it
+
+Open the swap page, pick a source token and a non-Solana destination, and the gas top-up checkbox appears in the quote summary automatically. No separate page, no extra setup — [try a cross-chain swap](/swap) and look for "Destination gas top-up" once you've picked chains.

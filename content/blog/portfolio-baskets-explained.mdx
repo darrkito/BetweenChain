@@ -1,0 +1,53 @@
+---
+title: "Portfolio Baskets: Split One Token Across a Curated Multi-Chain Basket"
+description: "Instead of manually swapping into five different tokens across three chains, split one token into a curated basket in a single guided flow. How it works, and how the split math stays exact."
+date: "2026-08-08"
+category: "Guides"
+chains:
+  - "solana"
+  - "ethereum"
+  - "base"
+mentions: ["Portfolio Baskets", "Solana Ecosystem", "Robinhood Chain"]
+howTo:
+  summary: "Split one token into a curated multi-chain basket in three steps."
+  totalTime: "PT4M"
+  tools:
+    - "A wallet holding the token you want to split (Solana or an EVM chain)"
+    - "A destination wallet for each chain the basket touches"
+  steps:
+    - name: "Browse Baskets"
+      text: "Open /basket and pick a curated basket — e.g. Solana Ecosystem, AI Agent Index, or a chain-specific starter basket — and review its allocations."
+    - name: "Pick Your Source Token and Amount"
+      text: "Choose the token you're splitting from and how much to spend. Blockchains.Click previews the real, live-quoted amount each allocation will receive before you commit to anything."
+    - name: "Confirm Each Allocation"
+      text: "Each allocation executes as its own swap in sequence — sign each one in your wallet. Allocations that land on the same chain as your source token settle fastest; cross-chain ones bridge automatically."
+faq:
+  - question: "Is a basket one transaction or several?"
+    answer: "Several — one swap per allocation, executed in sequence through the same engine as a normal swap. There's no single-signature batch transaction across chains; each leg needs its own wallet confirmation."
+  - question: "What happens to rounding — do the percentages ever not add up?"
+    answer: "No. The split math (lib/baskets/split.ts) allocates atomic units directly and gives any leftover from rounding to the largest allocation, so the total spent always equals exactly what you typed — never a few cents short."
+  - question: "Can I make my own basket?"
+    answer: "Not yet — today's baskets are curated by Blockchains.Click, not user-created. That's a real, scoped follow-up, not a permanent limitation."
+  - question: "What if one allocation's swap fails partway through?"
+    answer: "Each allocation is independent — a failure on one doesn't roll back the others. You can retry just the failed leg without redoing the whole basket."
+---
+
+Buying into a themed set of tokens usually means picking each one, checking its chain, and running a separate swap for every single one — five tokens across three chains can mean five separate quote-review-sign cycles, each with its own slippage and fees to track. Portfolio Baskets collapse that into one guided flow: pick a basket, pick an amount, confirm each leg.
+
+<QuickFacts items='["A basket is a curated, fixed set of destination tokens with percentage allocations — not a user-created list (yet)", "One swap per allocation, same execution engine as a normal Blockchains.Click swap — no new signing model", "Split math allocates exact atomic units, so rounding never leaves the total under what you typed", "Allocations can span multiple chains in the same basket — Solana Ecosystem lands in Solana SPL tokens, cross-chain baskets bridge automatically"]' />
+
+## How the split actually works
+
+A basket is just a list of `{ token, chain, percentage }` allocations that adds up to 100%. When you enter an amount to spend, `splitAmount()` converts it into atomic units for your source token and divides it across every allocation by percentage — in atomic units, not floating-point dollars, so there's no cent-level drift. Whatever remainder rounding produces goes to the largest allocation rather than getting silently dropped, so the sum always equals exactly what you spent.
+
+From there, each allocation is priced independently using the same quote pipeline every other swap on this app uses — Jupiter for a same-chain Solana leg, Relay for anything that bridges. You see a live preview of what each allocation is expected to receive before signing anything.
+
+## Executing a basket
+
+Confirming a basket runs its allocations one at a time, in sequence, each going through the normal quote → sign → confirm flow. This isn't a single cross-chain batch transaction (no wallet or bridge protocol supports atomically signing five swaps across three chains in one click) — it's the same trusted single-swap flow, run several times with its own progress tracked per allocation. If one allocation fails (a network hiccup, a rejected signature), the others aren't affected — you can retry just that leg.
+
+## What's curated today
+
+Baskets currently ship pre-built by Blockchains.Click — themed sets like a broad Solana ecosystem basket, an AI-agent-token index, and chain-specific starter baskets (including one for Robinhood's own chain). User-created baskets aren't available yet; that's real, scoped future work, not something quietly dropped.
+
+Ready to try one? [Browse the current baskets](/basket) and see the live allocation preview before you commit anything.

@@ -1,0 +1,49 @@
+---
+title: "ClickPay: Get Paid in Exactly What You Want, From Whatever the Payer Holds"
+description: "Cross-chain payment links — request an exact token and chain, and the payer sends whatever native currency they hold on any supported chain. How exact-output quoting makes this possible."
+date: "2026-08-08"
+category: "Guides"
+chains:
+  - "solana"
+  - "ethereum"
+  - "base"
+mentions: ["ClickPay"]
+howTo:
+  summary: "Create and get paid through a ClickPay link in a few steps."
+  totalTime: "PT3M"
+  tools:
+    - "A wallet to receive payment (the destination address)"
+    - "A payer wallet, on Solana or any supported EVM chain"
+  steps:
+    - name: "Create a Link"
+      text: "Open /pay/create, pick the exact token and chain you want to receive, an amount (or leave it open for any amount), and an optional label. Get a shareable /pay/[id] URL."
+    - name: "Share the Link"
+      text: "Send the link to whoever's paying you. They don't need to hold your requested token or be on the same chain — that's the point."
+    - name: "Payer Picks Their Source and Pays"
+      text: "The payer connects whatever wallet they have (Solana or EVM), and Blockchains.Click quotes the exact amount of their native currency needed to deliver your exact request. One signature, and it's delivered."
+faq:
+  - question: "What can a payer pay with?"
+    answer: "Their chain's native currency — SOL on Solana, or native ETH/AVAX/MATIC/etc. on any connected EVM chain. Paying with an arbitrary SPL or ERC-20 token isn't supported yet — that needs a second quoting hop this app doesn't have wired up."
+  - question: "Can the invoice terms change after I create the link?"
+    answer: "No — the destination chain, token, and address are locked in at creation and never re-derived from anything the payer sends. That's the same MITM-prevention rule every swap on this app follows."
+  - question: "Does the payer need an account?"
+    answer: "No signup for either side — creating a link requires being signed in (so it's tied to you for management), but paying one is fully public, no account needed."
+  - question: "What if I don't specify an amount?"
+    answer: "The link becomes an open \"donation\" link — the payer picks how much to send you, still in the exact token/chain you specified."
+---
+
+Payment links usually assume the payer already holds the currency you're asking for. ClickPay drops that assumption: you request an exact token on an exact chain, and the payer sends whatever they actually hold — Blockchains.Click solves the rest.
+
+<QuickFacts items='["Request an exact token/chain/amount, or leave the amount open", "Payer pays with their native currency on Solana or any connected EVM chain — you receive exactly what you asked for", "Destination address is locked in at link creation, never re-derived from anything the payer sends", "No signup required to pay a link — only to create one"]' />
+
+## Why this needed no new swap engine
+
+The hard part of a payment link like this is "exact output" quoting — instead of "swap this much SOL," it's "figure out how much SOL delivers exactly $100 of USDC." Both engines this app already uses for cross-chain swaps happen to support this directly: Jupiter's `swapMode=ExactOut` for a same-chain Solana leg, and Relay's exact-output quote mode (`tradeType: EXACT_OUTPUT`) — already built into this app for a different feature (OpenSea NFT purchases, where the exact listing price has to be matched) — for everything else, cross-chain or same-chain EVM.
+
+That meant ClickPay didn't need a new execution pipeline at all. A ClickPay quote is just a normal swap quote whose destination terms come from the invoice instead of being typed by the payer — from there it runs through the exact same sign → confirm → bridge flow every swap on this app already uses.
+
+## What v1 covers
+
+Payment sources are scoped to each chain's native currency for now — native SOL, or native ETH/AVAX/MATIC/etc. on any of the EVM chains this app supports. Paying with a random SPL or ERC-20 token isn't supported yet: it would need a second exact-output hop chained backward from the first (solve how much of an arbitrary token gets you the exact SOL/ETH amount Relay needs), which isn't built yet. Webhooks and custom payment handles (like a memorable short link) aren't built either — real, scoped follow-ups, not silently dropped.
+
+[Create your first ClickPay link](/pay/create) — it takes under a minute, and there's nothing to configure beyond the token, chain, and address you want paid to.
