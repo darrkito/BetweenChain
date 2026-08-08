@@ -111,6 +111,13 @@ export function RadarClient() {
         </p>
       </div>
 
+      <Link
+        href="/dust-sweeper"
+        className="rounded-xl border border-hairline bg-surface px-4 py-3 text-sm text-ink-muted transition-colors hover:border-accent/40"
+      >
+        🧹 Already own dust from a token like these? <span className="font-semibold text-accent">Sweep it up →</span>
+      </Link>
+
       {error && <p className="rounded-xl border border-hairline bg-surface px-4 py-3 text-sm text-ink-muted">{error}</p>}
 
       {!tokens && !error && <p className="px-1 text-sm text-ink-faint">Loading trending tokens…</p>}

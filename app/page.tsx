@@ -160,6 +160,27 @@ export default async function LandingPage() {
         </Reveal>
       )}
 
+      {/* Dust Sweeper promo (2026-08-08) — single-feature card, not a grid,
+          since there's one thing being promoted here, not a list of items
+          like Games/Trending collections above. */}
+      <Reveal>
+        <Link
+          href="/dust-sweeper"
+          className="flex flex-col gap-2 rounded-2xl border border-hairline bg-surface p-6 shadow-sm transition-all hover:border-accent/40 sm:flex-row sm:items-center sm:justify-between"
+        >
+          <div className="flex flex-col gap-1">
+            <h2 className="font-display text-2xl font-normal text-ink">🧹 Dust Sweeper</h2>
+            <p className="max-w-xl text-sm text-ink-muted">
+              Small stranded token balances add up across chains. Scan your wallets, see what is worth reclaiming,
+              and consolidate it into one token in a guided flow.
+            </p>
+          </div>
+          <span className="shrink-0 self-start rounded-full bg-accent px-4 py-2 text-sm font-semibold text-accent-ink sm:self-center">
+            Sweep your dust →
+          </span>
+        </Link>
+      </Reveal>
+
       {/* Features — 2026-08-06 (frontend audit, Impeccable detector:
           "avoid cookie-cutter grids") — replaced the uniform 3-equal-column
           grid with an intentionally asymmetric 7/5 split: the flagship

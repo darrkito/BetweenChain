@@ -752,6 +752,13 @@ export function SwapPageClient() {
       </div>
       </div>
 
+      <Link
+        href="/dust-sweeper"
+        className="mx-auto w-full max-w-lg rounded-2xl border border-hairline bg-surface px-4 py-3 text-sm text-ink-muted transition-colors hover:border-accent/40"
+      >
+        🧹 Small stranded balances sitting in your wallet? <span className="font-semibold text-accent">Sweep them into one token →</span>
+      </Link>
+
       {/*
         Real gap fixed 2026-08-03: clicking "Swap" used to go straight from
         input to a wallet-signature prompt with zero review — no rate, no

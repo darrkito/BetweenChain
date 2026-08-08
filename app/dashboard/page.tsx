@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { AppHeader } from "@/app/components/AppHeader";
 import { PointsCalculator } from "@/app/components/PointsCalculator";
 import { TierBadge } from "@/app/components/TierBadge";
+import Link from "next/link";
 import { DustBurner } from "@/app/components/DustBurner";
 
 export default function DashboardPage() {
@@ -57,6 +58,9 @@ export default function DashboardPage() {
         <PointsCalculator />
 
         <DustBurner />
+        <Link href="/dust-sweeper" className="-mt-2 self-start px-1 text-xs font-semibold text-accent hover:underline">
+          Also have small (non-empty) token balances? Try the full Dust Sweeper →
+        </Link>
 
         <section className="flex flex-col gap-2 rounded-2xl border border-hairline bg-surface p-5 shadow-sm">
           <p className="text-sm text-ink-muted">Your invite code</p>

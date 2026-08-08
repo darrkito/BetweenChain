@@ -64,6 +64,43 @@ export function renderOgImage() {
 // per-chain CDN already used everywhere else in this app
 // (lib/chains/swapChains.ts) — Satori (ImageResponse's renderer) fetches
 // remote <img> sources directly, same as any other Satori-based OG image.
+// Dust Sweeper "Dust Recovered" share card (2026-08-08) — same brand
+// treatment as the two variants above, stateless: the amount/count come
+// straight from the share URL's own query params (see
+// app/dust-sweeper/share/opengraph-image.tsx), no DB row needed to
+// regenerate this image on demand.
+export function renderDustRecoveredOgImage(params: { amountUsd: string; tokenCount: number }) {
+  return new ImageResponse(
+    (
+      <div
+        style={{
+          width: "100%",
+          height: "100%",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          backgroundColor: "#f5f3fc",
+          fontFamily: "sans-serif",
+        }}
+      >
+        <div style={{ display: "flex", fontSize: 40, color: "#5b4fe8", fontWeight: 600 }}>🧹 Dust Recovered</div>
+        <div style={{ display: "flex", marginTop: 12, fontSize: 108, fontWeight: 700, color: "#1a1730" }}>
+          ${params.amountUsd}
+        </div>
+        <div style={{ display: "flex", marginTop: 8, fontSize: 32, color: "#3a3560" }}>
+          unlocked from {params.tokenCount} stranded token{params.tokenCount === 1 ? "" : "s"}
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 14, marginTop: 48 }}>
+          <div style={{ display: "flex", width: 44, height: 44, borderRadius: 12, backgroundColor: "#5b4fe8" }} />
+          <div style={{ display: "flex", fontSize: 30, fontWeight: 700, color: "#1a1730" }}>Blockchains.Click</div>
+        </div>
+      </div>
+    ),
+    { ...OG_IMAGE_SIZE },
+  );
+}
+
 export function renderBlogOgImage(post: { title: string; category: string; chains?: Array<{ label: string; iconUrl: string }> }) {
   return new ImageResponse(
     (

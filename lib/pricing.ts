@@ -137,6 +137,45 @@ export async function getEvmTokenUsdPrices(chainId: number, addresses: string[])
   return result;
 }
 
+const MINT_PRICE_TTL_MS = 30_000;
+
+/**
+ * USD price for an arbitrary batch of Solana SPL mints in one call —
+ * Jupiter's price/v3 (same endpoint getSolUsdPrice already uses) genuinely
+ * supports comma-separated multi-mint requests (confirmed live: a real
+ * two-mint request returned both entries, each with its own `usdPrice` and
+ * `decimals`), unlike CoinGecko's EVM per-contract endpoint above which is
+ * one-address-per-request. Used by the Dust Sweeper's Solana scan to price
+ * whatever the connected wallet actually holds — not just the app's own
+ * curated token list (see app/api/tokens/balances/route.ts's narrower
+ * scope) — since real dust is disproportionately unlisted/rug tokens. A
+ * mint with no Jupiter liquidity simply doesn't appear in the response
+ * (never fabricated as 0 or omitted-as-error).
+ */
+export async function getJupiterMintUsdPrices(mints: string[]): Promise<Record<string, number>> {
+  if (mints.length === 0) return {};
+  const unique = Array.from(new Set(mints));
+
+  const entries = await Promise.all(
+    unique.map(async (mint) => {
+      const price = await cached(`jupiter-mint-price:${mint}`, MINT_PRICE_TTL_MS, async () => {
+        const res = await fetch(`${JUPITER_PRICE_API}?ids=${mint}`, { cache: "no-store" });
+        if (!res.ok) return null;
+        const body = await res.json();
+        const value = Number(body?.[mint]?.usdPrice);
+        return Number.isFinite(value) && value > 0 ? value : null;
+      }).catch(() => null);
+      return [mint, price] as const;
+    }),
+  );
+
+  const result: Record<string, number> = {};
+  for (const [mint, price] of entries) {
+    if (price != null) result[mint] = price;
+  }
+  return result;
+}
+
 export function formatAtomicAmount(atomic: string, decimals: number): string {
   const value = Number(atomic) / 10 ** decimals;
   if (!Number.isFinite(value)) return "0";

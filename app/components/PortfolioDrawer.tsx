@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "motion/react";
 import { useWallet } from "@solana/wallet-adapter-react";
@@ -220,6 +221,16 @@ export function PortfolioDrawer() {
                 </div>
               </section>
             ))
+          )}
+
+          {sections.length > 0 && (
+            <Link
+              href="/dust-sweeper"
+              onClick={() => setOpen(false)}
+              className="rounded-xl border border-hairline bg-surface-hover px-3 py-2 text-center text-xs font-semibold text-accent transition-colors hover:border-accent/40"
+            >
+              🧹 Got small stranded balances? Sweep dust →
+            </Link>
           )}
 
           <p className="mt-auto px-0.5 text-[11px] leading-relaxed text-ink-faint">
