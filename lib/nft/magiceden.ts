@@ -675,7 +675,7 @@ interface RawMagicEdenWalletToken {
 export async function getMagicEdenWalletHoldings(owner: string, collectionSymbol: string): Promise<OwnedNft[]> {
   return cached(`magiceden:wallet-holdings:${owner}:${collectionSymbol}`, WALLET_HOLDINGS_TTL_MS, async () => {
     const res = await fetchWithTimeout(
-      `${MAGICEDEN_API}/wallets/${owner}/tokens?limit=${WALLET_HOLDINGS_LIMIT}`,
+      `${MAGICEDEN_API}/wallets/${encodeURIComponent(owner)}/tokens?limit=${WALLET_HOLDINGS_LIMIT}`,
       { headers: magicEdenHeaders(), cache: "no-store" },
     );
     if (!res.ok) return [];

@@ -6,6 +6,47 @@ delete history (superseded entries stay for context, just note what replaced the
 
 ---
 
+## 2026-08-08 — Full security review (user-requested)
+
+User asked for a full security review across the site, APIs, and processes, and to check
+current known blockchain/wallet threats. Full detail (this is the authoritative doc for
+security specifics, this entry is a pointer) now lives in `SECURITY.md`'s new "2026-08-08
+— Full security review" section. Summary:
+
+- Verified every existing protection documented in `SECURITY.md` still holds: rate
+  limiting on all 37 API routes, correct auth-gating on every funds/private-data route,
+  `/api/img`'s SSRF protections (private-IP/cloud-metadata blocking, redirect
+  re-checking) intact.
+- Cross-referenced current (2026) real-world Web3 attack research against this app's
+  actual code: the #1 live attack pattern (wallet drainers via unbounded
+  approve/Permit/Permit2 signatures disguised as normal swaps) doesn't apply here — this
+  app never constructs its own approval or signs Permit-style messages, only ever
+  replays Relay's own generated transaction verbatim.
+- Reviewed the new Games Hub's iframe sandbox (`allow-scripts allow-same-origin`)
+  against a real, known escape technique — confirmed it doesn't apply since games are
+  genuinely cross-origin, but left a forward-looking warning in `SECURITY.md` for if
+  this app ever self-hosts a game's files on its own domain later (would need the
+  sandbox flags reconsidered at that point).
+- Supply-chain check: none of this app's dependencies match the specific packages
+  compromised in 2026's real, disclosed incidents (Bitwarden CLI, Injective SDK, Mastra
+  AI).
+- **Real bug found and fixed**: `getMagicEdenWalletHoldings` (added last session) built a
+  wallet-address URL segment without `encodeURIComponent`, inconsistent with every other
+  call site in that file. Low severity (read-only, no funds) but closed same day.
+- **One stale doc entry corrected**: `SECURITY.md`'s "Known open gaps" still listed EVM
+  address validation as format-only; it was actually upgraded to real EIP-55 checksum
+  validation in a prior session (2026-08-03) and the doc just hadn't been updated.
+- **New dependency risk documented, no fix available**: `@solana/spl-token` (added last
+  session for the dust burner) transitively pulls in `bigint-buffer`, which has a real
+  disclosed buffer-overflow CVE with no patched release yet — same "monitor, don't force
+  a blind fix" posture as the already-documented `@solana/web3.js` chain.
+
+### Verification
+`npx tsc --noEmit`, `npm run lint`, `npm test` (160 passing, unchanged), `npm run build`
+all clean.
+
+---
+
 ## 2026-08-07j — Games Hub: real collection ownership display + NFT image overrides
 
 Follow-up to 2026-08-07i, same day. Real user request: on `/games/crash-dummy`, show the

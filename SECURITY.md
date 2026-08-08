@@ -227,6 +227,77 @@ quote request, do not add a manual "enter your address" field for this value.
    built and passes typecheck/lint/build and a real authenticated quote-generation test,
    but has **not yet** been exercised with a real browser + real EVM wallet + real funds
    — don't assume it's proven the way the Solana-origin path is.
+8. **`getMagicEdenWalletHoldings` (Games Hub ownership check, added 2026-08-07) built a
+   wallet-address URL segment without `encodeURIComponent`** — inconsistent with every
+   other Magic Eden call site in that file, which does encode. Found during the
+   2026-08-08 full security review (below), fixed same day. Low severity on its own (a
+   read-only lookup, no funds involved), but worth closing rather than leaving a
+   URL-injection-adjacent inconsistency in place.
+
+## 2026-08-08 — Full security review (user-requested: "check all the webs, the apis, the
+processes")
+
+Systematic pass: every API route's rate-limiting/auth coverage, the new Games Hub's
+iframe attack surface, dependency vulnerabilities, and cross-referenced against current
+(2026) real-world Web3 attack patterns (WebSearch: wallet-drainer techniques, iframe
+sandbox escapes, npm supply-chain attacks on crypto packages). Summary — most of this
+confirms existing protections still hold, a few new items below.
+
+- **All 37 API routes have rate limiting** — verified via a full grep sweep (`rateLimit(`
+  call present in every `route.ts` under `app/api/`), no gaps.
+- **Auth coverage confirmed correct**: every route touching funds or private user data
+  calls `requireSession()`; the unauthenticated routes (`/api/tokens/*`,
+  `/api/quote/preview`, `/api/games/*`) are all pure reads/counters by design, matching
+  the existing documented pattern for `/api/tokens/chains`/`/api/tokens/list` above.
+- **`/api/img`'s SSRF protections re-verified intact**: protocol allowlist,
+  private/loopback/link-local blocking (including the cloud metadata address
+  `169.254.169.254`), re-checked on every redirect hop, size cap, content-type
+  validation. Its own documented residual DNS-rebinding risk is unchanged and still
+  accepted for the same reason (narrow blast radius — a rebound response still has to
+  look like `image/*` to be returned).
+- **Wallet-drainer pattern check (the #1 real-world attack vector right now per live
+  research — unbounded `approve()`, Permit/Permit2 typed-data signatures disguised as
+  normal swaps)**: this app never constructs its own token approval or signs any
+  Permit/Permit2 message. The one "approve" step that exists in the swap flow
+  (`lib/chains/relay.ts`'s `steps`) is Relay's own generated transaction, replayed
+  verbatim — same "never reconstruct, always replay the vendor's real payload" trust
+  boundary already established for every other quote/listing in this codebase (OpenSea
+  Seaport fulfillment, Magic Eden buy instructions, Tradeport listings). Confirmed clean.
+- **Games Hub iframe sandbox (`GamePlayer.tsx`) reviewed against a known real escape**:
+  the `allow-scripts allow-same-origin` combination lets a framed document strip its own
+  sandbox attribute and fully escape sandboxing — **but confirmed via research this
+  specifically requires the framed content to be SAME-ORIGIN with the parent page**.
+  Games are genuinely cross-origin (e.g. crash-dummy.xyz ≠ blockchains.click), so this
+  escape does not apply as currently built. **Forward-looking note, not yet relevant**:
+  if this app ever self-hosts a game's actual build files on its OWN domain (discussed
+  with the user as the real technical path to true Miniclip-style embedding for a
+  non-cooperating game — see `PLAN.md`'s Games Hub backlog), that would make the framed
+  content same-origin and this exact escape would become live. Re-evaluate the sandbox
+  flags (most likely drop `allow-same-origin`, or serve self-hosted games from a
+  dedicated subdomain to keep them cross-origin from the main app) before ever doing
+  that, don't carry today's sandbox config forward unchanged.
+- **Supply-chain check**: cross-referenced this app's dependencies against the specific
+  packages named in real, recent (2026) incidents targeting crypto wallets (Bitwarden
+  CLI, an Injective SDK backdoor, the Mastra AI framework compromise) — none are
+  dependencies of this app (`grep -i` across `package.json`/`package-lock.json`, zero
+  matches). `package-lock.json` is committed (reproducible installs, not resolving to
+  whatever a compromised registry might serve at install time).
+- **New dependency risk, no fix available (same pattern as the already-documented
+  `@solana/web3.js` chain)**: `@solana/spl-token` (added 2026-08-07 for the dust burner)
+  transitively pulls in `bigint-buffer`, which has a real disclosed buffer-overflow CVE
+  (`GHSA-3gc7-fjrx-p6mg`, high severity) with no patched release published yet
+  (`npm audit` confirms `fixAvailable: false` for the underlying package; `spl-token` is
+  already on its latest published version, `0.4.15`). Practical exploitability in this
+  app's actual usage is narrow — it's invoked decoding real on-chain SPL token account
+  data (via `getParsedTokenAccountsByOwner` and `@solana/spl-token` internals in
+  `DustBurner.tsx`), not arbitrary attacker-supplied bytes under direct app control.
+  Nothing actionable right now beyond monitoring for an upstream patch — do not force a
+  downgrade/alternate-package swap without testing a real signed transaction against it
+  first, same discipline already applied to the Tradeport SDK's `axios` CVE below.
+- **One real bug found and fixed same-day**: see RESOLVED gap #8 above
+  (`getMagicEdenWalletHoldings`'s missing `encodeURIComponent`).
+- **One stale entry corrected**: see "Known open gaps" #3 below — EVM checksum
+  validation was already fixed in a prior session but this file still listed it as open.
 
 ## Known open gaps (fix before meaningful volume)
 
@@ -236,9 +307,11 @@ quote request, do not add a manual "enter your address" field for this value.
    across instances), but worth the same treatment if this ever runs multi-instance.
 2. **No 2FA.** Supabase Auth's TOTP MFA can bolt on later without a schema change, but
    nothing enforces it today.
-3. **EVM address validation is format-only** (`lib/validation.ts`) — checks
-   `0x` + 40 hex chars, not EIP-55 checksum casing. A malformed address fails on-chain
-   rather than silently misdirecting funds, so this is low-severity, but worth upgrading.
+3. **~~EVM address validation is format-only~~ — already fixed, this entry was stale.**
+   `lib/validation.ts`'s `isPlausibleEvmAddress` was upgraded to viem's `isAddress` on
+   2026-08-03 (see that file's own comment) — it now enforces real EIP-55 checksum
+   casing, not just `0x` + 40 hex chars. Found stale during the 2026-08-08 review below;
+   corrected here rather than leaving a resolved item listed as open.
 4. **Relay-leg fee accrues off-chain and has never been claimed/withdrawn.** Not a
    security bug, but worth knowing before assuming the fee wallet's on-chain balance
    reflects reality — see `AGENTS.md`'s Fees section. Check
@@ -260,6 +333,14 @@ quote request, do not add a manual "enter your address" field for this value.
    it blind, without testing a real purchase against the new version, risks breaking a
    money-moving flow that currently works. Needs a dedicated pass: bump the SDK, run a
    real signed Sui purchase against it, confirm nothing broke, before touching this.
+7. **Third dependency CVE, found 2026-08-08**: `bigint-buffer` (transitive via
+   `@solana/spl-token`, added 2026-08-07 for the dust burner) — real disclosed
+   buffer-overflow CVE (`GHSA-3gc7-fjrx-p6mg`, high), no patched release exists yet
+   (`spl-token` is already on its latest version, `0.4.15`; `npm audit` confirms no fix
+   available for `bigint-buffer` itself). Narrow practical exploitability in this app's
+   actual usage — decodes real on-chain SPL account data, not arbitrary attacker-supplied
+   bytes. Monitor for an upstream patch; same "don't force a blind downgrade of a
+   money-adjacent dependency" discipline as item 6 above.
 
 ## Explicitly out of scope
 
