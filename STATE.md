@@ -6,6 +6,58 @@ delete history (superseded entries stay for context, just note what replaced the
 
 ---
 
+## 2026-08-08h — ClickPay (cross-chain payment links) + a real bug found/fixed along the way
+
+Real user pitch (two features pasted together: "ClickPay" payment links and a
+"Universal Gas Tank" gas-sponsorship vault) — `ultrathink`ed and planned both, but only
+ClickPay was implemented. Gas Tank was deliberately NOT built: every real version of
+"sponsor a user's gas" needs either a funded operational hot wallet this app's backend
+would custody (real capital, real key-security decisions) or a real third-party paymaster
+account (Biconomy/Pimlico — signup + API key only the user/business can obtain). Building
+a "Deposit" button without either in place would be either non-functional or actively
+unsafe (accepting real deposits with no operational plan). Documented as blocked-not-
+started in `PLAN.md`, not silently dropped.
+
+**ClickPay** — `/pay/create` generates a shareable invoice (`payment_links` table,
+migration `0019_payment_links.sql`); `/pay/[id]` lets anyone pay it from whatever native
+currency they hold on Solana or any connected EVM chain. The core mechanic — "deliver
+EXACTLY $100 USDC, solve for how much SOL that costs" — needed no new engine capability,
+just exact-output quoting this app's two engines already support:
+- **Jupiter**: `swapMode=ExactOut` on `/quote`, confirmed live (100 USDC solved for a real
+  1.313582633 SOL). Added as an optional param to `getJupiterQuote`
+  (`lib/chains/jupiter.ts`), default unchanged (`ExactIn`) for every existing caller.
+- **Relay**: `getRelayCallQuote` (`lib/chains/relay.ts`) already IS the exact-output path
+  — built for OpenSea NFT purchases, and its own doc comment already states ClickPay's
+  exact guarantee ("only ever delivers a plain token amount to `recipient`"). Also
+  confirmed live that it supports SAME-chain exact-output (not just cross-chain) — a real
+  Base ETH→exact-1-USDC quote succeeded, needed for a same-chain-EVM ClickPay payment.
+- A ClickPay payment is a normal `swap_quotes` row (new nullable `payment_link_id`
+  column) whose destination terms come from the invoice instead of the payer — so
+  `/api/swap`, `/api/swap/confirm`, `/api/bridge`, `/api/bridge/confirm` needed **zero**
+  new code.
+- Scoped to native-currency payment sources only for v1 (same reasoning as BTC's
+  SOL/ETH-only scoping) — an arbitrary SPL/ERC20 source would need a second exact-output
+  hop chained backward from Relay's required origin amount, real but unproven anywhere in
+  this app yet. No webhooks, no custom handles (`click.pay/alex`) — both real, separate
+  infrastructure, logged as follow-up.
+
+**Real bug found and fixed while building this** (`lib/client/executeSwapFlow.ts`):
+`needsLeg2` for a non-Solana origin was computed as `isCrossChain || params.destChainId
+!== params.sourceChainId` — literally `isCrossChain || isCrossChain`, always false for a
+same-chain trade. This meant **any same-chain EVM trade through this function silently
+reported "done" without ever calling `/api/bridge` to build/sign the real Relay
+transaction** — nothing was actually swapped, but the UI showed success. This function
+is shared by the Dust Sweeper and Portfolio Baskets (shipped earlier this session) — a
+same-chain EVM dust sweep, or any basket leg landing on the same chain as the source
+token, would have hit this. Fixed to match `app/swap/SwapPageClient.tsx`'s own correct
+`needsRelayLeg2 = isCrossChain || !sellIsSolana` (leg2 needed for any non-Solana origin,
+same-chain or not). Found only because ClickPay's same-chain-EVM case surfaced it during
+manual tracing — a reminder that a shared helper's edge cases don't announce themselves
+until a new caller exercises them differently. No live user reports of this yet (Dust
+Sweeper/Baskets are new enough that a same-chain-EVM trade combination may not have
+occurred in real use), but worth watching support/complaints for "swap said done but
+nothing happened" on those two features.
+
 ## 2026-08-08g — New game: Doggy Racing Chart ($DOGGY) + live token price/mcap on game pages
 
 Real user request — added `racing.eldoggy.com` (a memecoin-themed motocross game, terrain

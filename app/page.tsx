@@ -160,10 +160,10 @@ export default async function LandingPage() {
         </Reveal>
       )}
 
-      {/* Dust Sweeper + Portfolio Baskets promo (2026-08-08) — two
-          single-feature cards side by side once there were two of these to
-          promote, rather than stacking two full-width rows. */}
-      <Reveal className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+      {/* Dust Sweeper + Portfolio Baskets + ClickPay promo (2026-08-08) —
+          single-feature cards side by side once there were several of
+          these to promote, rather than stacking full-width rows. */}
+      <Reveal className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <Link
           href="/dust-sweeper"
           className="flex flex-col gap-2 rounded-2xl border border-hairline bg-surface p-6 shadow-sm transition-all hover:border-accent/40"
@@ -188,6 +188,19 @@ export default async function LandingPage() {
           </p>
           <span className="mt-1 self-start rounded-full bg-accent px-4 py-2 text-sm font-semibold text-accent-ink">
             Browse baskets →
+          </span>
+        </Link>
+        <Link
+          href="/pay/create"
+          className="flex flex-col gap-2 rounded-2xl border border-hairline bg-surface p-6 shadow-sm transition-all hover:border-accent/40"
+        >
+          <h2 className="font-display text-xl font-normal text-ink">⚡ ClickPay</h2>
+          <p className="text-sm text-ink-muted">
+            Create a payment link for the exact token and chain you want to receive — the payer sends whatever they
+            hold on any chain.
+          </p>
+          <span className="mt-1 self-start rounded-full bg-accent px-4 py-2 text-sm font-semibold text-accent-ink">
+            Create a link →
           </span>
         </Link>
       </Reveal>

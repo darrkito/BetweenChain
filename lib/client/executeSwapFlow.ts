@@ -48,10 +48,6 @@ export async function executeSwapFlow(
   wallets: SwapFlowWallets,
   onProgress: (phase: SwapFlowPhase, message?: string) => void,
 ): Promise<{ swapId: string }> {
-  const { solanaPublicKey, signSolanaTransaction, connection, evmWallet } = wallets;
-  const sellIsSolana = params.sourceChainId === SOLANA_CHAIN_ID_CLIENT;
-  const isCrossChain = params.destChainId !== params.sourceChainId;
-
   onProgress("quoting");
   const quoteRes = await fetch("/api/quote", {
     method: "POST",
@@ -60,6 +56,29 @@ export async function executeSwapFlow(
   });
   if (!quoteRes.ok) throw new Error((await quoteRes.json()).error ?? "Quote failed");
   const { quoteId } = await quoteRes.json();
+
+  return executeQuotedSwap({ quoteId, sourceChainId: params.sourceChainId, destChainId: params.destChainId }, wallets, onProgress);
+}
+
+/**
+ * The leg1_signing-onward tail of executeSwapFlow, pulled out so a caller
+ * that already created its own swap_quotes row through a DIFFERENT quote
+ * endpoint (2026-08-08, ClickPay — app/api/pay/[id]/quote creates a quote
+ * with invoice-fixed destination terms instead of caller-supplied ones)
+ * doesn't have to duplicate the sign/poll sequence a second time. Every
+ * step from here on is already quote-id-generic — the /api/swap,
+ * /api/swap/confirm, /api/bridge, /api/bridge/confirm routes don't care
+ * which endpoint created the quote they're consuming.
+ */
+export async function executeQuotedSwap(
+  params: { quoteId: string; sourceChainId: number; destChainId: number },
+  wallets: SwapFlowWallets,
+  onProgress: (phase: SwapFlowPhase, message?: string) => void,
+): Promise<{ swapId: string }> {
+  const { solanaPublicKey, signSolanaTransaction, connection, evmWallet } = wallets;
+  const { quoteId, sourceChainId, destChainId } = params;
+  const sellIsSolana = sourceChainId === SOLANA_CHAIN_ID_CLIENT;
+  const isCrossChain = destChainId !== sourceChainId;
 
   onProgress("leg1_signing");
   const swapRes = await fetch("/api/swap", {
@@ -94,7 +113,21 @@ export async function executeSwapFlow(
     }
     needsLeg2 = isCrossChain;
   } else if (status === "leg1_confirmed") {
-    needsLeg2 = isCrossChain || params.destChainId !== params.sourceChainId;
+    // Real bug found 2026-08-08 (ClickPay same-chain-EVM payments surfaced
+    // it): this used to be `isCrossChain || params.destChainId !==
+    // params.sourceChainId` — literally `isCrossChain || isCrossChain`,
+    // always false for a same-chain trade regardless of origin. Reached
+    // whenever a non-Solana origin's /api/swap call returns
+    // `unsignedTransaction: null` (true for EVERY EVM origin — no Jupiter
+    // leg ever exists there — see that route's own doc), which for a
+    // same-chain EVM trade (isCrossChain false) meant this silently
+    // reported "done" WITHOUT ever calling /api/bridge to build/sign the
+    // real Relay swap transaction — nothing was actually swapped. Matches
+    // app/swap/SwapPageClient.tsx's own correct `needsRelayLeg2 =
+    // isCrossChain || !sellIsSolana` now: leg2 is needed for any
+    // non-Solana origin, same-chain or not — only same-chain Solana never
+    // needs it (Jupiter alone already delivered the correct token there).
+    needsLeg2 = isCrossChain || !sellIsSolana;
   } else {
     onProgress("done");
     return { swapId };

@@ -940,6 +940,28 @@ export function SwapPageClient() {
         </span>
       </Link>
 
+      <Link
+        href="/pay/create"
+        className="mx-auto flex w-full max-w-lg items-center gap-4 rounded-2xl border border-hairline bg-surface p-4 shadow-sm transition-all hover:border-accent/40 hover:shadow-md"
+      >
+        <span
+          aria-hidden="true"
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-accent-soft text-xl"
+        >
+          ⚡
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-sm font-semibold text-ink">Get paid in exactly what you want</span>
+          <span className="block text-xs text-ink-faint">
+            Create a ClickPay link — the payer sends whatever they hold, you receive the exact token and chain you
+            asked for.
+          </span>
+        </span>
+        <span className="shrink-0 rounded-full bg-accent px-3 py-1.5 text-xs font-semibold text-accent-ink">
+          Create link →
+        </span>
+      </Link>
+
       {/*
         Real gap fixed 2026-08-03: clicking "Swap" used to go straight from
         input to a wallet-signature prompt with zero review — no rate, no

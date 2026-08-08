@@ -120,6 +120,15 @@ export async function getJupiterQuote(params: {
   destinationMint?: string;
   amount: string;
   slippageBps: number;
+  // 2026-08-08 (ClickPay) — Jupiter's real, live-verified `swapMode`
+  // param: "ExactIn" (default, every existing caller) treats `amount` as
+  // the source amount to spend; "ExactOut" treats it as the exact
+  // destination amount to deliver and solves for how much source is
+  // needed — confirmed live (100 USDC exact-out solved for a real
+  // 1.313582633 SOL). Needed for ClickPay's same-chain-Solana leg ("pay
+  // exactly what this invoice asks for"); every other existing call site
+  // omits this and keeps its current ExactIn behavior unchanged.
+  swapMode?: "ExactIn" | "ExactOut";
 }): Promise<JupiterQuote> {
   const { sourceMint, amount, slippageBps } = params;
   const destinationMint = params.destinationMint ?? NATIVE_SOL_MINT;
@@ -133,6 +142,7 @@ export async function getJupiterQuote(params: {
   url.searchParams.set("outputMint", destinationMint);
   url.searchParams.set("amount", amount);
   url.searchParams.set("slippageBps", String(slippageBps));
+  if (params.swapMode) url.searchParams.set("swapMode", params.swapMode);
   // No fee charged on this leg until JUPITER_FEE_ACCOUNT is set (requires a
   // one-time wrapped-SOL token account created via referral.jup.ag — see
   // lib/fees.ts). Quote and swap must agree on this or Jupiter rejects the

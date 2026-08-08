@@ -348,6 +348,34 @@ confirms existing protections still hold, a few new items below.
 - **One stale entry corrected**: see "Known open gaps" #3 below — EVM checksum
   validation was already fixed in a prior session but this file still listed it as open.
 
+## 2026-08-08h — ClickPay + a real correctness bug found while building it
+
+**ClickPay** (`/pay/[id]`, `/pay/create`) reuses the exact same quote-binding guarantee
+every other flow in this app relies on: `payment_links.dest_address` is set once at
+creation and read directly from the DB row at quote time — never re-derived from
+anything a payer supplies — so there's no scenario where a payer's request could redirect
+funds anywhere other than the invoice's own fixed address. A ClickPay quote is a normal
+`swap_quotes` row (see migration `0019`), so it inherits every existing protection that
+table's rows already have (single-use `consumed_at`, session-scoped `user_id`, 30s
+expiry) with zero new code needed on the execution side.
+
+**Real correctness bug found and fixed** (not a security vulnerability in the classic
+sense — no funds were ever misdirected — but a real "reports success when it didn't
+happen" defect in shared money-moving code): `lib/client/executeSwapFlow.ts`'s
+`needsLeg2` computation for a non-Solana origin was `isCrossChain || params.destChainId
+!== params.sourceChainId` — both terms are the same expression, so the check was always
+just `isCrossChain`, silently `false` for any SAME-chain non-Solana trade. Since an EVM
+origin's `/api/swap` call always returns `unsignedTransaction: null` (no Jupiter leg
+exists for that origin), this path was reached for every same-chain EVM trade through
+this function and reported `"done"` without ever calling `/api/bridge` to build/sign the
+real Relay transaction. This function is shared by the Dust Sweeper and Portfolio
+Baskets (both shipped earlier the same session) — a same-chain-EVM dust sweep, or any
+basket allocation landing on the same chain as the sell token, would have silently no-
+opped while showing success. Fixed to match `app/swap/SwapPageClient.tsx`'s own correct
+`needsRelayLeg2 = isCrossChain || !sellIsSolana`. Flagged here rather than only in
+`STATE.md` because of the blast radius (two already-shipped, money-moving features) —
+worth watching for "said done but nothing happened" reports on either feature.
+
 ## 2026-08-08d — Security review of Dust Sweeper + Bitcoin swap-widget integration
 
 User-requested review after two feature passes in the same session: the Dust Sweeper

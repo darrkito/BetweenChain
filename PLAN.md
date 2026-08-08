@@ -414,6 +414,26 @@ actually active outside local dev.
 
 ## Not yet scheduled
 
+- **Universal Gas Tank — blocked, not started.** Real user pitch (custodial pre-paid gas
+  balance, sponsored via paymasters). Every real implementation path needs one of: (a) a
+  funded operational hot wallet this app's backend would custody on each sponsored chain
+  (Solana fee-payer keypair, Sui gas-owner keypair — both real, standard sponsored-tx
+  mechanisms, but real capital + key-security decisions, not something to spin up
+  unilaterally), or (b) a real third-party paymaster account (Biconomy/Pimlico for the
+  EVM chains) requiring signup + API keys only the user/business can obtain. Building the
+  UI without either in place would ship either a non-functional button or, worse, a real
+  deposit-accepting flow with no operational plan for the funds. Not started until one of
+  those prerequisites exists.
+
+- **ClickPay follow-ups** (`/pay`, shipped 2026-08-08h) — v1 is native-currency payment
+  sources only (SOL, or the connected EVM chain's own native token). Real, separate
+  follow-ups: (1) arbitrary SPL/ERC20 payment sources — needs a second exact-output hop
+  chained backward from Relay's required origin amount, real but unproven anywhere in
+  this app; (2) webhook delivery (signing, retries, a registration UI) for the pitch's
+  "automated e-commerce status updates" use case; (3) custom payment handles
+  (`click.pay/alex`) — needs a username-registration system that doesn't exist in any
+  form today.
+
 - **Portfolio Baskets — custom baskets + shareable creator links (Stage 3)** — Stage 1+2
   (`/basket`, 2 curated baskets, full execution flow via `executeSwapFlow()`) shipped
   2026-08-08e. Deferred: a build-your-own-allocation flow with a stateless,
