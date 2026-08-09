@@ -28,7 +28,11 @@ Every "blocked" item below is blocked for a *named, specific* reason, not vague 
 
 ---
 
-## 1. GhostSwap — trivial–easy
+## 1. GhostSwap — trivial–easy — ✅ SHIPPED 2026-08-09
+
+`lib/client/generateFreshWallet.ts` + `app/components/SwapPanel.tsx` — client-side
+Solana/EVM keypair generation, private key shown once, never sent to the server. Blog
+post: `content/blog/ghostswap-privacy-shielded-delivery.mdx`.
 
 ### Real infra found
 Nothing new needed. This app's EXISTING cross-chain swap already works exactly the way the

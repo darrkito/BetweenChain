@@ -1,0 +1,34 @@
+---
+title: "GhostSwap: Deliver a Swap to a Fresh, Unlinked Wallet"
+description: "Break the direct on-chain link between your wallets — swap from your main wallet and deliver to a brand-new address you generate in one click, without ever trusting this app with the private key."
+date: "2026-08-09"
+category: "Guides"
+chains:
+  - "solana"
+  - "ethereum"
+  - "base"
+mentions: ["GhostSwap"]
+faq:
+  - question: "Does this make my transaction anonymous?"
+    answer: "No — it breaks the DIRECT on-chain link between your source and destination wallets. Timing and amount correlation (the same clustering techniques tools like Chainalysis or Arkham use) can still probabilistically connect the two. Treat this as breaking the obvious link, not full anonymity."
+  - question: "Where is the private key stored?"
+    answer: "Nowhere but your own screen, once. It's generated entirely in your browser and shown to you exactly one time — Blockchains.Click never sees it, stores it, or transmits it anywhere. Save it yourself before using the address."
+  - question: "How is this different from a normal cross-chain swap?"
+    answer: "Technically, nothing new — every cross-chain swap on this app already delivers from Relay's own solver inventory on the destination chain, not a direct wallet-to-wallet transfer. GhostSwap is that same mechanism, paired with a one-click fresh-address generator instead of pasting in an address you already control."
+  - question: "Does this app screen deposits for compliance?"
+    answer: "No — Blockchains.Click doesn't run any compliance/sanctions screening on swap inputs. Don't assume this feature implies any such check exists."
+---
+
+Every cross-chain swap already delivers to whatever address you specify, from a solver's own inventory rather than a direct wallet-to-wallet transfer. GhostSwap is that same real mechanism, paired with a one-click way to generate a brand-new destination address you've never used before.
+
+<QuickFacts items='["Generates a fresh Solana or EVM wallet entirely in your browser — nothing sent to Blockchains.Click, ever", "The private key is shown to you exactly once — save it yourself, there is no recovery", "Breaks the DIRECT on-chain link between your source and destination wallets", "Not full anonymity — timing/amount correlation can still probabilistically connect the two addresses"]' />
+
+## How it works
+
+Pick your source token and chain as normal, then on the destination side, click "Generate a fresh, unlinked wallet" instead of pasting an address. A real keypair is generated locally in your browser (Solana or EVM, matching your destination chain) — the address is shown immediately, and the private key once, with a checkbox confirming you've saved it before it's usable. Once confirmed, your swap delivers there like any other cross-chain swap.
+
+## What this actually protects against
+
+Block explorers and analytics tools build wallet-linkage graphs primarily off direct transfers between addresses. A swap that lands funds on a brand-new address, sourced from a solver's inventory rather than a direct hop from your main wallet, doesn't create that obvious edge in the graph. It's genuinely useful for keeping a fresh position from being immediately associated with a wallet you're known to hold — but it's not a substitute for real privacy tooling if that's your actual threat model. Sophisticated analysis can still correlate transactions by timing and amount even without a direct on-chain link.
+
+[Try a swap](/swap) — the fresh-wallet option appears once you pick a cross-chain destination.

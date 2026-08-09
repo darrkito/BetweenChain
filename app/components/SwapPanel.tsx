@@ -9,6 +9,7 @@ import type { TokenListItem } from "@/lib/chains/types";
 import { chainBrandColor } from "@/lib/chainBrandColors";
 import { RoutePathVisualizer } from "@/app/components/RoutePathVisualizer";
 import { BTC_CHAIN_ID } from "@/lib/chains/swapChains";
+import { generateFreshSolanaWallet, generateFreshEvmWallet, type FreshWallet } from "@/lib/client/generateFreshWallet";
 
 const SOLANA_CHAIN_ID = 792703809;
 const ETHEREUM_CHAIN_ID = 1;
@@ -169,6 +170,8 @@ export function SwapPanel({
     null,
   );
   const [previewLoading, setPreviewLoading] = useState(false);
+  const [freshWallet, setFreshWallet] = useState<FreshWallet | null>(null);
+  const [freshWalletSaved, setFreshWalletSaved] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
 
   // Same-token exclusion (2026-08-06, added alongside enabling same-chain
@@ -372,6 +375,70 @@ export function SwapPanel({
                   Use my connected {buyToken?.chainDisplayName} wallet ({shortenAddress(ownDestAddress)}) instead
                 </button>
               ))}
+
+            {/* GhostSwap (2026-08-09) — a brand-new, unlinked destination
+                wallet generated entirely client-side (see
+                lib/client/generateFreshWallet.ts). Delivering to a fresh
+                address the payer never controlled before breaks the
+                DIRECT on-chain link to the source wallet, since the funds
+                arrive from Relay's own solver inventory, not a traceable
+                transfer between the two addresses — it does not make the
+                transaction untraceable outright (timing/amount
+                correlation can still connect them), so the copy below is
+                deliberately worded that way. */}
+            {buyToken && !freshWallet && (
+              <button
+                type="button"
+                onClick={() => {
+                  const wallet = buyToken.chainId === SOLANA_CHAIN_ID ? generateFreshSolanaWallet() : generateFreshEvmWallet();
+                  setFreshWallet(wallet);
+                  setFreshWalletSaved(false);
+                }}
+                className="mt-1 w-fit text-[11px] font-medium text-accent hover:underline"
+              >
+                👻 Generate a fresh, unlinked wallet instead
+              </button>
+            )}
+            {freshWallet && (
+              <div className="mt-2 flex flex-col gap-2 rounded-lg border border-hairline bg-surface-hover p-2.5 text-[11px]">
+                <p className="text-ink-muted">
+                  New address — breaks the direct on-chain link to your source wallet. This is not shown again; save the private
+                  key now or you&apos;ll lose access to it.
+                </p>
+                <div className="flex flex-col gap-1">
+                  <span className="text-ink-faint">Address</span>
+                  <span className="num break-all text-ink">{freshWallet.address}</span>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <span className="text-ink-faint">Private key — save this now, never shared with this app</span>
+                  <span className="num break-all text-danger">{freshWallet.privateKey}</span>
+                </div>
+                <label className="flex items-center gap-1.5 text-ink-muted">
+                  <input type="checkbox" checked={freshWalletSaved} onChange={(e) => setFreshWalletSaved(e.target.checked)} />
+                  I&apos;ve saved the private key somewhere safe
+                </label>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    disabled={!freshWalletSaved}
+                    onClick={() => {
+                      onDestAddressChange(freshWallet.address);
+                      setFreshWallet(null);
+                    }}
+                    className="rounded-lg bg-accent px-2 py-1 font-semibold text-accent-ink disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    Use this address
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFreshWallet(null)}
+                    className="rounded-lg border border-hairline px-2 py-1 font-medium text-ink-muted"
+                  >
+                    Discard
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
