@@ -4310,3 +4310,30 @@ if cumulative fills are on pace to exceed the original buffer — v1 relies on t
 buffer being generous enough for most schedules; a schedule that drifts further than that
 falls back to the manual delivery flow for the excess, same recovery path as a
 better-than-expected limit-order fill.
+
+## 2026-08-09b — Real pre-existing bug found: Next.js image optimization broken since 2026-08-04
+
+Found while investigating the user's "build has errors" report — turned out unrelated to
+today's Trigger Order delivery work. Vercel's own runtime error tracker
+(`get_runtime_errors`) showed 50+ error groups, all `Error: Cannot find module
+'./.next/server/pages/_next/image.js'` on route `/api/img`, first seen **2026-08-04**
+(predates every change this session) and recurring on every single deployment since,
+including ones with zero image-related code changes — a genuine platform-level bug, not
+an application bug.
+
+Root cause: Next.js 16 defaults `next build` to Turbopack (confirmed —
+`bundler: "turbopack"` on every deployment's metadata even though `package.json` never
+requested it). Vercel's builder synthesizes a special `pages/_next/image.js` lambda
+module on top of `next build`'s output to serve `/_next/image` (Next's built-in image
+optimizer, which `next.config.ts`'s `localPatterns: [{ pathname: "/api/img" }]` routes
+through for every NFT/token image on the site) — with Turbopack's build output, that
+synthesis was failing, so every optimized image request 500'd in production while
+working fine in local `next dev`.
+
+**Fix**: `package.json`'s `build` script changed to `next build --webpack` — Next's
+mature, pre-16-default bundler, unaffected by this Turbopack-specific packaging gap.
+Verified clean locally (`tsc`/`lint`/`test`/`build` all pass, build banner confirms
+`▲ Next.js 16.3.0 (webpack)`). **Cannot verify the actual fix locally** — the
+`pages/_next/image.js` file is synthesized by Vercel's own platform builder on deploy,
+not present in any local `next build` output regardless of bundler — confirmed only by
+re-checking `get_runtime_errors` after this deploys.
