@@ -31,6 +31,7 @@ const NAV: Array<{ href: string; label: string; shortLabel?: string }> = [
   { href: "/basket", label: "Portfolio Baskets", shortLabel: "Baskets" },
   { href: "/pay/create", label: "ClickPay", shortLabel: "Pay" },
   { href: "/orders", label: "Trigger Orders", shortLabel: "Orders" },
+  { href: "/evac", label: "Evac Engine", shortLabel: "Evac" },
   { href: "/dashboard", label: "Rewards" },
 ];
 

@@ -106,7 +106,15 @@ already has.
 
 ---
 
-## 3. Evac Engine — medium (v1 scoped to manual, no auto-triggers)
+## 3. Evac Engine — medium (v1 scoped to manual, no auto-triggers) — ✅ SHIPPED 2026-08-09
+
+`/evac` (`app/evac/EvacClient.tsx`) — scans real (non-dust-capped) balances and evacuates
+selected holdings to a safe-haven address via `executeSwapFlow`, plus a standalone
+`approve(spender, 0)` revoke tool for a known token/spender. Refined during build: real
+automatic approval DISCOVERY needs a paid indexer (Alchemy/Covalent/Etherscan) this
+session has no credentials for — same category of blocker as prior features — so v1
+points users to revoke.cash for discovery and handles execution only. LP/lending
+unwind and auto-triggers remain real, scoped follow-ups.
 
 ### Real infra found
 - Approval revocation is standard: `approve(spender, 0)` (legacy) or Permit2's own revoke
