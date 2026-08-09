@@ -799,3 +799,12 @@ actually active outside local dev.
 - **Trigger Orders for arbitrary (non-SOL) Solana input tokens sold cross-chain**,
   webhook/push notification when a Trigger Order fills (currently the user must revisit
   `/orders` to see fill status and trigger delivery) — real, scoped follow-ups.
+
+## Safety & Discovery feature batch (2026-08-09) — see PLAN_SAFETY_DISCOVERY_FEATURES.md
+
+Seven pitches researched and ranked (GhostSwap, OmniDust Vacuum, Evac Engine, Airdrop
+Radar, Sentinel Shield, Burner Shield, Estate Shield) — full analysis, real infra found
+(Permit2, Drops.bot's real airdrop API, Aave's real health-factor read, Sarcophagus as a
+data-only precedent, ERC-4337 provider landscape), and a recommended easiest→hardest
+build order live in `PLAN_SAFETY_DISCOVERY_FEATURES.md`. Nothing in that batch is
+implemented yet — planning only, awaiting a build-order decision.
