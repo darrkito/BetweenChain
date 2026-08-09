@@ -148,7 +148,13 @@ unwind and auto-triggers remain real, scoped follow-ups.
 
 ---
 
-## 4. Airdrop Radar — medium–hard
+## 4. Airdrop Radar — medium–hard — ⏸️ BLOCKED, skipped 2026-08-09
+
+Confirmed at build time: Drops.bot's API key isn't self-serve (their docs say to contact
+them on Twitter/X for one) — a real external dependency this session can't obtain, same
+category as Universal Gas Tank's paymaster blocker. User explicitly chose to skip this
+and continue to the next feature rather than ship an inert scaffold. Revisit once a
+`DROPS_BOT_API_KEY` exists.
 
 ### Real infra found
 - **Drops.bot has a real API** (`api.drops.bot/shared`, `x-api-key` header, key obtained by
@@ -181,7 +187,12 @@ unwind and auto-triggers remain real, scoped follow-ups.
 
 ---
 
-## 5. Sentinel Shield — medium–hard, read-only v1 strongly recommended
+## 5. Sentinel Shield — medium–hard, read-only v1 strongly recommended — ✅ SHIPPED 2026-08-09
+
+`/sentinel-shield` — Aave v3 `getUserAccountData()` across Ethereum/Arbitrum/Base
+(`lib/aave/healthFactor.ts`). Pool addresses live-verified via direct `eth_call` before
+hardcoding (not trusted from search results alone). Read-only, exactly as recommended —
+no auto-repay. Kamino/Navi and automated action remain real, scoped follow-ups.
 
 ### Real infra found
 - Aave v3 `getUserAccountData()` — confirmed, trivial, free, real-time health factor.
