@@ -45,6 +45,22 @@ function inMemoryCached<T>(key: string, ttlMs: number, fetcher: () => Promise<T>
   });
 }
 
+// Next.js's own `fetch()` (patched in the App Router to track per-request
+// dynamic-usage) is what Upstash's REST client calls under the hood — so a
+// `cached()` call made during static generation of a route that hasn't
+// opted into dynamic rendering can have Next throw its OWN internal
+// `DynamicServerError` (digest "DYNAMIC_SERVER_USAGE") from inside
+// `redis.get`/`redis.set`. That's not a real Redis failure — it's Next's
+// control-flow signal telling the framework "this route must be dynamic,
+// stop trying to prerender it." Swallowing it here (2026-08-09, real bug
+// found live via a "Redis GET failed" log that was actually this) would
+// hide that signal from Next entirely, silently breaking correct
+// static/dynamic route classification. Must always rethrow it, never
+// treat it as a cache miss.
+function isDynamicServerUsageError(e: unknown): boolean {
+  return typeof e === "object" && e !== null && "digest" in e && (e as { digest?: unknown }).digest === "DYNAMIC_SERVER_USAGE";
+}
+
 export async function cached<T>(key: string, ttlMs: number, fetcher: () => Promise<T>): Promise<T> {
   warnIfMissingRedisInProduction("cache");
   if (!redis) {
@@ -59,6 +75,7 @@ export async function cached<T>(key: string, ttlMs: number, fetcher: () => Promi
       return hit;
     }
   } catch (e) {
+    if (isDynamicServerUsageError(e)) throw e;
     console.warn(`[cache] Redis GET failed for "${key}", treating as a miss:`, e);
   }
 
@@ -68,6 +85,7 @@ export async function cached<T>(key: string, ttlMs: number, fetcher: () => Promi
     const ttlSeconds = Math.max(1, Math.round(ttlMs / 1000));
     await redis.set(redisKey, data, { ex: ttlSeconds });
   } catch (e) {
+    if (isDynamicServerUsageError(e)) throw e;
     console.warn(`[cache] Redis SET failed for "${key}", value was still returned but not cached:`, e);
   }
 
