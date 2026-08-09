@@ -53,6 +53,9 @@ export async function GET() {
       cycleFrequencySeconds: row.cycle_frequency_seconds,
       destChainId: row.dest_chain_id,
       destAddress: row.dest_address,
+      deliveryStatus: row.delivery_status as "manual" | "pending" | "delivering" | "delivered" | "failed",
+      deliveryTxSignature: row.delivery_tx_signature,
+      deliveryError: row.delivery_error,
       createdAt: row.created_at,
       jupiterStatus:
         (row.kind === "limit" ? triggerStatusByKey.get(row.jupiter_order_pubkey) : recurringStatusByKey.get(row.jupiter_order_pubkey)) ?? "unknown",

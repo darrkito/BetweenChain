@@ -508,3 +508,46 @@ Any future capital-custody or automated-trading-agent product (mentioned in the 
 spec as a "someday" idea — users locking funds for bots to trade) is **not** covered by
 this threat model at all. That is a fundamentally higher-risk product surface and needs
 its own security review before any code for it is written.
+
+## 2026-08-09 — Trigger Order relayer: this app's first backend-held signing key
+
+Fully-unattended cross-chain delivery for Trigger Orders (`/orders`) required crossing a
+real line this app had never crossed before: the backend now holds a Solana keypair
+(`RELAYER_SOLANA_SECRET_KEY`) capable of signing and submitting transactions without a
+live user request. This is explicitly the kind of "capital-custody" surface flagged above
+as needing its own review before any code was written — this entry is that review.
+
+**What the relayer key can do**: submit an SPL `transferChecked` using DELEGATE authority
+(never owner authority) on a user's own associated token account, up to whatever amount
+that specific user explicitly approved via an on-chain `approve` instruction they signed
+themselves at order-creation time (`lib/relayer/delegateApproval.ts`). It then signs its
+own cross-chain swap/bridge transactions using tokens it has legitimately received via
+that transfer. It is never given, and cannot obtain, general signing authority over any
+user's wallet — SPL enforces the delegated-amount ceiling on-chain, independent of
+anything this app's server-side code does or doesn't do correctly.
+
+**What the relayer key CANNOT do**: move any token a user hasn't explicitly delegated, or
+move more than the delegated amount (enforced by the SPL token program itself, not by
+application logic — even a compromised relayer key or a bug in `deliverOrder.ts` cannot
+exceed the on-chain-recorded `delegatedAmount`). It also cannot spend a user's SOL, close
+their accounts, or touch any token they haven't specifically approved for automatic
+delivery.
+
+**Real residual risk, stated plainly**: a leaked `RELAYER_SOLANA_SECRET_KEY` lets an
+attacker submit relayer-signed transactions against whatever delegated allowances happen
+to be outstanding at that moment, and drain the relayer's own SOL gas balance. Mitigation
+is operational, not code: keep the relayer's SOL balance minimal (top up regularly rather
+than pre-funding heavily — see `.env.example`'s note), and rotate the key immediately if
+ever suspected exposed. The `app/api/cron/deliver-orders` route is a new trust boundary
+that acts without a live user request — authenticated only by Vercel's own signed cron
+header (`CRON_SECRET`), no additional anomaly/rate limiting in v1 (call volume is
+inherently bounded by real pending orders; logged as a real, scoped gap, not silently
+accepted).
+
+**Scope boundary vs. the "explicitly out of scope" note below**: this is deliberately
+narrower than the "capital-custody or automated-trading-agent product" the note below
+warns about — the relayer never holds funds at rest (it pulls, swaps, and forwards in one
+pass, per order, never accumulating a balance beyond transient in-flight amounts) and
+never has discretionary trading authority (it only ever executes the exact delivery a
+user already configured, never makes a decision). A true custodial vault or trading-agent
+product is still out of scope and still needs its own review before any code is written.

@@ -3,6 +3,9 @@ import { z } from "zod";
 import { requireSolanaSession, SessionError } from "@/lib/auth/session";
 import { supabaseAdmin } from "@/lib/supabase/server";
 import { createTriggerOrder, createRecurringOrder } from "@/lib/chains/jupiterTrigger";
+import { getJupiterQuote } from "@/lib/chains/jupiter";
+import { buildDelegateApprovalTransaction } from "@/lib/relayer/delegateApproval";
+import { sizeLimitDelegateAmount, sizeDcaDelegateAmount } from "@/lib/relayer/delegateSizing";
 import { isPlausibleEvmAddress } from "@/lib/validation";
 import { SOLANA_CHAIN_ID } from "@/lib/chains/relay";
 import { rateLimit, clientKey } from "@/lib/rate-limit";
@@ -92,6 +95,35 @@ export async function POST(req: Request) {
       });
     }
 
+    // Fully-unattended delivery (2026-08-09): size and build the delegate
+    // approval when a cross-chain destination is set. Any failure here
+    // (relayer not configured, quote failure) falls back to `delivery_status:
+    // 'manual'` — the order itself is never blocked by this, since the
+    // manual "Deliver now" flow always works regardless.
+    let delegateAmount: bigint | null = null;
+    let delegateTransaction: string | null = null;
+    const wantsAutoDelivery = input.destChainId !== undefined && input.destChainId !== SOLANA_CHAIN_ID;
+    if (wantsAutoDelivery) {
+      try {
+        if (input.kind === "limit") {
+          delegateAmount = sizeLimitDelegateAmount(input.takingAmount);
+        } else {
+          const estimate = await getJupiterQuote({ sourceMint: input.inputMint, destinationMint: input.outputMint, amount: input.inAmount, slippageBps: 100 });
+          delegateAmount = sizeDcaDelegateAmount(estimate.outAmount);
+        }
+        const built = await buildDelegateApprovalTransaction({
+          owner: wallet,
+          outputMint: input.outputMint,
+          outputDecimals: input.outputDecimals,
+          amountAtomic: delegateAmount,
+        });
+        delegateTransaction = built?.transaction ?? null;
+      } catch {
+        delegateAmount = null;
+        delegateTransaction = null;
+      }
+    }
+
     const db = supabaseAdmin();
     const { data: row, error } = await db
       .from("trigger_orders")
@@ -111,12 +143,14 @@ export async function POST(req: Request) {
         cycle_frequency_seconds: input.kind === "dca" ? input.intervalSeconds : null,
         dest_chain_id: input.destChainId ?? null,
         dest_address: input.destAddress ?? null,
+        delegate_amount: delegateTransaction ? delegateAmount!.toString() : null,
+        delivery_status: wantsAutoDelivery ? (delegateTransaction ? "pending" : "manual") : "manual",
       })
       .select("id")
       .single();
     if (error || !row) throw new Error(error?.message ?? "Failed to save order");
 
-    return NextResponse.json({ id: row.id, orderPubkey: unsigned.order, transaction: unsigned.transaction });
+    return NextResponse.json({ id: row.id, orderPubkey: unsigned.order, transaction: unsigned.transaction, delegateTransaction });
   } catch (err) {
     return safeErrorResponse("orders/create", err, 502);
   }

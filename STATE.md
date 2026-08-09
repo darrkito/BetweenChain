@@ -4265,3 +4265,37 @@ against the wallet's REAL current balance of that output token (fetched live via
 actual fill price can differ from the trigger price, and DCA accumulates across many
 fills). Real, non-custodial, just not zero-click. Multi-chain stop-loss *starting from* an
 EVM token, and "Bridge & Yield vaults", are not built — logged in `PLAN.md`.
+
+## 2026-08-09 — Fully-unattended cross-chain delivery for Trigger Orders
+
+Built on explicit user request, after asking them to choose the custody model (bounded
+SPL delegate approval, not a full-authority custodial wallet) — see `SECURITY.md`'s
+2026-08-09 entry for the full threat model.
+
+How it works: at order creation, if the user opts into cross-chain delivery, they sign a
+SECOND transaction (after the Jupiter order tx) — an SPL `approve` delegating a capped
+amount of the order's expected output to a relayer address this app's backend controls
+(`lib/relayer/delegateApproval.ts`). Sizing: limit orders delegate `takingAmount × 1.10`
+(Jupiter can fill better than the floor); DCA delegates `1.25×` a live quote estimate of
+the full schedule's expected output (no fixed output amount exists upfront for DCA). A
+new Vercel Cron job (`vercel.json`, every 5 minutes, `/api/cron/deliver-orders`) scans
+`trigger_orders` rows with `delivery_status = 'pending'`, and for each, `deliverOrder()`
+(`lib/relayer/deliverOrder.ts`) checks the REAL on-chain delegated balance (never a
+cached number) and, if there's something to move, pulls it via delegate authority and
+runs it through the same Relay quote+execute pipeline every other cross-chain swap in
+this app uses — just signed by the relayer's own key instead of a connected wallet.
+Delivers the destination chain's native currency (same scoping as the existing manual
+"Deliver now" flow).
+
+If `RELAYER_SOLANA_SECRET_KEY` is unset, order creation still succeeds — the delegate
+transaction is simply never built (`delivery_status` stays `'manual'`), and the existing
+one-click manual delivery flow is the fallback. **Deploying this only makes automatic
+delivery live once a real relayer wallet is generated and funded with SOL** — this
+session generated no such wallet (can't fabricate real funds); that's a real operational
+step outside of code, documented in `.env.example`.
+
+Deferred (logged, not silently dropped): re-approving a DCA order's delegation mid-schedule
+if cumulative fills are on pace to exceed the original buffer — v1 relies on the 25%
+buffer being generous enough for most schedules; a schedule that drifts further than that
+falls back to the manual delivery flow for the excess, same recovery path as a
+better-than-expected limit-order fill.

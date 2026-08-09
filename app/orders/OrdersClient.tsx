@@ -24,6 +24,9 @@ interface OrderRow {
   cycleFrequencySeconds: number | null;
   destChainId: number | null;
   destAddress: string | null;
+  deliveryStatus: "manual" | "pending" | "delivering" | "delivered" | "failed";
+  deliveryTxSignature: string | null;
+  deliveryError: string | null;
   createdAt: string;
   jupiterStatus: string;
   orderPubkey: string;
@@ -156,7 +159,26 @@ export function OrdersClient() {
       const signed = await signTransaction(tx);
       await connection.sendRawTransaction(signed.serialize());
 
-      setMessage(kind === "limit" ? "Limit order placed." : "DCA schedule started.");
+      // Fully-unattended delivery (2026-08-09): a second signature, ONLY
+      // when the server built a bounded delegate-approval transaction (it
+      // won't, if the relayer isn't configured — the order above still
+      // succeeds either way, delivery just falls back to the manual "Deliver
+      // now" flow in that case).
+      if (created.delegateTransaction) {
+        const delegateTx = VersionedTransaction.deserialize(Buffer.from(created.delegateTransaction, "base64"));
+        const signedDelegate = await signTransaction(delegateTx);
+        await connection.sendRawTransaction(signedDelegate.serialize());
+      }
+
+      setMessage(
+        kind === "limit"
+          ? created.delegateTransaction
+            ? "Limit order placed — will deliver automatically once filled."
+            : "Limit order placed."
+          : created.delegateTransaction
+            ? "DCA schedule started — will deliver automatically as it fills."
+            : "DCA schedule started.",
+      );
       setSellAmount("");
       setTargetPrice("");
       setDcaTotal("");
@@ -324,7 +346,7 @@ export function OrdersClient() {
 
           <label className="flex items-center gap-2 text-sm text-ink-muted">
             <input type="checkbox" checked={deliverCrossChain} onChange={(e) => setDeliverCrossChain(e.target.checked)} />
-            Deliver to another chain once filled (requires one click after fill)
+            Deliver to another chain once filled — automatic where available, otherwise one click after fill
           </label>
           {deliverCrossChain && (
             <div className="flex flex-wrap gap-2">
@@ -357,8 +379,10 @@ export function OrdersClient() {
           {loadingOrders && <p className="text-sm text-ink-faint">Loading…</p>}
           {!loadingOrders && orders.length === 0 && <p className="text-sm text-ink-faint">No orders yet.</p>}
           {orders.map((o) => {
-            const filled = o.jupiterStatus.toLowerCase() === "completed" && o.destChainId && o.destChainId !== SOLANA_CHAIN_ID_CLIENT;
+            const isCrossChain = Boolean(o.destChainId && o.destChainId !== SOLANA_CHAIN_ID_CLIENT);
+            const filled = o.jupiterStatus.toLowerCase() === "completed" && isCrossChain;
             const phase = deliverPhase[o.id];
+            const orderDestChain = o.destChainId ? swapChainForChainId(o.destChainId) : null;
             return (
               <div key={o.id} className="flex flex-col gap-2 rounded-xl border border-hairline bg-surface p-3 text-sm">
                 <div className="flex items-center justify-between">
@@ -367,13 +391,23 @@ export function OrdersClient() {
                   </span>
                   <span className="text-xs text-ink-faint">{o.jupiterStatus}</span>
                 </div>
-                {filled && (
+
+                {isCrossChain && o.deliveryStatus !== "manual" && (
+                  <p className="text-xs text-ink-faint">
+                    {o.deliveryStatus === "pending" && `Waiting for fill — will auto-deliver to ${orderDestChain?.label ?? "destination"}.`}
+                    {o.deliveryStatus === "delivering" && "Delivering automatically…"}
+                    {o.deliveryStatus === "delivered" && `Delivered automatically to ${orderDestChain?.label ?? "destination"} ✅`}
+                    {o.deliveryStatus === "failed" && `Automatic delivery failed: ${o.deliveryError ?? "unknown error"}`}
+                  </p>
+                )}
+
+                {filled && (o.deliveryStatus === "manual" || o.deliveryStatus === "failed") && (
                   <button
                     onClick={() => deliverCrossChainNow(o)}
                     disabled={Boolean(phase) && phase !== "error"}
                     className="rounded-lg bg-accent-soft px-3 py-1.5 text-xs font-semibold text-accent"
                   >
-                    {phase && phase !== "error" ? "Delivering…" : `Deliver to ${destChain.label} now`}
+                    {phase && phase !== "error" ? "Delivering…" : `Deliver to ${orderDestChain?.label ?? destChain.label} now`}
                   </button>
                 )}
                 {!filled && o.jupiterStatus.toLowerCase() !== "cancelled" && (

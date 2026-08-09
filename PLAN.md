@@ -787,12 +787,15 @@ actually active outside local dev.
   delivery case below. Not researched this pass.
 - **Cross-Chain "Bridge & Yield" Vaults** (part of the same pitch) — needs a real yield
   protocol integration (Aave, Ethena, etc.), not researched/verified.
-- **Fully-unattended cross-chain Trigger Order delivery** — Trigger Orders (`/orders`)
-  ships with a one-click "deliver to <chain> now" follow-up after a fill instead of
-  fully automatic bridging, because automatic bridging needs a custodial relayer wallet
-  or a delegated signing key with nobody present to sign — same blocker as Universal Gas
-  Tank. Unblocks the same way: either a funded operational wallet this app custodies, or
-  a real session-key/smart-account delegation mechanism, neither in place today.
+- ~~Fully-unattended cross-chain Trigger Order delivery~~ — **shipped 2026-08-09** via
+  bounded SPL delegate approval + a relayer service (`lib/relayer/*.ts`,
+  `app/api/cron/deliver-orders`). See `STATE.md`/`SECURITY.md`'s 2026-08-09 entries. Only
+  goes live once `RELAYER_SOLANA_SECRET_KEY` is set to a real, funded wallet — not
+  fabricated by this session.
+- **DCA delegation re-approval mid-schedule** — v1's 25% buffer is sized once at order
+  creation; a schedule whose price drifts further than that falls back to the manual
+  "Deliver now" flow for the excess rather than automatically re-approving a larger
+  amount partway through. Real, scoped follow-up if this turns out to bite in practice.
 - **Trigger Orders for arbitrary (non-SOL) Solana input tokens sold cross-chain**,
   webhook/push notification when a Trigger Order fills (currently the user must revisit
   `/orders` to see fill status and trigger delivery) — real, scoped follow-ups.
