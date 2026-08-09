@@ -4365,3 +4365,27 @@ one back to the same wallet. Deliberately extended the EXISTING `deliver-orders`
 route rather than adding a second `crons` entry, after today's earlier discovery that
 Vercel's Hobby plan silently blocks deployment on a second/sub-daily cron. Migration
 `0022_dust_sweep_authorizations.sql` applied to production.
+
+## 2026-08-09e — Header redesign: 12 flat nav items → 4 grouped dropdowns + Rewards
+
+Real user report: the header's nav had grown to 12 flat items across this session's
+feature pushes (Swap, NFTs, Radar, Games, Dust Sweeper, Baskets, ClickPay, Trigger
+Orders, Evac Engine, Sentinel Shield, Burner Shield, Rewards) and stopped fitting
+either desktop (wrapped into a messy second row) or mobile (shortLabels alone weren't
+enough). Regrouped `app/components/AppHeader.tsx`'s `NAV` into 4 labeled categories —
+**Trade** (Swap, ClickPay, Trigger Orders), **Portfolio** (Dust Sweeper, Baskets, Evac
+Engine), **Safety** (Sentinel Shield, Burner Shield), **Discover** (NFTs, Radar,
+Games) — plus Rewards standalone, matching the same "what job is this actually for"
+grouping `PLAN_SAFETY_DISCOVERY_FEATURES.md` already used.
+
+Desktop (`sm:` and up): each group is a button that opens a small anchored dropdown
+(closes on outside click, Escape, or route change). Mobile: the whole nav collapses
+into a single hamburger button opening a full-width overlay with every group listed as
+a labeled section — same visual language as `ConnectWalletMenu`'s existing modal
+pattern, not a new one. Social X link hidden below `sm` to make room (real tradeoff:
+not core functionality, still reachable via the footer/other pages).
+
+Could not visually verify in a browser (no browser automation tool available this
+session) — verified structurally only: `tsc`/`lint`/`test`/`build` all clean, same
+`sm:` breakpoint convention already established for the wordmark/wallet-button
+shrink behavior right next to it. Worth a live look once deployed.

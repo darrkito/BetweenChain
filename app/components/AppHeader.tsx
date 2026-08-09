@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -20,22 +21,206 @@ const PortfolioDrawer = dynamic(
   { ssr: false },
 );
 
-// 2026-08-05 (landing-page overhaul) — Swap moved off `/` (now the marketing
-// landing page) to its own /swap route.
-const NAV: Array<{ href: string; label: string; shortLabel?: string }> = [
-  { href: "/swap", label: "Token Swap", shortLabel: "Swap" },
-  { href: "/nft", label: "NFTs" },
-  { href: "/radar", label: "Meme Radar", shortLabel: "Radar" },
-  { href: "/games", label: "Games" },
-  { href: "/dust-sweeper", label: "Dust Sweeper", shortLabel: "Dust" },
-  { href: "/basket", label: "Portfolio Baskets", shortLabel: "Baskets" },
-  { href: "/pay/create", label: "ClickPay", shortLabel: "Pay" },
-  { href: "/orders", label: "Trigger Orders", shortLabel: "Orders" },
-  { href: "/evac", label: "Evac Engine", shortLabel: "Evac" },
-  { href: "/sentinel-shield", label: "Sentinel Shield", shortLabel: "Sentinel" },
-  { href: "/burner-shield", label: "Burner Shield", shortLabel: "Burner" },
-  { href: "/dashboard", label: "Rewards" },
+interface NavItem {
+  href: string;
+  label: string;
+  icon: string;
+}
+
+// 2026-08-09 (header redesign) — the flat NAV array grew to 12 items across
+// this session's feature pushes (Swap, NFTs, Radar, Games, Dust Sweeper,
+// Baskets, ClickPay, Trigger Orders, Evac Engine, Sentinel Shield, Burner
+// Shield, Rewards) and stopped fitting either desktop (12 pill buttons
+// wrapped into a messy second row) or mobile (shortLabels alone couldn't
+// save it — real user report, both surfaces). Regrouped into 4 labeled
+// dropdown categories + Rewards standalone, same "which real problem does
+// this feature solve" groupings used in PLAN_SAFETY_DISCOVERY_FEATURES.md:
+// trading, portfolio hygiene, wallet safety, and discovery are genuinely
+// different jobs a visitor comes here to do.
+const NAV_GROUPS: Array<{ label: string; icon: string; items: NavItem[] }> = [
+  {
+    label: "Trade",
+    icon: "⇄",
+    items: [
+      { href: "/swap", label: "Token Swap", icon: "⇄" },
+      { href: "/pay/create", label: "ClickPay", icon: "⚡" },
+      { href: "/orders", label: "Trigger Orders", icon: "⏱️" },
+    ],
+  },
+  {
+    label: "Portfolio",
+    icon: "🧺",
+    items: [
+      { href: "/dust-sweeper", label: "Dust Sweeper", icon: "🧹" },
+      { href: "/basket", label: "Portfolio Baskets", icon: "🧺" },
+      { href: "/evac", label: "Evac Engine", icon: "🚨" },
+    ],
+  },
+  {
+    label: "Safety",
+    icon: "🛡️",
+    items: [
+      { href: "/sentinel-shield", label: "Sentinel Shield", icon: "🛡️" },
+      { href: "/burner-shield", label: "Burner Shield", icon: "🛡️" },
+    ],
+  },
+  {
+    label: "Discover",
+    icon: "🧭",
+    items: [
+      { href: "/nft", label: "NFTs", icon: "🖼️" },
+      { href: "/radar", label: "Meme Radar", icon: "📡" },
+      { href: "/games", label: "Games", icon: "🎮" },
+    ],
+  },
 ];
+
+const STANDALONE: NavItem = { href: "/dashboard", label: "Rewards", icon: "🏆" };
+
+function groupIsActive(group: { items: NavItem[] }, pathname: string) {
+  return group.items.some((i) => pathname.startsWith(i.href));
+}
+
+/** Desktop-only dropdown for one nav group — a button that opens a small anchored panel, closes on outside click, Escape, or navigation. */
+function NavGroupDropdown({ group, pathname }: { group: (typeof NAV_GROUPS)[number]; pathname: string }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const active = groupIsActive(group, pathname);
+
+  useEffect(() => {
+    if (!open) return;
+    function onDocClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setOpen(false);
+    }
+    document.addEventListener("mousedown", onDocClick);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDocClick);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  // Closes automatically when the route actually changes (a link inside was
+  // clicked) — cheaper than wiring an onClick through every Link below.
+  // Deferred via queueMicrotask, same fix as OrdersClient/SentinelShieldClient's
+  // effects — calling setState directly in the effect body is flagged by
+  // react-hooks/set-state-in-effect as a same-tick cascading render.
+  useEffect(() => {
+    queueMicrotask(() => setOpen(false));
+  }, [pathname]);
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        className={`flex items-center gap-1 whitespace-nowrap rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors ${
+          active ? "bg-accent text-accent-ink" : "text-ink-muted hover:bg-accent-soft hover:text-ink"
+        }`}
+      >
+        {group.label}
+        <span aria-hidden="true" className={`text-[10px] transition-transform ${open ? "rotate-180" : ""}`}>
+          ▾
+        </span>
+      </button>
+      {open && (
+        <div className="absolute left-0 top-full z-20 mt-2 w-56 rounded-xl border border-hairline bg-surface p-1.5 shadow-lg">
+          {group.items.map((item) => {
+            const itemActive = pathname.startsWith(item.href);
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={`flex items-center gap-2 rounded-lg px-2.5 py-2 text-sm transition-colors ${
+                  itemActive ? "bg-accent-soft text-accent" : "text-ink hover:bg-surface-hover"
+                }`}
+              >
+                <span aria-hidden="true">{item.icon}</span>
+                {item.label}
+              </Link>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Mobile-only nav — a hamburger that opens a full-width overlay listing every group as a labeled section. */
+function MobileNav({ pathname }: { pathname: string }) {
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    queueMicrotask(() => setOpen(false));
+  }, [pathname]);
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        aria-label="Open menu"
+        aria-expanded={open}
+        className="flex h-9 w-9 items-center justify-center rounded-full border border-hairline text-ink-muted transition-colors hover:bg-accent-soft hover:text-ink"
+      >
+        <span aria-hidden="true" className="text-lg leading-none">
+          ☰
+        </span>
+      </button>
+      {open && (
+        <div className="fixed inset-0 z-30 flex flex-col bg-black/40" onClick={() => setOpen(false)}>
+          <div
+            className="mt-2 flex max-h-[85vh] flex-col gap-4 overflow-y-auto rounded-2xl border border-hairline bg-surface p-4 shadow-xl"
+            style={{ marginInline: "0.75rem" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-semibold text-ink">Menu</span>
+              <button onClick={() => setOpen(false)} aria-label="Close menu" className="text-ink-faint hover:text-ink">
+                ✕
+              </button>
+            </div>
+            {NAV_GROUPS.map((group) => (
+              <div key={group.label} className="flex flex-col gap-1">
+                <p className="px-1 text-[11px] font-semibold uppercase tracking-wide text-ink-faint">{group.label}</p>
+                {group.items.map((item) => {
+                  const itemActive = pathname.startsWith(item.href);
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      className={`flex items-center gap-2 rounded-lg px-2.5 py-2 text-sm transition-colors ${
+                        itemActive ? "bg-accent-soft text-accent" : "text-ink hover:bg-surface-hover"
+                      }`}
+                    >
+                      <span aria-hidden="true">{item.icon}</span>
+                      {item.label}
+                    </Link>
+                  );
+                })}
+              </div>
+            ))}
+            <div className="flex flex-col gap-1 border-t border-hairline pt-3">
+              <Link
+                href={STANDALONE.href}
+                className={`flex items-center gap-2 rounded-lg px-2.5 py-2 text-sm transition-colors ${
+                  pathname.startsWith(STANDALONE.href) ? "bg-accent-soft text-accent" : "text-ink hover:bg-surface-hover"
+                }`}
+              >
+                <span aria-hidden="true">{STANDALONE.icon}</span>
+                {STANDALONE.label}
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
 
 /**
  * Shared top bar for every page — brand + primary nav + wallet connect.
@@ -51,15 +236,12 @@ export function AppHeader() {
   return (
     // Real layout bug found live 2026-08-03: nav/wordmark text had no
     // `whitespace-nowrap`, so on a squeezed width the text itself would wrap
-    // onto a second line INSIDE a single-line flex row (Tailwind/flexbox
-    // shrinks a flex item's width but never stops its own text from
-    // wrapping unless told to) — with `items-center` on every level, several
-    // now-multi-line children of differing heights next to each other reads
-    // as buttons "stacked on top of each other" rather than a clean row.
-    // `flex-wrap` here is the safety net for the case where the row
-    // genuinely can't fit at all (wraps to a clean second row instead of
-    // that collision), `gap-y-2` gives that wrapped state proper spacing.
-    <header className="flex flex-wrap items-center justify-between gap-x-2 gap-y-2 rounded-2xl border border-hairline bg-surface/90 p-2.5 pl-3 shadow-sm backdrop-blur sm:gap-x-3">
+    // onto a second line INSIDE a single-line flex row. Fixed by keeping the
+    // whole bar to a small, fixed set of top-level controls now (see
+    // NAV_GROUPS' doc comment above for why the old 12-item flat list was
+    // the real root cause of the header feeling crowded/broken on both
+    // desktop and mobile, not just a missing CSS property).
+    <header className="flex items-center justify-between gap-2 rounded-2xl border border-hairline bg-surface/90 p-2.5 pl-3 shadow-sm backdrop-blur">
       <div className="flex min-w-0 items-center gap-2 sm:gap-5">
         <Link href="/" className="flex shrink-0 items-center gap-2">
           {/* Rebrand 2026-08-04 (ChainBreak → Blockchains.Click, new
@@ -101,37 +283,30 @@ export function AppHeader() {
             B<span className="text-accent">C</span>
           </span>
         </Link>
-        <nav className="flex shrink-0 items-center gap-1">
-          {NAV.map((item) => {
-            const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`whitespace-nowrap rounded-full px-2.5 py-1.5 text-sm font-medium transition-colors sm:px-3.5 ${
-                  active ? "bg-accent text-accent-ink" : "text-ink-muted hover:bg-accent-soft hover:text-ink"
-                }`}
-              >
-                {/* "Token Swap" shortens to "Swap" below `sm` — same reasoning
-                    as the wordmark/wallet-button shortening right next to it. */}
-                {item.shortLabel ? (
-                  <>
-                    <span className="hidden sm:inline">{item.label}</span>
-                    <span className="sm:hidden">{item.shortLabel}</span>
-                  </>
-                ) : (
-                  item.label
-                )}
-              </Link>
-            );
-          })}
+        {/* Desktop nav: 4 grouped dropdowns + Rewards standalone, hidden
+            below `sm` in favor of MobileNav's hamburger overlay. */}
+        <nav className="hidden shrink-0 items-center gap-1 sm:flex">
+          {NAV_GROUPS.map((group) => (
+            <NavGroupDropdown key={group.label} group={group} pathname={pathname} />
+          ))}
+          <Link
+            href={STANDALONE.href}
+            className={`whitespace-nowrap rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors ${
+              pathname.startsWith(STANDALONE.href) ? "bg-accent text-accent-ink" : "text-ink-muted hover:bg-accent-soft hover:text-ink"
+            }`}
+          >
+            {STANDALONE.label}
+          </Link>
         </nav>
       </div>
       <div className="flex shrink-0 items-center gap-2">
-        <SocialXLink className="flex h-9 w-9 items-center justify-center rounded-full border border-hairline bg-surface text-ink-muted transition-all hover:border-accent/40 hover:text-accent" />
+        <SocialXLink className="hidden h-9 w-9 items-center justify-center rounded-full border border-hairline bg-surface text-ink-muted transition-all hover:border-accent/40 hover:text-accent sm:flex" />
         <ThemeToggle />
         <PortfolioDrawer />
         <ConnectWalletMenu />
+        <div className="sm:hidden">
+          <MobileNav pathname={pathname} />
+        </div>
       </div>
     </header>
   );
