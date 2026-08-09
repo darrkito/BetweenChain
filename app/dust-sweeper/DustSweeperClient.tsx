@@ -2,7 +2,7 @@
 
 import { useCallback, useMemo, useState } from "react";
 import { useConnection, useWallet } from "@solana/wallet-adapter-react";
-import { PublicKey, Transaction } from "@solana/web3.js";
+import { PublicKey, Transaction, VersionedTransaction } from "@solana/web3.js";
 import { createCloseAccountInstruction, TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import { useCurrentAccount } from "@mysten/dapp-kit";
 import { useEvmWallet } from "@/lib/client/EvmWalletProvider";
@@ -65,6 +65,8 @@ export function DustSweeperClient() {
   const [target, setTarget] = useState<TargetKind>("sol");
   const [usdcOnBaseAddress, setUsdcOnBaseAddress] = useState<string | null>(null);
   const [sweeping, setSweeping] = useState(false);
+  const [vacuuming, setVacuuming] = useState(false);
+  const [vacuumMessage, setVacuumMessage] = useState<string | null>(null);
   const [results, setResults] = useState<ItemResult[]>([]);
   const [rentReclaimed, setRentReclaimed] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -281,6 +283,46 @@ export function DustSweeperClient() {
     setDustHoldings((prev) => prev.filter((h) => !selectedHoldings.some((s) => holdingKey(s) === holdingKey(h))));
   }
 
+  const selectedSolanaDust = selectedHoldings.filter((h) => h.chainId === SOLANA_CHAIN_ID_CLIENT);
+
+  // OmniDust Vacuum (2026-08-09, v1 Solana-only) — one signature covering
+  // every selected Solana dust token, delegating a bounded relayer
+  // (lib/relayer/*.ts) to sweep + convert to native SOL, delivered back to
+  // this SAME wallet on the next daily cron run (Vercel Hobby plan only
+  // allows a daily schedule — see STATE.md). Falls back cleanly if the
+  // relayer isn't configured: /api/dust-sweeper/authorize returns
+  // transaction:null and this just tells the user to use the manual sweep
+  // above instead.
+  async function vacuumSolanaDust() {
+    if (!publicKey || !signTransaction || selectedSolanaDust.length === 0) return;
+    setVacuuming(true);
+    setVacuumMessage(null);
+    try {
+      const res = await fetch("/api/dust-sweeper/authorize", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          tokens: selectedSolanaDust.map((h) => ({ mint: h.address, symbol: h.symbol, decimals: h.decimals, amountAtomic: h.balance })),
+        }),
+      });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.error ?? "Authorization failed");
+      if (!body.transaction) {
+        setVacuumMessage("Automatic vacuum isn't available right now — use the manual sweep above instead.");
+        return;
+      }
+      const tx = VersionedTransaction.deserialize(Buffer.from(body.transaction, "base64"));
+      const signed = await signTransaction(tx);
+      await connection.sendRawTransaction(signed.serialize());
+      setVacuumMessage(`Authorized — ${selectedSolanaDust.length} token(s) will be swept to SOL and sent back to your wallet on the next daily run.`);
+      setDustHoldings((prev) => prev.filter((h) => !selectedSolanaDust.some((s) => holdingKey(s) === holdingKey(h))));
+    } catch (err) {
+      setVacuumMessage((err as Error).message);
+    } finally {
+      setVacuuming(false);
+    }
+  }
+
   const swept = results.filter((r) => r.status === "done");
   const sweptUsd = selectedHoldings
     .filter((h) => swept.some((r) => r.key === holdingKey(h)))
@@ -393,6 +435,24 @@ export function DustSweeperClient() {
               >
                 {sweeping ? "Sweeping…" : "⚡ Sweep all dust"}
               </button>
+
+              {selectedSolanaDust.length > 0 && (
+                <div className="mt-3 flex flex-col gap-1.5 border-t border-hairline pt-3">
+                  <p className="text-xs text-ink-faint">
+                    🌀 Or vacuum {selectedSolanaDust.length} Solana token{selectedSolanaDust.length === 1 ? "" : "s"} with ONE
+                    signature — a relayer sweeps + converts to SOL and sends it back to this wallet automatically (up to once
+                    daily).
+                  </p>
+                  <button
+                    onClick={vacuumSolanaDust}
+                    disabled={vacuuming}
+                    className="self-start rounded-full border border-accent px-4 py-1.5 text-xs font-semibold text-accent transition-all hover:bg-accent-soft disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    {vacuuming ? "Authorizing…" : "🌀 Vacuum with 1 signature"}
+                  </button>
+                  {vacuumMessage && <p className="text-xs text-ink-muted">{vacuumMessage}</p>}
+                </div>
+              )}
             </section>
 
             {results.length > 0 && (

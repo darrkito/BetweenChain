@@ -64,7 +64,14 @@ app's UI. `app/swap/SwapPageClient.tsx` already lets you paste any destination a
 
 ---
 
-## 2. OmniDust Vacuum — easy–medium
+## 2. OmniDust Vacuum — easy–medium — ✅ SHIPPED 2026-08-09 (Solana-only v1)
+
+Batch SPL delegate approval (`lib/relayer/delegateApproval.ts`'s new batch builder) +
+relayer sweep/convert/return (`lib/relayer/deliverDustSweep.ts`), delivered by the SAME
+daily cron as Trigger Orders (deliberately not a second `crons` entry — see STATE.md's
+Hobby-plan cron incident). Migration `0022_dust_sweep_authorizations.sql`. UI:
+`app/dust-sweeper/DustSweeperClient.tsx`'s "Vacuum with 1 signature" button. EVM/Permit2
+still a real, scoped follow-up — not built this pass.
 
 ### Real infra found
 - **Permit2** (Uniswap): confirmed live via BaseScan/Arbiscan/Etherscan/PolygonScan —

@@ -4354,3 +4354,14 @@ already provides real caching (`Cache-Control: public, max-age=31536000, immutab
 only real loss is automatic resize/format conversion — acceptable given the alternative was
 every image request 500ing. Verified locally: `tsc`/`lint`/`test`/`build` all clean.
 Confirm via `get_runtime_errors` post-deploy before considering this fully closed.
+
+## 2026-08-09d — OmniDust Vacuum (Solana v1) shipped, second of 7 safety/discovery features
+
+One-signature batch dust sweep, reusing the exact relayer/delegate infrastructure built
+for Trigger Orders: `lib/relayer/delegateApproval.ts` got a batch variant (one tx, many
+tokens, each capped at its real current balance — no buffer needed since dust amounts
+are known, not estimates), `lib/relayer/deliverDustSweep.ts` pulls+swaps+forwards each
+one back to the same wallet. Deliberately extended the EXISTING `deliver-orders` cron
+route rather than adding a second `crons` entry, after today's earlier discovery that
+Vercel's Hobby plan silently blocks deployment on a second/sub-daily cron. Migration
+`0022_dust_sweep_authorizations.sql` applied to production.

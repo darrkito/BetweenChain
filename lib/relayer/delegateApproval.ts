@@ -44,3 +44,39 @@ export async function buildDelegateApprovalTransaction(params: {
   const tx = new VersionedTransaction(message);
   return { transaction: Buffer.from(tx.serialize()).toString("base64") };
 }
+
+/**
+ * Same mechanism as buildDelegateApprovalTransaction, but batches an
+ * approve (+ idempotent ATA create) for MULTIPLE tokens into a single
+ * transaction — OmniDust Vacuum (2026-08-09): one signature covering every
+ * detected dust token, instead of one per token. Each entry's amount
+ * should be the token's REAL current balance (dust is a known quantity at
+ * authorization time, not an estimate — no buffer needed, unlike Trigger
+ * Orders' pre-fill sizing).
+ */
+export async function buildBatchDelegateApprovalTransaction(params: {
+  connection?: Connection;
+  owner: string;
+  tokens: Array<{ mint: string; decimals: number; amountAtomic: bigint }>;
+}): Promise<{ transaction: string } | null> {
+  const relayer = getRelayerKeypair();
+  if (!relayer || params.tokens.length === 0) return null;
+
+  const connection = params.connection ?? getConnection();
+  const owner = new PublicKey(params.owner);
+
+  const instructions = params.tokens.flatMap(({ mint: mintStr, decimals, amountAtomic }) => {
+    const mint = new PublicKey(mintStr);
+    const ata = getAssociatedTokenAddressSync(mint, owner);
+    return [
+      createAssociatedTokenAccountIdempotentInstruction(owner, ata, owner, mint),
+      createApproveCheckedInstruction(ata, mint, relayer.publicKey, owner, amountAtomic, decimals),
+    ];
+  });
+
+  const { blockhash } = await connection.getLatestBlockhash();
+  const message = new TransactionMessage({ payerKey: owner, recentBlockhash: blockhash, instructions }).compileToV0Message();
+
+  const tx = new VersionedTransaction(message);
+  return { transaction: Buffer.from(tx.serialize()).toString("base64") };
+}
