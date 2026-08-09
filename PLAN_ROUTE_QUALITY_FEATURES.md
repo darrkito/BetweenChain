@@ -16,7 +16,13 @@ constraints — documented plainly below, not glossed over. Ranked easiest → h
 
 ---
 
-## 1. Route Auditor — trivial–easy
+## 1. Route Auditor — trivial–easy — ✅ SHIPPED 2026-08-09
+
+`lib/chains/routeAudit.ts` + `app/api/quote/preview/route.ts` + `app/components/SwapPanel.tsx`'s
+"Route details" expandable panel. Verified live end-to-end via a real dev-server request
+before shipping: a real SOL→ETH(Base) preview returned `priceImpactPct: -0.89`,
+`timeEstimateSeconds: 3`, `dexLabels: ["kyberswap"]` — all real, previously-discarded
+fields from Relay's/Jupiter's existing quote responses. No synthetic score, as planned.
 
 ### Real infra found (live-verified via direct API calls, not docs)
 Relay's `/quote` response — the SAME call this app already makes for every cross-chain

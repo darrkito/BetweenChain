@@ -1,0 +1,28 @@
+---
+title: "Route Auditor: See Real Price Impact and ETA Before You Sign"
+description: "Expand 'Route details' on any quote to see the real price impact, estimated time, and which DEX actually filled your swap — no synthetic score, just the real numbers both engines already return."
+date: "2026-08-09"
+category: "Guides"
+mentions: ["Route Auditor"]
+faq:
+  - question: "Is this a new backend integration?"
+    answer: "No — Relay and Jupiter's quote responses (already fetched for every swap preview on this app) already include this data. It was previously fetched and discarded; Route Auditor just surfaces it."
+  - question: "What's the confidence score based on?"
+    answer: "There isn't one. A single fabricated score would imply more certainty than any real data supports. This shows the real price impact percentage and real estimated time directly instead."
+  - question: "Which DEXs does this cover?"
+    answer: "Whichever ones actually filled your specific quote — shown by name (e.g. \"kyberswap\", \"HumidiFi\"), not a fixed list. It changes per quote based on what the routing engines actually picked."
+---
+
+Most cross-chain swap interfaces show you a single number and ask you to trust it. Route Auditor shows the real numbers behind it.
+
+<QuickFacts items='["Real price impact percentage, pulled directly from the same quote already fetched for every swap preview", "Real estimated time to completion, in seconds — not a guess", "Shows which specific DEX/pool actually filled the trade, by name", "No fabricated confidence score — real numbers only"]' />
+
+## What it shows
+
+Click "Route details" on any swap preview and see exactly what both routing engines already know about your specific trade: the real price impact percentage (broken out by Relay and Jupiter's own impact calculations), a real estimated time to completion in seconds, and which actual DEX or liquidity pool is filling each leg of the route — not a generic "via DEX aggregator" label, the real name.
+
+## Why no confidence score
+
+A single number like "99.4% confidence" sounds precise, but neither Relay nor Jupiter's public APIs expose anything resembling a calculated confidence metric — inventing one would just be marketing dressed up as data. The real, honest version of this feature is simpler: show the actual price impact and actual time estimate, and let you judge for yourself.
+
+[Try a cross-chain swap](/swap) and expand "Route details" on the quote.

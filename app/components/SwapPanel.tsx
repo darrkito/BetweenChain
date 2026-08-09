@@ -166,12 +166,14 @@ export function SwapPanel({
     feeBreakdown?: Array<{ label: string; bps: number; amountUsd: string | null }>;
     route?: Array<{ label: string; engine: "jupiter" | "relay" }>;
     autoRefuelAvailable?: boolean;
+    routeAudit?: { priceImpactPct: number | null; timeEstimateSeconds: number | null; dexLabels: string[] };
   } | null>(
     null,
   );
   const [previewLoading, setPreviewLoading] = useState(false);
   const [freshWallet, setFreshWallet] = useState<FreshWallet | null>(null);
   const [freshWalletSaved, setFreshWalletSaved] = useState(false);
+  const [routeAuditOpen, setRouteAuditOpen] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
 
   // Same-token exclusion (2026-08-06, added alongside enabling same-chain
@@ -336,6 +338,56 @@ export function SwapPanel({
         <p className="num mt-2 text-sm text-ink-faint">
           {hasValidInput && preview?.destAmountUsd ? `$${preview.destAmountUsd}` : "$0.00"}
         </p>
+
+        {/* Route Auditor (2026-08-09) — real fields both Relay and Jupiter
+            already return on the quote this panel already fetches
+            (totalImpact/timeEstimate/routePlan), previously discarded. No
+            synthetic "confidence score" — see lib/chains/routeAudit.ts's
+            doc comment for why that would be fabricated precision. */}
+        {hasValidInput && preview?.routeAudit && (preview.routeAudit.priceImpactPct !== null || preview.routeAudit.timeEstimateSeconds !== null) && (
+          <div className="mt-2">
+            <button
+              type="button"
+              onClick={() => setRouteAuditOpen((v) => !v)}
+              className="flex items-center gap-1 text-xs font-medium text-ink-faint hover:text-ink-muted"
+            >
+              🔍 Route details
+              <span aria-hidden="true" className={`text-[9px] transition-transform ${routeAuditOpen ? "rotate-180" : ""}`}>
+                ▾
+              </span>
+            </button>
+            {routeAuditOpen && (
+              <div className="mt-1.5 flex flex-col gap-1 rounded-lg border border-hairline bg-surface-hover px-2.5 py-2 text-xs text-ink-muted">
+                {preview.routeAudit.priceImpactPct !== null && (
+                  <div className="flex justify-between">
+                    <span>Price impact</span>
+                    <span
+                      className={`num ${Math.abs(preview.routeAudit.priceImpactPct) > 1 ? "text-danger" : Math.abs(preview.routeAudit.priceImpactPct) > 0.3 ? "text-amber-500" : "text-ink"}`}
+                    >
+                      {preview.routeAudit.priceImpactPct > 0 ? "+" : ""}
+                      {preview.routeAudit.priceImpactPct.toFixed(3)}%
+                    </span>
+                  </div>
+                )}
+                {preview.routeAudit.timeEstimateSeconds !== null && (
+                  <div className="flex justify-between">
+                    <span>Est. time</span>
+                    <span className="num text-ink">~{preview.routeAudit.timeEstimateSeconds}s</span>
+                  </div>
+                )}
+                {preview.routeAudit.dexLabels.length > 0 && (
+                  <div className="flex justify-between gap-2">
+                    <span>Filled via</span>
+                    <span className="text-ink">{preview.routeAudit.dexLabels.join(", ")}</span>
+                  </div>
+                )}
+                <p className="mt-0.5 text-[10px] text-ink-faint">
+                  Real data from the route providers — not a synthetic score.
+                </p>
+              </div>
+            )}
+          </div>
+        )}
 
         {isCrossChain && (
           <div className="mt-3 border-t border-hairline pt-3">

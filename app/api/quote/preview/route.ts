@@ -16,6 +16,7 @@ import { rateLimit, clientKey } from "@/lib/rate-limit";
 import { safeErrorResponse } from "@/lib/apiError";
 import { feeBreakdownWithAmounts } from "@/lib/fees";
 import { describeExecutionRoute } from "@/lib/chains/executionRoute";
+import { auditFromJupiterRoute, auditFromRelayQuote, mergeRouteAudits } from "@/lib/chains/routeAudit";
 
 // External-call budget for this route -- prevents Vercel's platform-level
 // function timeout from killing the request with an empty/non-JSON body
@@ -116,6 +117,7 @@ export async function GET(req: Request) {
               feeBreakdown: feeBreakdownWithAmounts({ isSolanaOrigin, needsJupiterLeg: true, isCrossChain: false }, destAmountUsd),
               route: describeExecutionRoute({ isSolanaOrigin, needsJupiterLeg: true, isCrossChain: false }),
               autoRefuelAvailable: false, // same-chain Solana destination — Relay's topupGas is EVM-destination only
+              routeAudit: mergeRouteAudits(auditFromJupiterRoute(jq.route)),
             };
           }
 
@@ -138,6 +140,7 @@ export async function GET(req: Request) {
             feeBreakdown: feeBreakdownWithAmounts({ isSolanaOrigin, needsJupiterLeg: true, isCrossChain: false }, null),
             route: describeExecutionRoute({ isSolanaOrigin, needsJupiterLeg: true, isCrossChain: false }),
             autoRefuelAvailable: false,
+            routeAudit: mergeRouteAudits(auditFromJupiterRoute(jq.route)),
           };
         }
 
@@ -147,6 +150,7 @@ export async function GET(req: Request) {
         // Solana side; there's no equivalent of the same-chain arbitrary-SPL
         // path above for a bridged destination.
         let solAmountLamports = input.sourceAmount;
+        let jupiterLegRoute: unknown = null;
         if (!sourceIsNativeSol) {
           const jq = await getJupiterQuote({
             sourceMint: input.sourceMint,
@@ -154,6 +158,7 @@ export async function GET(req: Request) {
             slippageBps: 100,
           });
           solAmountLamports = jq.outAmount;
+          jupiterLegRoute = jq.route;
         }
 
         const destChain = await getRelayChain(input.destChainId);
@@ -179,6 +184,7 @@ export async function GET(req: Request) {
           ),
           route: describeExecutionRoute({ isSolanaOrigin, needsJupiterLeg: !sourceIsNativeSol, isCrossChain: true }),
           autoRefuelAvailable: destChain?.vmType === "evm",
+          routeAudit: mergeRouteAudits(jupiterLegRoute ? auditFromJupiterRoute(jupiterLegRoute) : {}, auditFromRelayQuote(rq.quote)),
         };
       }
 
@@ -219,6 +225,7 @@ export async function GET(req: Request) {
         ),
         autoRefuelAvailable: destChain?.vmType === "evm",
         route: describeExecutionRoute({ isSolanaOrigin, needsJupiterLeg: false, isCrossChain: true }),
+        routeAudit: mergeRouteAudits(auditFromRelayQuote(rq.quote)),
       };
     });
 
