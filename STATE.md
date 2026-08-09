@@ -4337,3 +4337,20 @@ Verified clean locally (`tsc`/`lint`/`test`/`build` all pass, build banner confi
 `pages/_next/image.js` file is synthesized by Vercel's own platform builder on deploy,
 not present in any local `next build` output regardless of bundler — confirmed only by
 re-checking `get_runtime_errors` after this deploys.
+
+## 2026-08-09c — webpack build did NOT fix the image-optimization bug; disabled the optimizer instead
+
+Correction to the 2026-08-09b entry: re-checked `get_runtime_errors` after the webpack-build
+deployment (`dpl_3dySW2hz2wsfLbGvinwN6NNm6j2c`) went READY — the "Cannot find module
+'./.next/server/pages/_next/image.js'" error was STILL occurring, including one occurrence
+timestamped after that deployment's own ready time. Switching bundlers was not the actual
+fix — the bug is deeper in Vercel's platform-side packaging of the `/_next/image` handler,
+unrelated to which bundler produced `next build`'s output.
+
+Reverted `package.json`'s build script back to plain `next build` (no reason to keep an
+unproven workaround). Real fix: `next.config.ts`'s `images.unoptimized: true` — bypasses
+Next's built-in optimizer entirely, so the broken code path is never invoked. `app/api/img`
+already provides real caching (`Cache-Control: public, max-age=31536000, immutable`), so the
+only real loss is automatic resize/format conversion — acceptable given the alternative was
+every image request 500ing. Verified locally: `tsc`/`lint`/`test`/`build` all clean.
+Confirm via `get_runtime_errors` post-deploy before considering this fully closed.

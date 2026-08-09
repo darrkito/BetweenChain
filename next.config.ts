@@ -58,6 +58,18 @@ const nextConfig: NextConfig = {
     // it independently validates/blocks the actual `url` value itself
     // (private IPs, protocol, redirects, content-type — see that file).
     localPatterns: [{ pathname: "/api/img" }],
+    // 2026-08-09 — real, live-confirmed platform bug: Vercel's builder was
+    // failing to package the /_next/image optimization lambda
+    // ("Cannot find module './.next/server/pages/_next/image.js'"),
+    // 500ing every optimized image site-wide since 2026-08-04. Forcing
+    // `next build --webpack` (package.json) did NOT fix it — confirmed via
+    // Vercel's own runtime error tracker still showing the same error on
+    // the webpack-built deployment. Disabling Next's built-in optimizer
+    // entirely bypasses the broken code path altogether. app/api/img's own
+    // Cache-Control (1yr, immutable — see that route) already provides the
+    // real caching benefit; the only thing lost is automatic resize/format
+    // conversion, an acceptable trade for images that actually load.
+    unoptimized: true,
   },
   // Dev server is also opened from other devices on the LAN (e.g.
   // http://192.168.100.200:3000) — without this, Next blocks the HMR
