@@ -4278,14 +4278,25 @@ amount of the order's expected output to a relayer address this app's backend co
 (`lib/relayer/delegateApproval.ts`). Sizing: limit orders delegate `takingAmount × 1.10`
 (Jupiter can fill better than the floor); DCA delegates `1.25×` a live quote estimate of
 the full schedule's expected output (no fixed output amount exists upfront for DCA). A
-new Vercel Cron job (`vercel.json`, every 5 minutes, `/api/cron/deliver-orders`) scans
-`trigger_orders` rows with `delivery_status = 'pending'`, and for each, `deliverOrder()`
+new Vercel Cron job (`vercel.json`, `/api/cron/deliver-orders`) scans `trigger_orders`
+rows with `delivery_status = 'pending'`, and for each, `deliverOrder()`
 (`lib/relayer/deliverOrder.ts`) checks the REAL on-chain delegated balance (never a
 cached number) and, if there's something to move, pulls it via delegate authority and
 runs it through the same Relay quote+execute pipeline every other cross-chain swap in
 this app uses — just signed by the relayer's own key instead of a connected wallet.
 Delivers the destination chain's native currency (same scoping as the existing manual
 "Deliver now" flow).
+
+**Real deploy blocker found 2026-08-09, ~15 min after the initial push**: the cron
+schedule was originally `*/5 * * * *` (every 5 minutes) — Vercel's Hobby plan only
+allows a DAILY cron schedule, and silently rejected every deployment containing this
+`vercel.json` at the git-integration level, before it ever appeared in the deployments
+list (looked exactly like a stuck webhook — same symptom, different cause; only
+surfaced when the user tried to inspect Cron Jobs settings directly in the dashboard).
+Fixed: `schedule` changed to `"0 12 * * *"` (once daily, 12:00 UTC). Real consequence:
+a filled cross-chain order now waits up to ~24h for automatic delivery instead of ~5
+minutes — the manual "Deliver now" button on `/orders` remains the faster path until/
+unless the account upgrades to Pro (unlocks sub-daily cron schedules).
 
 If `RELAYER_SOLANA_SECRET_KEY` is unset, order creation still succeeds — the delegate
 transaction is simply never built (`delivery_status` stays `'manual'`), and the existing
