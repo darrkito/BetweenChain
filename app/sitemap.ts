@@ -56,6 +56,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${SITE_URL}/orders`, changeFrequency: "monthly", priority: 0.7 },
     { url: `${SITE_URL}/evac`, changeFrequency: "monthly", priority: 0.6 },
     { url: `${SITE_URL}/sentinel-shield`, changeFrequency: "monthly", priority: 0.6 },
+    { url: `${SITE_URL}/burner-shield`, changeFrequency: "monthly", priority: 0.6 },
   ];
   const blogEntries: MetadataRoute.Sitemap = getAllBlogPosts().map((post) => ({
     url: `${SITE_URL}/blog/${post.slug}`,

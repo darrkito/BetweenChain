@@ -32,7 +32,8 @@ const NAV: Array<{ href: string; label: string; shortLabel?: string }> = [
   { href: "/pay/create", label: "ClickPay", shortLabel: "Pay" },
   { href: "/orders", label: "Trigger Orders", shortLabel: "Orders" },
   { href: "/evac", label: "Evac Engine", shortLabel: "Evac" },
-  { href: "/sentinel-shield", label: "Sentinel Shield", shortLabel: "Shield" },
+  { href: "/sentinel-shield", label: "Sentinel Shield", shortLabel: "Sentinel" },
+  { href: "/burner-shield", label: "Burner Shield", shortLabel: "Burner" },
   { href: "/dashboard", label: "Rewards" },
 ];
 

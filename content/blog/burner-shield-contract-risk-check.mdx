@@ -1,0 +1,31 @@
+---
+title: "Burner Shield: Check a Contract Before You Sign"
+description: "Paste a token or contract address and get a real risk report — honeypot detection, malicious-address flags, mint/tax risk — before you approve anything."
+date: "2026-08-09"
+category: "Guides"
+chains:
+  - "ethereum"
+  - "base"
+mentions: ["Burner Shield", "GoPlus Security"]
+faq:
+  - question: "Where does this data come from?"
+    answer: "GoPlus Security's real, public, free security API — the same category of data source real drainer-protection tools use. It's a real independent risk signal, not this app's own opinion, and not a guarantee."
+  - question: "Does this isolate my wallet from risky contracts, like the original pitch described?"
+    answer: "Not in v1 — a full isolated-execution engine needs real account-abstraction infrastructure and a decision about who pays gas for interactions with contracts nobody has vetted, a materially bigger commitment than a pre-sign check. This ships the check, which catches most of the real value without that risk."
+  - question: "What chains does this cover?"
+    answer: "EVM chains only — GoPlus's address/token security data is EVM-scoped, no Solana or Sui coverage."
+---
+
+The moment before you sign is the only moment that matters — Burner Shield gives you a real answer right then, not after.
+
+<QuickFacts items='["Real risk-flag lookup for any contract or token address — honeypot detection, malicious-address history, mint/tax risk", "Backed by GoPlus Security’s free, public API, the same category of data real drainer-protection tools use", "EVM chains only", "Not a full isolated-execution sandbox — a real, honest pre-sign check instead"]' />
+
+## What it checks
+
+Paste any contract or token address and Burner Shield queries two real signals: whether the address itself has any history of malicious activity (phishing, theft, sanctions, mixer association), and — for tokens specifically — whether it's a honeypot, has abnormal buy/sell tax, or gives the contract owner the ability to directly change balances. All from GoPlus Security's live public data, not a static list.
+
+## Why this instead of a full isolated-execution sandbox
+
+The original idea behind a feature like this was a one-time, disposable smart wallet for every risky interaction — real, but it needs account-abstraction infrastructure this app has never used before, plus a decision about funding gas for contracts nobody has vetted in advance. That's a meaningfully bigger commitment than a pre-sign check, for the same underlying goal: catching a bad interaction before it costs you anything. This ships the check now; the full sandbox stays a real, scoped idea for later.
+
+[Try it before your next unfamiliar contract](/burner-shield).

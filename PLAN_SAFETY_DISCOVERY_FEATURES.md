@@ -219,7 +219,14 @@ product surface.
 
 ---
 
-## 6. Burner Shield — hard
+## 6. Burner Shield — hard — ✅ SHIPPED 2026-08-09 as "Burner Shield Lite" (rescoped)
+
+User explicitly chose the cheaper alternative this doc flagged over full ERC-4337
+infra. `/burner-shield` — real pre-sign risk check backed by GoPlus Security's free,
+no-API-key public API (`lib/goplus/security.ts`, confirmed live via direct `curl`):
+address risk flags (phishing/theft/sanctions/mixer history) + token risk (honeypot,
+buy/sell tax, mintable, owner-can-change-balance). EVM-only. Full ERC-4337 isolated
+execution engine remains a real, scoped, NOT-built idea — see the reasoning above.
 
 ### Real infra found
 - ERC-4337 account abstraction is real, mature infrastructure in 2026: Pimlico, Biconomy,
