@@ -73,9 +73,16 @@ export async function deliverDustSweep(params: DeliverDustSweepParams): Promise<
     await connection.confirmTransaction({ signature: swapSignature, ...(await connection.getLatestBlockhash()) }, "confirmed");
     const balanceAfter = await connection.getBalance(relayer.publicKey);
 
-    // Send exactly what this swap produced back to the user, minus a small
-    // fee-and-rent buffer for the send transaction itself.
-    const SEND_TX_RESERVE_LAMPORTS = 10_000;
+    // Send exactly what this swap produced back to the user, minus a
+    // buffer for the send transaction's own fee. Sized generously
+    // (0.00005 SOL, ~10x a base 5000-lamport fee) rather than the bare
+    // minimum: if this send fails, the swept SOL is stuck in the relayer
+    // with no automatic retry (a retry would re-run the pull step, find
+    // the user's ATA already empty, and report "nothing to deliver" —
+    // never re-attempting the stuck send). Documented as a known residual
+    // risk in SECURITY.md rather than silently accepted; a tighter buffer
+    // makes the failure mode MORE likely, not less risky, so err generous.
+    const SEND_TX_RESERVE_LAMPORTS = 50_000;
     const sendAmount = balanceAfter - balanceBefore - SEND_TX_RESERVE_LAMPORTS;
     if (sendAmount <= 0) throw new Error("Swap produced no net SOL after fees — nothing to forward");
 

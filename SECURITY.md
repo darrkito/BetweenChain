@@ -551,3 +551,46 @@ pass, per order, never accumulating a balance beyond transient in-flight amounts
 never has discretionary trading authority (it only ever executes the exact delivery a
 user already configured, never makes a decision). A true custodial vault or trading-agent
 product is still out of scope and still needs its own review before any code is written.
+
+## 2026-08-09 — Full review of the safety/discovery feature batch (6 of 7 shipped)
+
+Reviewed all new code from this batch (GhostSwap, OmniDust Vacuum, Evac Engine, Sentinel
+Shield, Burner Shield Lite) plus the relayer extension they share with Trigger Orders.
+Real findings below; everything else checked out (session/rate-limit gating consistent
+with every other route in this app, all new SQL migrations RLS'd with anon/authenticated
+grants revoked per the standard pattern, all EVM/Solana addresses passed to third-party
+APIs validated with `isAddress()`/`PublicKey` before use — no injection surface into
+GoPlus's or Aave's URLs beyond a validated address/chain id).
+
+1. **Fixed — dust-sweep relayer's SOL-forwarding buffer was too tight.**
+   `lib/relayer/deliverDustSweep.ts` reserved only 10,000 lamports (2x a bare base fee)
+   before forwarding swept SOL back to the user. Under real network congestion, the
+   send transaction's actual fee could exceed that reserve, failing the send AFTER the
+   pull+swap already succeeded — leaving swept SOL stuck in the relayer with no
+   automatic retry path (a retry re-runs the pull step, finds the user's ATA already
+   empty, and reports "nothing to deliver" instead of re-attempting the stuck send).
+   Raised to 50,000 lamports (~10x base fee) to make this materially less likely.
+   **Residual risk, not fully closed**: if the send still fails despite the larger
+   buffer, the swept SOL is stuck in the relayer's own account until manually forwarded
+   — this needs operator monitoring of the relayer's SOL balance drifting up over time
+   as a signal something failed silently, same "watch the relayer's balance" posture
+   already noted for Trigger Orders' relayer.
+2. **Noted, not fixed — no dedup on repeated OmniDust Vacuum authorizations.**
+   `/api/dust-sweeper/authorize` doesn't check for an existing pending row for the same
+   user+token before inserting a new one. Spam-clicking the vacuum button creates
+   duplicate `dust_sweep_authorizations` rows for the same token — each SPL `approve`
+   simply overwrites the prior on-chain allowance (standard, safe SPL semantics, not
+   additive), so this is a data-hygiene issue, not a fund-safety one: the first row to
+   be processed sweeps the real balance, every duplicate resolves to
+   `nothing-to-deliver`. Low priority, logged for a future cleanup pass.
+3. **Confirmed, not a new gap — the cron endpoint's `CRON_SECRET` check is optional.**
+   Same posture already documented for Trigger Orders: if `CRON_SECRET` is never set,
+   `/api/cron/deliver-orders` is publicly callable by anyone, who could trigger already-
+   authorized deliveries slightly early. Bounded by design (every action it performs was
+   already explicitly pre-authorized by a real user's on-chain delegate approval) — real
+   operational hygiene item (set `CRON_SECRET` in production), not a fund-safety gap.
+
+**Estate Shield (part 7 of the original batch) was confirmed NOT built** — see
+`PLAN_SAFETY_DISCOVERY_FEATURES.md`'s entry for the full reasoning (needs real
+smart-contract development, not a web-app feature). Airdrop Radar (part 4) was skipped,
+blocked on a Drops.bot API key that isn't self-serve.

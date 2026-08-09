@@ -256,7 +256,17 @@ execution engine remains a real, scoped, NOT-built idea — see the reasoning ab
 
 ---
 
-## 7. Estate Shield — hardest, likely needs real smart-contract development
+## 7. Estate Shield — hardest, likely needs real smart-contract development — ❌ NOT BUILT (confirmed 2026-08-09)
+
+Confirmed not built, per the recommendation above, when the other 6 features in this
+batch were implemented. Nothing in this app's normal feature pipeline (Next.js routes +
+the bounded relayer pattern) can honestly deliver "protect and transfer everything I own
+for up to 180 days, unattended" — that needs either real custodial fund-holding
+(explicitly out of scope, see `SECURITY.md`) or a real, audited on-chain escrow
+contract, which is a different kind of project (Rust/Solidity development + a security
+audit + real deployment costs) than anything else this app has shipped. Remains a real,
+scoped idea for if/when the business wants to commission that work — not silently
+dropped, just correctly not attempted here.
 
 ### Real infra found
 - **Sarcophagus** is a real, live dead-man's-switch protocol on Ethereum — but it releases
