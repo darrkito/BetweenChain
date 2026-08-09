@@ -1,0 +1,30 @@
+---
+title: "MEV Shield: Route Solana Swaps Away From Sandwich Bots"
+description: "An opt-in checkbox that submits your swap directly to Jito's private relay instead of the public mempool — real MEV protection, no new custody, no new signing model."
+date: "2026-08-09"
+category: "Guides"
+chains:
+  - "solana"
+mentions: ["MEV Shield", "Jito"]
+faq:
+  - question: "Does this hold my funds or need extra permission?"
+    answer: "No. This changes WHERE your already-signed transaction is broadcast — the same signature you already produce, sent to Jito's relay instead of the default RPC. No new custody, no new signing authority, nothing this app can do with your funds that it couldn't before."
+  - question: "Is my swap guaranteed zero MEV loss?"
+    answer: "No — and this app won't claim that. Private routing reduces a sandwich bot's ability to see and front-run your transaction before it lands; it isn't an absolute guarantee. Your swap's own on-chain minimum-output check (already present regardless of this toggle) is what actually blocks an unacceptable fill."
+  - question: "Does this work for EVM swaps too?"
+    answer: "Not yet. The equivalent EVM protection (Flashbots Protect) needs a raw signed transaction that standard wallets like MetaMask don't expose to websites by design — a real, deliberate wallet security restriction, not something this app can route around."
+---
+
+Public Solana RPC nodes broadcast your transaction to everyone before it lands — including sandwich bots watching for exactly that. MEV Shield routes it somewhere they can't see.
+
+<QuickFacts items='["Opt-in checkbox on Solana-origin swaps — routes your already-signed transaction through Jito instead of the public mempool", "No new custody or signing model — the exact same signature, sent somewhere private instead", "Real, honest disclosure: reduces MEV exposure, does not guarantee zero loss", "EVM equivalent not available yet — standard wallets don’t expose what it would need"]' />
+
+## How it works
+
+Check "Route via Jito" before confirming a Solana-origin swap. Everything about signing stays identical — your wallet signs the exact same transaction it always would. The only change is where that signed transaction gets sent: Jito's Block Engine, a real, free, public infrastructure Solana validators run to accept transactions privately, instead of the default RPC that broadcasts to the public mempool where bots watch for profitable sandwich opportunities.
+
+## What this actually protects against — and what it doesn't
+
+Private routing means a sandwich bot doesn't get to see your transaction before it's included in a block, which removes most of the opportunity to front-run it. It is not an ironclad guarantee — your swap's own built-in minimum-output check is still what actually prevents an unacceptably bad fill, with or without this toggle. What Jito routing adds on top: avoiding wasted gas on a doomed public-mempool attempt, and avoiding a successful-but-worse-than-expected sandwich that technically stays within your slippage tolerance but still costs you real money.
+
+[Try a Solana swap](/swap) with MEV Shield checked.

@@ -8,6 +8,7 @@ import { PublicKey, SystemProgram, Transaction, VersionedTransaction } from "@so
 import { SOLANA_CHAIN_ID_CLIENT, normalizeSolanaSourceMint } from "@/lib/client/constants";
 import { toAtomicAmount } from "@/lib/client/amount";
 import { buildRelayDepositTransaction } from "@/lib/client/relayTransaction";
+import { sendViaJito } from "@/lib/client/jito";
 import { useEvmWallet } from "@/lib/client/EvmWalletProvider";
 import { useBtcWallet } from "@/lib/client/BtcWalletProvider";
 import { useSolanaBalance } from "@/lib/client/useSolanaBalance";
@@ -79,6 +80,7 @@ export function SwapPageClient() {
   const [destAddressManuallyEdited, setDestAddressManuallyEdited] = useState(false);
   const [slippageBps, setSlippageBps] = useState(100); // 1% default, was hardcoded with no UI control before 2026-08-03
   const [autoRefuel, setAutoRefuel] = useState(false); // Just-In-Time Gas (2026-08-07), default off — see SwapPanel.tsx's toggle doc
+  const [mevShield, setMevShield] = useState(false); // MEV Shield (2026-08-09), default off — Solana-origin only, see lib/client/jito.ts
   const [reviewOpen, setReviewOpen] = useState(false);
   // Mirrored up from SwapPanel's own live quote preview (see its
   // onPreviewChange doc) — used below for the Review modal's rate/
@@ -575,7 +577,12 @@ export function SwapPageClient() {
         // is guaranteed non-null here by the sellIsSolana guard above.
         const tx = VersionedTransaction.deserialize(Buffer.from(unsignedTransaction, "base64"));
         const signed = await signTransaction!(tx);
-        const signature = await connection.sendRawTransaction(signed.serialize());
+        // MEV Shield (2026-08-09) — mirrors executeSwapFlow.ts's own fix,
+        // kept separate per that file's convention for this page. Routes
+        // through Jito's private relay instead of the public RPC when
+        // opted in, so a sandwich bot never sees this in the public
+        // mempool before it lands.
+        const signature = mevShield && sellIsSolana ? await sendViaJito(signed) : await connection.sendRawTransaction(signed.serialize());
 
         phase = "leg1_confirming";
         setStep(phase);
@@ -831,6 +838,8 @@ export function SwapPageClient() {
           onPreviewChange={setPreview}
           autoRefuel={autoRefuel}
           onAutoRefuelChange={setAutoRefuel}
+          mevShield={mevShield}
+          onMevShieldChange={setMevShield}
         />
 
         <SlippageControl bps={slippageBps} onChange={setSlippageBps} />

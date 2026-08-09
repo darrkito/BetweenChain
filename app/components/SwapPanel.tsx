@@ -119,6 +119,8 @@ export function SwapPanel({
   onPreviewChange,
   autoRefuel,
   onAutoRefuelChange,
+  mevShield,
+  onMevShieldChange,
 }: {
   sellToken: SelectedToken | null;
   buyToken: SelectedToken | null;
@@ -157,6 +159,12 @@ export function SwapPanel({
    * request for a non-EVM/already-native destination). */
   autoRefuel: boolean;
   onAutoRefuelChange: (v: boolean) => void;
+  /** MEV Shield (2026-08-09) — Solana-origin only, controlled from
+   * SwapPageClient the same way as autoRefuel above, since it changes
+   * which endpoint the leg1 signed transaction is broadcast to at
+   * execution time (see lib/client/jito.ts). */
+  mevShield: boolean;
+  onMevShieldChange: (v: boolean) => void;
 }) {
   const [sellModalOpen, setSellModalOpen] = useState(false);
   const [buyModalOpen, setBuyModalOpen] = useState(false);
@@ -507,6 +515,23 @@ export function SwapPanel({
               type="checkbox"
               checked={autoRefuel}
               onChange={(e) => onAutoRefuelChange(e.target.checked)}
+              className="h-4 w-4 shrink-0 accent-[var(--accent)]"
+            />
+          </label>
+        )}
+
+        {/* MEV Shield (2026-08-09, Solana-only) — only shown for a
+            Solana-origin sell token, since Jito's private relay is a
+            Solana-specific mechanism (see lib/client/jito.ts's doc for why
+            the EVM/Flashbots side isn't offered — standard injected
+            wallets don't expose the raw-signed-tx capability it needs). */}
+        {hasValidInput && sellToken?.chainId === SOLANA_CHAIN_ID && (
+          <label className="mt-3 flex items-center justify-between gap-2 border-t border-hairline pt-3 text-xs text-ink-muted">
+            <span>🛡️ Route via Jito — avoid public mempool (MEV protection)</span>
+            <input
+              type="checkbox"
+              checked={mevShield}
+              onChange={(e) => onMevShieldChange(e.target.checked)}
               className="h-4 w-4 shrink-0 accent-[var(--accent)]"
             />
           </label>

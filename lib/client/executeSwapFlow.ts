@@ -5,6 +5,7 @@ import { VersionedTransaction } from "@solana/web3.js";
 import { buildRelayDepositTransaction } from "@/lib/client/relayTransaction";
 import { SOLANA_CHAIN_ID_CLIENT } from "@/lib/client/constants";
 import type { useEvmWallet } from "@/lib/client/EvmWalletProvider";
+import { sendViaJito } from "@/lib/client/jito";
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -22,6 +23,12 @@ export interface SwapFlowParams {
   destAddress: string;
   slippageBps: number;
   autoRefuel?: boolean;
+  /** MEV Shield (2026-08-09) — Solana-only. Routes the leg1 signed
+   * transaction through Jito's private relay (lib/client/jito.ts) instead
+   * of the public RPC's sendRawTransaction, so a sandwich bot watching the
+   * public mempool never sees it before it lands. No-op for a non-Solana
+   * origin. */
+  useMevShield?: boolean;
 }
 
 interface SwapFlowWallets {
@@ -57,7 +64,11 @@ export async function executeSwapFlow(
   if (!quoteRes.ok) throw new Error((await quoteRes.json()).error ?? "Quote failed");
   const { quoteId } = await quoteRes.json();
 
-  return executeQuotedSwap({ quoteId, sourceChainId: params.sourceChainId, destChainId: params.destChainId }, wallets, onProgress);
+  return executeQuotedSwap(
+    { quoteId, sourceChainId: params.sourceChainId, destChainId: params.destChainId, useMevShield: params.useMevShield },
+    wallets,
+    onProgress,
+  );
 }
 
 /**
@@ -71,12 +82,12 @@ export async function executeSwapFlow(
  * which endpoint created the quote they're consuming.
  */
 export async function executeQuotedSwap(
-  params: { quoteId: string; sourceChainId: number; destChainId: number },
+  params: { quoteId: string; sourceChainId: number; destChainId: number; useMevShield?: boolean },
   wallets: SwapFlowWallets,
   onProgress: (phase: SwapFlowPhase, message?: string) => void,
 ): Promise<{ swapId: string }> {
   const { solanaPublicKey, signSolanaTransaction, connection, evmWallet } = wallets;
-  const { quoteId, sourceChainId, destChainId } = params;
+  const { quoteId, sourceChainId, destChainId, useMevShield } = params;
   const sellIsSolana = sourceChainId === SOLANA_CHAIN_ID_CLIENT;
   const isCrossChain = destChainId !== sourceChainId;
 
@@ -97,7 +108,8 @@ export async function executeQuotedSwap(
     }
     const tx = VersionedTransaction.deserialize(Buffer.from(unsignedTransaction, "base64"));
     const signed = await signSolanaTransaction(tx);
-    const signature = await connection.sendRawTransaction(signed.serialize());
+    const signature =
+      useMevShield && sellIsSolana ? await sendViaJito(signed) : await connection.sendRawTransaction(signed.serialize());
 
     onProgress("leg1_confirming");
     const confirmRes = await fetch("/api/swap/confirm", {

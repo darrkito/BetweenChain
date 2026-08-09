@@ -594,3 +594,20 @@ GoPlus's or Aave's URLs beyond a validated address/chain id).
 `PLAN_SAFETY_DISCOVERY_FEATURES.md`'s entry for the full reasoning (needs real
 smart-contract development, not a web-app feature). Airdrop Radar (part 4) was skipped,
 blocked on a Drops.bot API key that isn't self-serve.
+
+## 2026-08-09b — MEV Shield (Jito routing) — no new custody, real disclosure
+
+`lib/client/jito.ts` submits an ALREADY-SIGNED Solana transaction (the exact same signed
+object the app already gets back from the wallet's own `signTransaction()`) to Jito's
+public Block Engine instead of the default RPC's `sendRawTransaction`. No new signing
+authority, no new custody, no server involvement — this is purely a change of WHERE an
+already-user-authorized transaction gets broadcast. Confirmed live before building:
+Jito's `sendTransaction` endpoint is real, public, and requires no API key.
+
+Real disclosure, not oversold: private routing reduces a sandwich bot's ability to see
+and front-run the transaction before it lands — it does not provide an absolute
+guarantee, and this app's UI copy deliberately doesn't claim one. The transaction's own
+on-chain slippage/minOut check (already present on every swap regardless of this toggle)
+is what actually prevents an unacceptable fill; Jito's real value is avoiding wasted gas
+on a doomed public-mempool attempt and avoiding a successful-but-worse-than-expected
+sandwich that stays within slippage tolerance.

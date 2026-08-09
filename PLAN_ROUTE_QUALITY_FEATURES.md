@@ -98,7 +98,14 @@ existing internal function, adds a route + polling that isn't wired up today.
 
 ---
 
-## 3. MEV Shield — Solana only, medium
+## 3. MEV Shield — Solana only, medium — ✅ SHIPPED 2026-08-09
+
+`lib/client/jito.ts` + a "Route via Jito" checkbox in `SwapPanel.tsx` (Solana-origin
+only). No tip instruction injected in v1 (Jito confirmed live: tips are optional for
+`sendTransaction`, only required for `sendBundle`) — real, scoped follow-up. EVM/
+Flashbots confirmed NOT built, per the research above (standard wallets don't expose
+`eth_signTransaction`). See `SECURITY.md`'s entry: no new custody, same signature just
+broadcast somewhere private.
 
 ### Real infra found (live-verified)
 - **Jito Block Engine** (`mainnet.block-engine.jito.wtf`) — confirmed live: both
