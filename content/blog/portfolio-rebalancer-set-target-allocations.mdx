@@ -1,0 +1,36 @@
+---
+title: "Portfolio Rebalancer: Set Target Allocations, Swap Into Place"
+description: "Scan your wallet, set target percentages across what you hold, and rebalance with real USD-value deltas — a guided sequence of ordinary swaps, no relayer, no custody."
+date: "2026-08-09"
+category: "Guides"
+chains:
+  - "solana"
+  - "ethereum"
+  - "base"
+mentions: ["Portfolio Rebalancer"]
+faq:
+  - question: "Does this move my funds without me signing anything?"
+    answer: "No. Every leg of the rebalance is an ordinary swap you sign yourself, one at a time — the same guided-swap-sequence model as Dust Sweeper and Evac Engine. Nothing moves without your signature."
+  - question: "Is this one atomic transaction?"
+    answer: "No — and this app won't claim that. Selling across chains and DEXs in one atomic on-chain transaction isn't achievable with the infrastructure this app uses. Each sell-to-buy leg is its own real swap, executed in sequence."
+  - question: "What if my target percentages don't add up to 100%?"
+    answer: "The Execute button stays disabled until they do. This app won't guess a rebalance plan from an ambiguous allocation."
+  - question: "Does this work with Sui?"
+    answer: "Not yet — there's no Sui swap execution path in this app yet. v1 covers Solana and EVM chains only."
+---
+
+Your portfolio drifts. SOL pumps, your USDC allocation shrinks as a percentage, and suddenly you're holding 80% one asset when you meant to hold 50%. Portfolio Rebalancer scans what you actually hold, lets you set real target percentages, and computes the exact dollar amounts to sell and buy to get back there.
+
+<QuickFacts items='["Scans real Solana + EVM balances with live USD pricing, not estimates", "Set target percentages across what you hold — or add a new buy target", "Computes exact USD deltas, then splits sells across buy targets proportional to their deficit", "Executes as a guided sequence of ordinary swaps — one signature per leg, not one atomic transaction"]' />
+
+## How it works
+
+Connect a wallet and scan — this pulls your real Solana SPL holdings and EVM token balances, priced with live market data. Set a target percentage next to each holding (defaulting to your current weight, so an untouched scan starts already "balanced"). Add a new asset you want to buy into via the token picker if it's not something you already hold.
+
+Once your targets sum to 100%, the plan appears: which assets are over-allocated (sell) and which are under-allocated (buy), each with a real dollar amount. Hit Execute, and it runs each leg as its own swap — over-allocated holdings get split proportionally across your under-allocated buy targets, using the same exact-sum BigInt math this app already uses for Portfolio Baskets.
+
+## Why this isn't "one click, one signature"
+
+Selling three assets and buying two others across Solana and EVM chains genuinely can't happen in a single atomic on-chain transaction — there's no mechanism that lets independent DEXs and bridges settle together like that. What Portfolio Rebalancer gives you instead is honest: a real, computed plan, executed as a sequence of ordinary swaps you sign one at a time, with live status on each leg as it runs.
+
+[Try the Rebalancer](/rebalance) on a connected wallet.

@@ -153,7 +153,25 @@ reroute the transaction.
 
 ---
 
-## 4. Portfolio Rebalancer — medium–large
+## 4. Portfolio Rebalancer — medium–large — ✅ SHIPPED 2026-08-09 (v1, sequential — not relayer-batched)
+
+`lib/rebalance/computeDeltas.ts` + `app/rebalance/RebalanceClient.tsx`. Scans real
+Solana + EVM balances (Solana priced via `/api/tokens/mint-prices`, same as Dust
+Sweeper), lets the user set target percentages (defaulting to current weight),
+computes real USD deltas, and executes the sell→buy sequence via `executeSwapFlow` —
+one signature per leg, same guided-sequential-swap model as Evac Engine/Dust Sweeper.
+
+### Scope decision made at implementation time (not in the original research above)
+The relayer-batched "1 signature" version described below under "What's overstated in
+the pitch" is real and buildable (this app already has the exact SPL-delegate +
+relayer pattern from Trigger Orders/OmniDust Vacuum) but is a genuinely bigger lift —
+deferred as a scoped follow-up rather than blocking v1. v1 uses the SAME execution
+model as Evac Engine/Dust Sweeper instead: each sell/buy leg is its own ordinary swap,
+signed individually. `lib/rebalance/computeDeltas.ts`'s `splitSellAcrossBuys` reuses
+`lib/baskets/split.ts`'s exact-sum BigInt `splitAmount` to proportionally divide each
+over-allocated holding's excess across every under-allocated buy target by deficit
+share — the same math, applied to N sells × M buys instead of 1 deposit × N
+allocations. Sui excluded (no Sui swap execution path exists anywhere in this app).
 
 ### Real infra to reuse
 Generalizes two things this app has already built:

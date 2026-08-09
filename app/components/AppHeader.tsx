@@ -53,6 +53,7 @@ const NAV_GROUPS: Array<{ label: string; icon: string; items: NavItem[] }> = [
     items: [
       { href: "/dust-sweeper", label: "Dust Sweeper", icon: "🧹" },
       { href: "/basket", label: "Portfolio Baskets", icon: "🧺" },
+      { href: "/rebalance", label: "Rebalancer", icon: "⚖️" },
       { href: "/evac", label: "Evac Engine", icon: "🚨" },
     ],
   },
