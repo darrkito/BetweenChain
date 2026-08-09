@@ -173,6 +173,21 @@ export async function executeQuotedSwap(
   }
 
   onProgress("leg2_pending", isCrossChain ? "Waiting for the bridge to settle…" : "Waiting for the swap to confirm…");
+  // Stall Transparency Panel (2026-08-09) — once polling has run long
+  // enough that a plain spinner would start to feel like a stall (~15s),
+  // start surfacing Relay's REAL intent status instead of a static
+  // message. See app/api/bridge/confirm/route.ts's doc comment: this
+  // app's own docs confirmed live that Relay has no user-triggerable
+  // "self-heal" claim mechanism for a stalled fill — refunds/completion
+  // are entirely solver-managed — so real transparency about which real
+  // state it's in is the honest improvement here, not a fake rescue
+  // button.
+  const STALL_THRESHOLD_ATTEMPTS = 5; // ~15s at the 3s poll interval below
+  const RELAY_STATUS_COPY: Record<string, string> = {
+    pending: "Relay's solver network is still processing this fill…",
+    received: "Deposit received — waiting for the destination delivery…",
+    unknown: "Waiting for the bridge to settle…",
+  };
   for (let attempt = 0; attempt < 40; attempt++) {
     await sleep(3000);
     const confirmRes = await fetch("/api/bridge/confirm", {
@@ -187,7 +202,13 @@ export async function executeQuotedSwap(
       return { swapId };
     }
     if (confirmed.status === "leg2_failed") {
+      if (confirmed.relayStatus === "refund") {
+        throw new Error("Relay is refunding your deposit — this fill couldn't complete, but your funds are being returned automatically.");
+      }
       throw new Error("Settlement failed — safe to retry, funds were not lost mid-flow.");
+    }
+    if (attempt >= STALL_THRESHOLD_ATTEMPTS) {
+      onProgress("leg2_pending", RELAY_STATUS_COPY[confirmed.relayStatus] ?? "Waiting for the bridge to settle…");
     }
   }
   throw new Error("Taking longer than expected — check back shortly, it may still settle.");

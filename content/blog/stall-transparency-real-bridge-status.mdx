@@ -1,0 +1,28 @@
+---
+title: "No More Guessing: Real Bridge Status Instead of a Generic Spinner"
+description: "A cross-chain swap that's taking a while now shows what's actually happening — pending, being delivered, or being refunded — instead of a static \"waiting\" message the whole time."
+date: "2026-08-09"
+category: "Guides"
+mentions: ["Stall Transparency"]
+faq:
+  - question: "Can I manually force a stalled swap to complete?"
+    answer: "No — Relay's own documentation confirms completion and refunds are entirely managed by their solver network, with no user-triggerable claim mechanism. There's nothing real for a \"force complete\" button to actually do. This feature is about honest status, not a fake rescue action."
+  - question: "What happens if my swap gets refunded?"
+    answer: "You'll see a clear, specific message — \"Relay is refunding your deposit\" — instead of a generic failure. Your original funds are returned automatically by Relay; nothing further to do on your end."
+  - question: "Does this slow down a normal, fast swap?"
+    answer: "No — most swaps complete well within the first few status checks and never show the extended status detail at all. It only kicks in once a swap has been pending long enough that a plain spinner stops being useful."
+---
+
+A cross-chain swap that takes longer than usual doesn't mean something's broken — but a generic spinner can't tell you the difference between "still processing" and "being refunded." Now it does.
+
+<QuickFacts items='["Once a swap has been pending long enough to feel slow, real status replaces the generic message", "Distinguishes solver processing from an active refund — very different situations, very different messages", "A refund gets a clear, specific message instead of a generic failure", "No fake \"force complete\" button — Relay itself manages completion/refunds, so there is nothing for a manual action to actually do"]' />
+
+## What changed
+
+Every cross-chain swap already polls for its real settlement status behind the scenes. That real status — is it still processing, has the deposit been received, is it being refunded — was previously discarded in favor of one generic "waiting…" message for the entire duration. Now, once a swap has been pending long enough that a static message stops being useful, the real status replaces it.
+
+## Why there's no "rescue" button
+
+We looked into whether a stalled bridge fill could be manually completed by the user — submitting a proof directly, the way some older bridge designs work. Checked directly against Relay's own documentation: no such mechanism exists for this app's bridging engine. Completion and refunds are entirely handled by Relay's own solver network. Building a button that claims to "force" something would have nothing real behind it. The honest improvement is telling you exactly what's actually happening instead.
+
+[Try a cross-chain swap](/swap).

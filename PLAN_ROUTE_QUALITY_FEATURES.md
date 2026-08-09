@@ -60,7 +60,15 @@ property-access away.
 
 ---
 
-## 2. Stall Transparency Panel (rescoped from "Self-Heal Bridge Rescue") — easy
+## 2. Stall Transparency Panel (rescoped from "Self-Heal Bridge Rescue") — easy — ✅ SHIPPED 2026-08-09
+
+`app/api/bridge/confirm/route.ts` now returns Relay's real `relayStatus` alongside the
+existing collapsed status (previously discarded). Both polling loops that consume it —
+`lib/client/executeSwapFlow.ts` (Dust Sweeper/Baskets/Evac Engine/ClickPay) AND
+`app/swap/SwapPageClient.tsx`'s own separate loop (the highest-traffic page, kept
+deliberately unrefactored per that file's own doc comment — mirrored the fix instead of
+sharing code) — now surface real status text once a swap has been pending long enough to
+feel stalled, and give `refund` a distinct, honest message instead of a generic failure.
 
 ### Why the original pitch isn't real
 Live-checked Relay's own refunds documentation directly: refunds/completion for a

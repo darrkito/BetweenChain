@@ -53,12 +53,21 @@ export async function POST(req: Request) {
 
   const intentStatus = await getRelayIntentStatus(requestId);
 
-  if (intentStatus.status === "failure" || intentStatus.status === "fallback") {
+  // Stall Transparency Panel (2026-08-09) — `relayStatus` is Relay's own
+  // real intent status (pending/success/failure/fallback/received/refund/
+  // unknown), previously swallowed into a 3-way collapse that made a
+  // `refund` (funds actively being RETURNED) indistinguishable from
+  // ordinary "still settling" — a real user-facing gap: someone watching a
+  // generic spinner during an active refund has no idea their money is
+  // coming back, not stuck. `refund`/`failure`/`fallback` all end this
+  // leg's polling immediately rather than waiting out the full retry
+  // budget for an outcome that's already known.
+  if (intentStatus.status === "failure" || intentStatus.status === "fallback" || intentStatus.status === "refund") {
     await db.from("swap_transactions").update({ status: "leg2_failed" }).eq("id", swap.id);
-    return NextResponse.json({ status: "leg2_failed" });
+    return NextResponse.json({ status: "leg2_failed", relayStatus: intentStatus.status });
   }
   if (intentStatus.status !== "success") {
-    return NextResponse.json({ status: "leg2_pending" }); // still settling — client should keep polling
+    return NextResponse.json({ status: "leg2_pending", relayStatus: intentStatus.status }); // still settling — client should keep polling
   }
 
   const nowIso = new Date().toISOString();

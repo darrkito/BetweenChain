@@ -657,6 +657,18 @@ export function SwapPageClient() {
             ? "Deposit submitted — waiting for the bridge to settle (usually a few seconds)…"
             : "Swap submitted — waiting for it to confirm (usually a few seconds)…",
         );
+        // Stall Transparency Panel (2026-08-09) — mirrors the same fix in
+        // lib/client/executeSwapFlow.ts's own polling loop (kept separate
+        // per that file's own doc comment on why this page's flow isn't
+        // refactored to share it) — surfaces Relay's REAL intent status
+        // once polling has run long enough that a static message would
+        // start reading as a stall, and gives refund a distinct, honest
+        // message instead of a generic failure.
+        const STALL_THRESHOLD_ATTEMPTS = 5;
+        const RELAY_STATUS_COPY: Record<string, string> = {
+          pending: "Relay's solver network is still processing this fill…",
+          received: "Deposit received — waiting for the destination delivery…",
+        };
         for (let attempt = 0; attempt < 40; attempt++) {
           await sleep(3000);
           const confirmRes = await fetch("/api/bridge/confirm", {
@@ -673,6 +685,9 @@ export function SwapPageClient() {
             return;
           }
           if (confirmed.status === "leg2_failed") {
+            if (confirmed.relayStatus === "refund") {
+              throw new Error("Relay is refunding your deposit — this fill couldn't complete, but your funds are being returned automatically.");
+            }
             throw new Error(
               isCrossChain
                 ? sellIsSolana
@@ -680,6 +695,9 @@ export function SwapPageClient() {
                   : "Bridge settlement failed — your deposit did not complete, safe to retry."
                 : "Swap failed — your funds were not moved, safe to retry.",
             );
+          }
+          if (attempt >= STALL_THRESHOLD_ATTEMPTS && RELAY_STATUS_COPY[confirmed.relayStatus]) {
+            setMessage(RELAY_STATUS_COPY[confirmed.relayStatus]);
           }
         }
         throw new Error(
