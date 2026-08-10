@@ -22,6 +22,15 @@ const PortfolioDrawer = dynamic(
   { ssr: false },
 );
 
+// Reads the session (useAuth) and fetches a per-user balance client-side —
+// same SSR exclusion reasoning as the two above, otherwise the server-
+// rendered "signed out" state would hydration-mismatch against a real
+// signed-in balance.
+const PointsPill = dynamic(
+  () => import("@/app/components/PointsPill").then((m) => m.PointsPill),
+  { ssr: false },
+);
+
 interface NavItem {
   href: string;
   label: string;
@@ -383,6 +392,7 @@ export function AppHeader() {
       <div className="flex shrink-0 items-center gap-2">
         <SocialXLink className="hidden h-9 w-9 items-center justify-center rounded-full border border-hairline bg-surface text-ink-muted transition-all hover:border-accent/40 hover:text-accent sm:flex" />
         <ThemeToggle />
+        <PointsPill />
         <PortfolioDrawer />
         <ConnectWalletMenu />
       </div>

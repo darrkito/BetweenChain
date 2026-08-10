@@ -6,6 +6,7 @@ import { PointsCalculator } from "@/app/components/PointsCalculator";
 import { TierBadge } from "@/app/components/TierBadge";
 import Link from "next/link";
 import { DustBurner } from "@/app/components/DustBurner";
+import { PushNotificationToggle } from "@/app/components/PushNotificationToggle";
 
 export default function DashboardPage() {
   const [balance, setBalance] = useState<number | null>(null);
@@ -56,6 +57,8 @@ export default function DashboardPage() {
         </section>
 
         <PointsCalculator />
+
+        <PushNotificationToggle />
 
         <DustBurner />
         <Link href="/dust-sweeper" className="-mt-2 self-start px-1 text-xs font-semibold text-accent hover:underline">

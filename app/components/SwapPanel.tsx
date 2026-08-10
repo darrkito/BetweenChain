@@ -201,6 +201,39 @@ export function SwapPanel({
   const hasValidInput = Boolean(sellToken && buyToken && sellAmount && Number.isFinite(amount) && amount > 0);
   const isBtcPair = sellToken?.chainId === BTC_CHAIN_ID || buyToken?.chainId === BTC_CHAIN_ID;
 
+  // Sell-side USD value (2026-08-10 UX-audit follow-up) — the Buy side
+  // already gets destAmountUsd from the quote preview; this mirrors it for
+  // Sell using the same per-mint price source Dust Sweeper already uses
+  // (GET /api/tokens/mint-prices, Jupiter-backed). Solana-only for now,
+  // same honest scope as sellBalance/Max above in this file — EVM sell
+  // tokens show nothing rather than a fabricated/guessed price. Fetched
+  // once per token (a price, not per-keystroke), multiplied client-side by
+  // the live-typed amount so it updates immediately without a network
+  // round-trip on every digit.
+  const [sellPriceUsd, setSellPriceUsd] = useState<number | null>(null);
+  useEffect(() => {
+    if (!sellToken || sellToken.chainId !== SOLANA_CHAIN_ID) {
+      // Deferred via a microtask, not called synchronously in the effect
+      // body — see PointsPill.tsx's identical pattern for the reasoning
+      // (react-hooks/set-state-in-effect enforced strictly in this repo).
+      Promise.resolve().then(() => setSellPriceUsd(null));
+      return;
+    }
+    let cancelled = false;
+    fetch(`/api/tokens/mint-prices?mints=${encodeURIComponent(sellToken.address)}`)
+      .then((r) => (r.ok ? r.json() : Promise.reject(r)))
+      .then((d: { prices: Record<string, number | null> }) => {
+        if (!cancelled) setSellPriceUsd(d.prices[sellToken.address] ?? null);
+      })
+      .catch(() => {
+        if (!cancelled) setSellPriceUsd(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [sellToken]);
+  const sellAmountUsd = sellPriceUsd != null && Number.isFinite(amount) && amount > 0 ? (amount * sellPriceUsd).toFixed(2) : null;
+
   // "btc" | "sol" | "eth" ticker for a token known to be one of the three
   // currencies /api/quote/btc handles — only ever called when isBtcPair is
   // true, i.e. the non-BTC side is already guaranteed native SOL or native
@@ -298,6 +331,9 @@ export function SwapPanel({
           />
           <TokenPill token={sellToken} onClick={() => setSellModalOpen(true)} />
         </div>
+        {sellToken?.chainId === SOLANA_CHAIN_ID && (
+          <p className="num mt-2 text-sm text-ink-faint">{sellAmountUsd ? `$${sellAmountUsd}` : "$0.00"}</p>
+        )}
         {/* Real gap fixed 2026-08-03: no balance shown for the Sell token at
             all before this, and no "Max" shortcut — Solana-only for now,
             see the sellBalance prop's doc comment above. */}

@@ -3,6 +3,7 @@ import { supabaseAdmin } from "@/lib/supabase/server";
 import { deliverOrder } from "@/lib/relayer/deliverOrder";
 import { deliverDustSweep } from "@/lib/relayer/deliverDustSweep";
 import { safeErrorResponse } from "@/lib/apiError";
+import { sendPushToUser } from "@/lib/push";
 
 export const maxDuration = 60;
 
@@ -73,6 +74,14 @@ export async function GET(req: Request) {
           .from("trigger_orders")
           .update({ delivery_status: "delivered", delivery_tx_signature: result.depositSignature })
           .eq("id", row.id);
+        // Best-effort — a push failure must never affect the real delivery
+        // that already succeeded above. No-ops entirely if the user never
+        // subscribed or push isn't configured (see lib/push.ts).
+        await sendPushToUser(row.user_id, {
+          title: "Trigger Order filled",
+          body: "Your order was delivered — check /orders for details.",
+          url: "/orders",
+        }).catch(() => {});
       } else if (result.status === "failed") {
         await db.from("trigger_orders").update({ delivery_status: "failed", delivery_error: result.error }).eq("id", row.id);
       } else {

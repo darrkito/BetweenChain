@@ -6,6 +6,7 @@ import { QuotePreviewWidget } from "@/app/components/QuotePreviewWidget";
 import { Reveal } from "@/app/components/Reveal";
 import { HeroVisual } from "@/app/components/HeroVisual";
 import { TrustBar } from "@/app/components/TrustBar";
+import { StatsBar } from "@/app/components/StatsBar";
 import { NftImage } from "@/app/components/NftImage";
 import { JsonLd, faqPageSchema } from "@/lib/seo/jsonld";
 import { FAQ_ITEMS } from "@/lib/content/faq";
@@ -101,6 +102,7 @@ export default async function LandingPage() {
         </p>
         <QuotePreviewWidget />
         <TrustBar />
+        <StatsBar />
       </section>
 
       {/* Trending NFT collections — real, live Magic Eden data (see

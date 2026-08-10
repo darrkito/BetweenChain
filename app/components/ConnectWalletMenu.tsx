@@ -139,6 +139,9 @@ export function ConnectWalletMenu() {
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-4 backdrop-blur-sm"
       onClick={() => setOpen(false)}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="connect-wallet-menu-title"
     >
       <div
         className="flex w-full max-w-sm flex-col gap-1 overflow-y-auto rounded-2xl border border-hairline bg-surface p-4 shadow-xl"
@@ -146,7 +149,7 @@ export function ConnectWalletMenu() {
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-2 flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-ink">Connect a wallet</h2>
+          <h2 id="connect-wallet-menu-title" className="text-sm font-semibold text-ink">Connect a wallet</h2>
           <button onClick={() => setOpen(false)} className="text-ink-faint hover:text-ink" aria-label="Close">
             ✕
           </button>
