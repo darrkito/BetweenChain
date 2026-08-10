@@ -132,6 +132,15 @@ body {
   font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
 }
 
+/* Room for the persistent mobile bottom command bar (AppHeader.tsx's
+   MobileBottomBar, `sm:hidden`) so page content never sits underneath it.
+   639px matches Tailwind's `sm` breakpoint (640px) minus one pixel. */
+@media (max-width: 639px) {
+  body {
+    padding-bottom: calc(3.75rem + env(safe-area-inset-bottom));
+  }
+}
+
 h1,
 h2,
 h3 {

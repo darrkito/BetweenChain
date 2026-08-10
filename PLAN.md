@@ -808,3 +808,144 @@ Radar, Sentinel Shield, Burner Shield, Estate Shield) — full analysis, real in
 data-only precedent, ERC-4337 provider landscape), and a recommended easiest→hardest
 build order live in `PLAN_SAFETY_DISCOVERY_FEATURES.md`. Nothing in that batch is
 implemented yet — planning only, awaiting a build-order decision.
+
+## Pre-Flight Sandbox Simulation Engine (2026-08-10) — see PLAN_SANDBOX_SIMULATION.md
+
+Pitched as a client-side "WASM Anvil fork" pre-flight simulator. Research found that
+framing doesn't hold up (a full state fork needs live RPC access regardless of where the
+interpreter runs — "client-side" has no real advantage). What IS real and buildable:
+Solana's native `simulateTransaction` RPC (free, no new infra, returns real pre/post
+token balances for a full multi-instruction tx) ships now; EVM's single-call balance
+delta already has a free technique in this codebase (`estimateBuyCallTotalCostWei`'s
+`stateOverride` pattern) but true atomic multi-call bundle preview has no free/self-serve
+vendor (Alchemy's bundle simulation is paid-tier AND being deprecated 2026-09-30; Tenderly
+requires a paid plan for any API access) — the only free path is self-hosting an ephemeral
+Anvil fork (e.g. via Vercel Sandbox), not yet spiked live. Honeypot/tax detection and
+slippage/price-impact display are NOT net-new — already shipped via Burner Shield's GoPlus
+integration and Route Auditor respectively; a sandbox panel should compose with both, not
+duplicate them. Full findings and recommended v1 scope in `PLAN_SANDBOX_SIMULATION.md`.
+
+## Rebrand / SEO / mobile-UX / growth-loop strategy pitch — assessment (2026-08-10)
+
+A large, mostly-generic Web3-growth strategy pitch (rebrand naming, mobile command-bar UX,
+programmatic SEO, retention loops) was reviewed against what this app actually has today.
+Verdict: **more of this is already shipped than the pitch assumes**, and the couple of
+genuinely new ideas in it are real but carry costs/tradeoffs the pitch doesn't surface.
+
+**Already shipped, contrary to what the pitch implies:**
+- Programmatic chain-pair landing pages exist today — `app/swap/[pair]/page.tsx`,
+  statically generated, `FAQPage`/breadcrumb JSON-LD (`lib/seo/jsonld.ts`), deliberately
+  bounded to **12 real Solana↔EVM pairs**, not the pitch's "500+ token/chain combinations."
+  That bound was a deliberate earlier decision (thin/duplicate-content risk from
+  auto-generating hundreds of near-identical pages with no real liquidity behind most of
+  them) — re-litigate only with a concrete reason, don't silently expand it.
+- A real points/tiers/referral growth loop already exists (`lib/points.ts`, `lib/tiers.ts`,
+  `lib/pointsConstants.ts`, `/dashboard`) — Bronze/Silver/Diamond tiers, 20%/10%
+  referrer/referred bonus. **Gap vs. the pitch**: tiers are currently **display-only**, no
+  actual fee-discount or gas-rebate mechanism wired to them — the pitch's "10-50% protocol
+  fee cashback" would be new work, not already-covered.
+- Mobile nav already exists (hamburger → full-width grouped overlay, `AppHeader.tsx`) but
+  is NOT the pitch's persistent bottom command bar (Swap/Routes/Activity/Rewards tabs) —
+  that specific pattern is genuinely not built.
+- Slide-over transaction drawers already exist in some flows (`SwapProgressDrawer.tsx`,
+  `PortfolioDrawer.tsx`) — the pitch's "replace full-page redirects with bottom-sheet
+  drawers" is partially true already, not a from-scratch gap.
+
+**Genuinely new and real, worth a deliberate decision each (not silently built):**
+- **Rebrand off the `.click` domain** — the pitch's actual technical claim (generic TLDs
+  hurting trust/spam-filtering during wallet signatures) is a real, known pattern, not
+  fluff. But this is a major, mostly-irreversible business decision (new domain purchase,
+  full redirect map, resets accumulated SEO authority the existing blog/pair-page content
+  has been building since 2026-07) — not something to execute without the business
+  explicitly signing off on losing/redirecting current `blockchains.click` authority.
+- **Persistent bottom command bar for mobile** — real, common, buildable UI work, doesn't
+  touch custody/contracts. Genuine gap vs. current hamburger-overlay pattern.
+- **1-click session keys (WebAuthn/scoped signing)** — real capability class (ERC-4337
+  session keys or Solana equivalent), but overlaps directly with the "Burner Shield"
+  ERC-4337 research already done in `PLAN_SAFETY_DISCOVERY_FEATURES.md` §6 — same
+  infra decision (new AA SDK dependency, paymaster relationship) already flagged there as
+  not yet committed to. Don't treat this as a separate decision from that one.
+- **Push notifications for fills/bridge completion** — real, standard Web Push API,
+  no custody implication, genuinely not built yet.
+- **Live RPC health / gas heatmap / status page** — real and buildable from data this app
+  already reads (gas price already fetched for EVM txs); a public `status.` subdomain is
+  new but low-effort.
+
+**Not evaluated as real work — pure marketing copy, nothing to build:** the
+"institutional-grade protocol" positioning language, the ASCII command-center mockup
+layout (a restatement of already-shipped Swap+Route Auditor+analytics bar composition),
+and the "audit badges" trust-signal bullet (this app has never had a smart-contract audit
+to link to — the pitch's mockup literally including a fabricated "Audit: Active" analytics
+tile is a flag, not a template: **never ship a status claim this app can't back with a
+real, verifiable link**, same discipline as every other compliance-flag entry in
+`SECURITY.md`).
+
+**Update 2026-08-10, later same day**: the persistent mobile bottom command
+bar is shipped — `app/components/AppHeader.tsx`'s new `MobileBottomBar`
+(Swap/Activity/Rewards + a "More" tab reusing the existing grouped overlay,
+now extracted into `MobileNavOverlay`), replacing the old top-right
+hamburger as the mobile entry point. Both new fixed-position pieces are
+portaled to `document.body` — `<header>` has `backdrop-blur`, and any
+ancestor backdrop-filter/filter/transform creates its own containing block
+for `position: fixed`, the exact bug already found and fixed twice before in
+this codebase (`ConnectWalletMenu.tsx` 2026-07-21, `PortfolioDrawer.tsx`
+2026-08-07) — applying the same fix proactively here rather than
+rediscovering it a third time. `tsc`/`lint`/`build` all clean; **no browser
+automation was available this session to visually confirm it**, only
+SSR-output/dev-server-log verification (no hydration errors, server rendered
+clean) — worth an actual look in a browser before treating this as fully
+polished, same caveat as several other mobile-nav changes in this project's
+history.
+
+**Recommendation**: of the genuinely-new items, the bottom command bar and push
+notifications are the only two with no open architecture question and no custody/infra
+decision blocking them — real next-build candidates if this thread continues. Domain
+rebrand and session keys both need an explicit business/architecture decision before any
+code work, logged here rather than acted on unilaterally.
+
+## Push notifications — feasibility check (2026-08-10)
+
+Confirmed genuinely free and self-hostable, no new vendor account: standard Web Push
+(VAPID) delivery goes through the browser's own push service (Google/Mozilla/Apple) at no
+cost to this app — the `web-push` npm package (self-serve, `npx web-push generate-vapid-keys`
+run live to confirm) generates the identifying keypair locally, nothing to sign up for.
+**Not built this pass** — scoping only, per the task's own brief. A throwaway demo VAPID
+keypair was generated during this check to confirm the tool works; it must NOT be reused
+for a real deployment (regenerate fresh, store the private key as a real secret, never one
+that appeared in a chat transcript).
+
+Concrete v1 scope, next time this is picked up:
+1. New migration: `push_subscriptions` table (owning address/user_id, `endpoint`,
+   `keys.p256dh`, `keys.auth`, `created_at`) — same shape every Web Push tutorial uses,
+   nothing app-specific about the schema.
+2. `public/sw.js` service worker: `push` event → `showNotification`, `notificationclick` →
+   focus/open the relevant page (e.g. `/orders` for a fill).
+3. Client: a permission-request + subscribe flow (likely a toggle on `/dashboard`, next to
+   the existing Rewards content) posting the subscription to a new `/api/push/subscribe`
+   route.
+4. Server: `web-push`'s `sendNotification()` wired into the existing trigger points that
+   already know when something worth notifying about happened — Trigger Orders' delivery
+   cron (`app/api/cron/deliver-orders`) is the natural first real trigger (order filled
+   while the user wasn't looking), with swap/bridge-leg-2 completion as a fast follow.
+
+No custody or contract-deployment implication anywhere in this scope — purely notification
+plumbing, fits the same constraint as everything else in this session's batch.
+
+## Status as of 2026-08-10 — done vs. pending across this session's batch
+
+**Shipped, live-verified, `tsc`/`lint`/`build` clean:**
+- EVM contract-verification signal — `lib/goplus/security.ts` + `app/burner-shield/BurnerShieldClient.tsx`. Zero new API calls (an already-fetched field was just unread). Live-verified against WETH.
+- Solana pre-flight simulation — `lib/client/simulateSolanaTx.ts` wired into `app/swap/SwapPageClient.tsx`'s `runSwap()`. Blocks a doomed tx before requesting a signature, surfaces the real expected output. Live-verified against a real Jupiter-built transaction (delta matched exactly).
+- Mobile persistent bottom command bar — `app/components/AppHeader.tsx`'s new `MobileBottomBar` + `MobileNavOverlay` (extracted from the old hamburger-only `MobileNav`). Both portaled to `document.body` (proactively avoided the `backdrop-blur`-breaks-`fixed` bug already hit twice before in this codebase). **Not yet visually confirmed in a real browser** — no browser automation was available this session, only SSR/build-level checks. Worth an actual look.
+- `.claude/settings.local.json` — added an ESLint auto-fix `PostToolUse` hook alongside the existing Impeccable hooks. Command mechanics pipe-tested and confirmed working; **needed `/hooks` (run by the user) to actually activate**, since a mid-session settings edit doesn't hot-load. Confirm it's firing after the next real Edit/Write in this repo.
+- `AGENTS.md` — added a "Verification tooling" note pointing future sessions at the `claude-in-chrome` skill for the recurring "couldn't verify in a browser" gap, plus a reminder that `tsc`/`lint`/`build` passing isn't sufficient proof of correctness (this codebase's own repeated history).
+
+**Researched/scoped, explicitly NOT built:**
+- Push notifications (Web Push/VAPID) — confirmed genuinely free/self-hostable, no vendor needed. Full v1 scope written above (`push_subscriptions` migration, service worker, subscribe API, wire into Trigger Orders' delivery cron). Zero code written.
+- EVM multi-call bundle simulation (the rest of the Sandbox Simulation pitch) — blocked on a real decision: pay for a Tenderly plan, or spike self-hosting Anvil via Vercel Sandbox (not yet tried live).
+- `.click` domain rebrand — real SEO/trust tradeoff identified, but a costly, mostly-irreversible business call. Not touched.
+- 1-click session keys — overlaps the already-logged, already-deferred ERC-4337/account-abstraction decision from Burner Shield's original scoping (`PLAN_SAFETY_DISCOVERY_FEATURES.md` §6). Not touched.
+- Airdrop Radar — still blocked on a vendor API key (Bankless or Drops.bot both require emailing them; neither is self-serve despite earlier assumptions). User explicitly chose to skip this rather than wait.
+- Safety/Discovery batch's Estate Shield — confirmed architecturally impossible without either real custody or a deployed/audited smart contract; correctly not attempted, logged as a business decision if ever wanted.
+
+**Next concrete step, if this thread continues**: push notifications' v1 (scope is written, nothing built) is the next item with no open architecture question and no custody/vendor blocker.

@@ -58,6 +58,11 @@ export interface TokenSecurityFlags {
   ownerCanChangeBalance: boolean;
   isProxy: boolean;
   isMintable: boolean;
+  // Contract-verification status — this is the same field GoPlus already
+  // returns in the token_security payload this app was already fetching,
+  // just not previously read. No new API call needed (see
+  // PLAN_SANDBOX_SIMULATION.md's "adjacent capability already shipped" note).
+  isOpenSource: boolean | null;
 }
 
 export async function checkTokenSecurity(chainId: number, tokenAddress: string): Promise<TokenSecurityFlags | null> {
@@ -74,5 +79,6 @@ export async function checkTokenSecurity(chainId: number, tokenAddress: string):
     ownerCanChangeBalance: result.owner_change_balance === "1",
     isProxy: result.is_proxy === "1",
     isMintable: result.is_mintable === "1",
+    isOpenSource: result.is_open_source == null ? null : result.is_open_source === "1",
   };
 }

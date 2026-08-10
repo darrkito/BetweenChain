@@ -17,6 +17,7 @@ interface TokenSecurity {
   ownerCanChangeBalance: boolean;
   isProxy: boolean;
   isMintable: boolean;
+  isOpenSource: boolean | null;
 }
 
 const EVM_CHAINS = SWAP_CHAINS.filter((c) => c.chainId !== SOLANA_CHAIN_ID_CLIENT);
@@ -57,7 +58,12 @@ export function BurnerShieldClient() {
   }
 
   const flaggedToken =
-    tokenSecurity && (tokenSecurity.isHoneypot || tokenSecurity.ownerCanChangeBalance || (tokenSecurity.buyTaxPct ?? 0) > 10 || (tokenSecurity.sellTaxPct ?? 0) > 10);
+    tokenSecurity &&
+    (tokenSecurity.isHoneypot ||
+      tokenSecurity.ownerCanChangeBalance ||
+      (tokenSecurity.buyTaxPct ?? 0) > 10 ||
+      (tokenSecurity.sellTaxPct ?? 0) > 10 ||
+      tokenSecurity.isOpenSource === false);
   const anyRisk = addressSecurity?.isMalicious || flaggedToken;
 
   return (
@@ -126,6 +132,10 @@ export function BurnerShieldClient() {
                 {(tokenSecurity.buyTaxPct ?? 0) > 0 && <p>Buy tax: {tokenSecurity.buyTaxPct}%</p>}
                 {(tokenSecurity.sellTaxPct ?? 0) > 0 && <p>Sell tax: {tokenSecurity.sellTaxPct}%</p>}
                 {tokenSecurity.isMintable && <p>Supply is mintable by the owner.</p>}
+                {tokenSecurity.isOpenSource === false && (
+                  <p className="text-danger">Contract source code is not verified — can&apos;t be independently audited.</p>
+                )}
+                {tokenSecurity.isOpenSource === true && <p>Contract source is verified.</p>}
               </div>
             )}
 

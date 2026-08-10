@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -151,28 +152,34 @@ function NavGroupDropdown({ group, pathname }: { group: (typeof NAV_GROUPS)[numb
   );
 }
 
-/** Mobile-only nav — a hamburger that opens a full-width overlay listing every group as a labeled section. */
-function MobileNav({ pathname }: { pathname: string }) {
-  const [open, setOpen] = useState(false);
+/**
+ * Mobile nav overlay content — every group as a labeled section, full-width.
+ * Controlled (open/setOpen passed in) so both the bottom command bar's
+ * "More" tab and any future trigger can open the same overlay instead of
+ * each maintaining a separate copy of this markup.
+ */
+function MobileNavOverlay({ pathname, open, setOpen }: { pathname: string; open: boolean; setOpen: (v: boolean) => void }) {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    Promise.resolve().then(() => setMounted(true));
+  }, []);
 
   useEffect(() => {
     queueMicrotask(() => setOpen(false));
-  }, [pathname]);
+  }, [pathname, setOpen]);
 
-  return (
-    <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        aria-label="Open menu"
-        aria-expanded={open}
-        className="flex h-9 w-9 items-center justify-center rounded-full border border-hairline text-ink-muted transition-colors hover:bg-accent-soft hover:text-ink"
-      >
-        <span aria-hidden="true" className="text-lg leading-none">
-          ☰
-        </span>
-      </button>
-      {open && (
+  if (!mounted || !open) return null;
+
+  // Portaled to document.body — this component renders inside AppHeader's
+  // <header>, which has `backdrop-blur`. Any ancestor backdrop-filter/
+  // filter/transform creates its own containing block for `position: fixed`
+  // descendants, so without the portal this overlay would render confined to
+  // the header's own bounds instead of the full viewport — the exact bug
+  // already found and fixed this way in ConnectWalletMenu.tsx (2026-07-21)
+  // and PortfolioDrawer.tsx (2026-08-07).
+  return createPortal(
+    (
         <div className="fixed inset-0 z-30 flex flex-col bg-black/40" onClick={() => setOpen(false)}>
           <div
             className="mt-2 flex max-h-[85vh] flex-col gap-4 overflow-y-auto rounded-2xl border border-hairline bg-surface p-4 shadow-xl"
@@ -218,8 +225,80 @@ function MobileNav({ pathname }: { pathname: string }) {
             </div>
           </div>
         </div>
-      )}
-    </>
+    ),
+    document.body,
+  );
+}
+
+const BOTTOM_BAR_TABS: Array<NavItem> = [
+  { href: "/swap", label: "Swap", icon: "⇄" },
+  { href: "/orders", label: "Activity", icon: "⏱️" },
+  { href: STANDALONE.href, label: STANDALONE.label, icon: STANDALONE.icon },
+];
+
+/**
+ * Persistent bottom command bar, mobile only (2026-08-10 — see PLAN.md's
+ * "Rebrand / SEO / mobile-UX" assessment: this was the one genuinely-new,
+ * no-custody UI gap identified there). Replaces the old top-right hamburger
+ * as the primary mobile nav entry point — "More" opens the exact same
+ * `MobileNavOverlay` grouped menu the hamburger used to, just triggered from
+ * here instead, so nothing about the overlay itself needed to change.
+ * `env(safe-area-inset-bottom)` accounts for the home-indicator area on
+ * notched phones; `globals.css` adds matching `body` padding below `sm` so
+ * page content never sits underneath this bar.
+ */
+function MobileBottomBar({ pathname, moreOpen, setMoreOpen }: { pathname: string; moreOpen: boolean; setMoreOpen: (v: boolean) => void }) {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    Promise.resolve().then(() => setMounted(true));
+  }, []);
+
+  if (!mounted) return null;
+
+  // Portaled to document.body for the same reason as MobileNavOverlay above
+  // — this component is rendered inside AppHeader's `backdrop-blur` header,
+  // which would confine `position: fixed` to the header's own bounds
+  // instead of pinning to the viewport bottom.
+  return createPortal(
+    <nav
+      className="fixed inset-x-0 bottom-0 z-20 flex items-stretch justify-around border-t border-hairline bg-surface/95 backdrop-blur sm:hidden"
+      style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+      aria-label="Primary"
+    >
+      {BOTTOM_BAR_TABS.map((tab) => {
+        const active = pathname.startsWith(tab.href);
+        return (
+          <Link
+            key={tab.href}
+            href={tab.href}
+            className={`flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] font-medium transition-colors ${
+              active ? "text-accent" : "text-ink-muted"
+            }`}
+          >
+            <span aria-hidden="true" className="text-base leading-none">
+              {tab.icon}
+            </span>
+            {tab.label}
+          </Link>
+        );
+      })}
+      <button
+        type="button"
+        onClick={() => setMoreOpen(!moreOpen)}
+        aria-expanded={moreOpen}
+        aria-label="More"
+        className={`flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] font-medium transition-colors ${
+          moreOpen ? "text-accent" : "text-ink-muted"
+        }`}
+      >
+        <span aria-hidden="true" className="text-base leading-none">
+          ☰
+        </span>
+        More
+      </button>
+    </nav>,
+    document.body,
   );
 }
 
@@ -233,6 +312,7 @@ function MobileNav({ pathname }: { pathname: string }) {
  */
 export function AppHeader() {
   const pathname = usePathname();
+  const [moreOpen, setMoreOpen] = useState(false);
 
   return (
     // Real layout bug found live 2026-08-03: nav/wordmark text had no
@@ -305,10 +385,9 @@ export function AppHeader() {
         <ThemeToggle />
         <PortfolioDrawer />
         <ConnectWalletMenu />
-        <div className="sm:hidden">
-          <MobileNav pathname={pathname} />
-        </div>
       </div>
+      <MobileNavOverlay pathname={pathname} open={moreOpen} setOpen={setMoreOpen} />
+      <MobileBottomBar pathname={pathname} moreOpen={moreOpen} setMoreOpen={setMoreOpen} />
     </header>
   );
 }

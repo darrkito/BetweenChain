@@ -9,6 +9,7 @@ import { SOLANA_CHAIN_ID_CLIENT, normalizeSolanaSourceMint } from "@/lib/client/
 import { toAtomicAmount } from "@/lib/client/amount";
 import { buildRelayDepositTransaction } from "@/lib/client/relayTransaction";
 import { sendViaJito } from "@/lib/client/jito";
+import { simulateSwapTransaction } from "@/lib/client/simulateSolanaTx";
 import { useEvmWallet } from "@/lib/client/EvmWalletProvider";
 import { useBtcWallet } from "@/lib/client/BtcWalletProvider";
 import { useSolanaBalance } from "@/lib/client/useSolanaBalance";
@@ -576,6 +577,24 @@ export function SwapPageClient() {
         // Solana-origin quote (see that route's own comment) — signTransaction
         // is guaranteed non-null here by the sellIsSolana guard above.
         const tx = VersionedTransaction.deserialize(Buffer.from(unsignedTransaction, "base64"));
+
+        // Pre-flight simulation (2026-08-10, PLAN_SANDBOX_SIMULATION.md) —
+        // catches a transaction that's guaranteed to fail on-chain BEFORE
+        // prompting a wallet signature, and surfaces the real expected
+        // output. Simulation failures other than an outright `err` (rate
+        // limits, RPC hiccups) don't block the swap — this is a safety net
+        // on top of the existing flow, not a new hard dependency.
+        const sim = await simulateSwapTransaction(connection, tx, publicKey!.toBase58());
+        if (!sim.ok && sim.error) {
+          throw new Error(`Simulation shows this swap would fail on-chain: ${sim.error}`);
+        }
+        if (sim.ok) {
+          const received = sim.tokenDeltas.find((d) => d.uiAmountDelta > 0);
+          if (received) {
+            setMessage(`Simulated result: you'll receive ~${received.uiAmountDelta.toFixed(6)} of the destination token — confirm in your wallet…`);
+          }
+        }
+
         const signed = await signTransaction!(tx);
         // MEV Shield (2026-08-09) — mirrors executeSwapFlow.ts's own fix,
         // kept separate per that file's convention for this page. Routes

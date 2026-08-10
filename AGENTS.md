@@ -190,6 +190,18 @@ npx supabase stop               # stop it
 npx supabase db reset           # drop + recreate local DB, reapply all migrations in order
 ```
 
+## Verification tooling
+
+- For UI changes: use the `claude-in-chrome` skill (real browser automation — click,
+  screenshot, read console) before calling a visual change done. Many earlier sessions in
+  `STATE.md` shipped UI work flagged "could not verify in a browser, no automation
+  available" — that gap is now closed; don't repeat the flag if this skill is available
+  this session.
+- For everything else: `tsc`/`lint`/`build` clean is necessary but not sufficient — this
+  codebase has repeated history (see `STATE.md`) of bugs that hid behind a technically-200
+  response (wrong field names, silently-wrong defaults, mislabeled errors). Live-verify
+  the actual data/behavior, not just that the call succeeded.
+
 ## Conventions
 
 - All Supabase **writes** go through `supabaseAdmin()` (service-role key) inside API
