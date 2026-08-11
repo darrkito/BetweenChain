@@ -308,8 +308,13 @@ export default async function LandingPage() {
         <h2 className="font-display text-xl font-normal text-ink">More tools</h2>
         {/* 2026-08-12 (de-generic-ify pass): same gap-px structural-grid
             treatment as the Features section above — see PLAN.md's
-            "de-AI-ify" entry. */}
-        <div className="grid grid-cols-2 gap-px border border-hairline bg-hairline sm:grid-cols-3 lg:grid-cols-5">
+            "de-AI-ify" entry. Base 3 cols, not 2 (real bug caught via a
+            live Playwright screenshot): 5 MORE_TOOLS items over 2 columns
+            leaves the last cell alone with an awkward bare bg-hairline gap
+            beside it — far more visible than under the old floating-card
+            treatment, where empty space just blended into the page
+            background. 3 columns gives a normal 3+2 last row instead. */}
+        <div className="grid grid-cols-3 gap-px border border-hairline bg-hairline sm:grid-cols-5">
           {MORE_TOOLS.map((tool) => (
             <Link
               key={tool.href}
