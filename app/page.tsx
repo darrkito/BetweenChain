@@ -5,7 +5,6 @@ import { AppHeader } from "@/app/components/AppHeader";
 import { QuotePreviewWidget } from "@/app/components/QuotePreviewWidget";
 import { QuickPairChips } from "@/app/components/QuickPairChips";
 import { Reveal } from "@/app/components/Reveal";
-import { HeroVisual } from "@/app/components/HeroVisual";
 import { TrustBar } from "@/app/components/TrustBar";
 import { StatsBar } from "@/app/components/StatsBar";
 import { NftImage } from "@/app/components/NftImage";
@@ -80,53 +79,56 @@ export default async function LandingPage() {
 
       {/* Hero — not scroll-revealed (already in view on load; animating
           from opacity:0 here would delay the LCP text's first paint).
-          2026-08-06: added a soft ambient gradient wash behind the whole
-          section (real user report: page felt flat) — a wide, blurred
-          radial gradient anchored behind the hero content, purely
-          decorative (aria-hidden, absolutely positioned, negative z-index)
-          so it never affects layout or the text's first paint. */}
-      <section className="relative flex flex-col items-center gap-6 overflow-hidden pt-8 text-center sm:pt-14">
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[420px] opacity-70"
-          style={{ background: "radial-gradient(ellipse 60% 100% at 50% 0%, var(--accent-soft), transparent 70%)" }}
-        />
-        <HeroVisual />
-        <h1 className="max-w-2xl font-display text-4xl font-normal tracking-tight text-ink sm:text-5xl">
-          All the blockchains, <span className="text-accent">zero manual bridging.</span>
-        </h1>
-        <p className="max-w-xl text-base text-ink-muted sm:text-lg">
-          Swap tokens and buy NFTs across Solana, Ethereum, and Sui — no bridging, no manual steps, ever.
-        </p>
-        <QuotePreviewWidget />
-        <QuickPairChips />
-        {/* Real security trust line (2026-08-11, homepage redesign) — this
-            claim is already true and already shipped (the destination-
-            address-lock + on-chain re-verification behavior this links to),
-            just previously buried in a blog post nobody reached from here.
-            Placed right under the CTA area, where trust signals do the most
-            work per the research this redesign is based on. */}
-        <p className="max-w-md text-xs text-ink-faint">
-          🔒 Destination address locked at quote time, re-verified on-chain before every swap completes.{" "}
-          <Link href="/blog/swap-security-101" className="font-medium text-accent hover:underline">
-            How it works →
-          </Link>
-        </p>
-        {/* Real, verifiable wallet-support line, text-only (2026-08-11) —
-            deliberately NOT a logo row: this app has no static wallet-logo
-            list anywhere (Solana wallets come from live Wallet Standard
-            auto-detection, EVM from live EIP-6963 discovery — both runtime-
-            only, see app/providers.tsx / lib/client/EvmWalletProvider.tsx),
-            and TrustBar.tsx's own doc comment already establishes "never
-            fabricate a logo" as a hard rule for this codebase. Every name
-            below is genuinely supported since Wallet Standard/EIP-6963 are
-            exactly the protocols these wallets implement — same "real text
-            badge" pattern TrustBar uses for Jupiter/Relay. */}
-        <p className="max-w-md text-xs text-ink-faint">
-          Works with Phantom, Solflare, MetaMask, Rabby, Coinbase Wallet, and any Wallet Standard / EIP-6963 wallet.
-        </p>
-        <TrustBar />
-        <StatsBar />
+          2026-08-12 (de-generic-ify pass): un-centered — copy now anchors
+          left against a real functional focal point (the quote widget) on
+          the right, instead of stacking everything centered above it. The
+          ambient radial-gradient glow div and the abstract HeroVisual mark
+          (which carried its own blur-2xl glow) are both gone — two glow
+          sources competing with the widget for attention worked against
+          the "one clear goal" principle the 2026-08-11 redesign already
+          established. See PLAN.md's "de-AI-ify" entry for the full audit. */}
+      <section className="flex flex-col gap-10 pt-8 sm:pt-14">
+        <div className="grid grid-cols-1 items-center gap-8 lg:grid-cols-[1.4fr_1fr] lg:gap-14">
+          <div className="flex flex-col gap-5">
+            <h1 className="max-w-xl font-display text-4xl font-normal tracking-tight text-ink sm:text-5xl">
+              All the blockchains, <span className="text-accent">zero manual bridging.</span>
+            </h1>
+            <p className="max-w-lg text-base text-ink-muted sm:text-lg">
+              Swap tokens and buy NFTs across Solana, Ethereum, and Sui — no bridging, no manual steps, ever.
+            </p>
+            {/* Real security trust line (2026-08-11, homepage redesign) — this
+                claim is already true and already shipped (the destination-
+                address-lock + on-chain re-verification behavior this links to),
+                just previously buried in a blog post nobody reached from here. */}
+            <p className="max-w-md text-xs text-ink-faint">
+              🔒 Destination address locked at quote time, re-verified on-chain before every swap completes.{" "}
+              <Link href="/blog/swap-security-101" className="font-medium text-accent hover:underline">
+                How it works →
+              </Link>
+            </p>
+            {/* Real, verifiable wallet-support line, text-only (2026-08-11) —
+                deliberately NOT a logo row: this app has no static wallet-logo
+                list anywhere (Solana wallets come from live Wallet Standard
+                auto-detection, EVM from live EIP-6963 discovery — both runtime-
+                only, see app/providers.tsx / lib/client/EvmWalletProvider.tsx),
+                and TrustBar.tsx's own doc comment already establishes "never
+                fabricate a logo" as a hard rule for this codebase. Every name
+                below is genuinely supported since Wallet Standard/EIP-6963 are
+                exactly the protocols these wallets implement — same "real text
+                badge" pattern TrustBar uses for Jupiter/Relay. */}
+            <p className="max-w-md text-xs text-ink-faint">
+              Works with Phantom, Solflare, MetaMask, Rabby, Coinbase Wallet, and any Wallet Standard / EIP-6963 wallet.
+            </p>
+          </div>
+          <div className="flex flex-col items-center gap-3 lg:items-end">
+            <QuotePreviewWidget />
+            <QuickPairChips />
+          </div>
+        </div>
+        <div className="flex flex-col items-center gap-4">
+          <TrustBar />
+          <StatsBar />
+        </div>
       </section>
 
       {/* Features — MOVED UP (2026-08-11 homepage redesign) — right after the
@@ -139,20 +141,33 @@ export default async function LandingPage() {
           feature (swap) gets a wider, taller "hero" card with a bigger
           display-font heading, and the other two stack in the narrower
           column. Same underlying FEATURES data, no reusable abstraction
-          needed for a one-off, page-specific split — see FEATURES above. */}
-      <section className="grid grid-cols-1 gap-4 sm:grid-cols-12">
+          needed for a one-off, page-specific split — see FEATURES above.
+          2026-08-12 (de-generic-ify pass): floating rounded-2xl cards with a
+          blur-2xl hover-glow blob replaced with the gap-px structural-grid
+          technique — the container's own bg-hairline shows through 1px
+          gaps as real dividers (no doubled borders), cells sit flush with
+          sharp corners instead of floating with a shadow. See PLAN.md's
+          "de-AI-ify" entry. The 5-col column nests its own gap-px
+          sub-grid (grid-rows-2) so the divider between its two stacked
+          cards is real too, not just a flex gap. */}
+      <section className="grid grid-cols-1 gap-px border border-hairline bg-hairline sm:grid-cols-12">
         <Reveal className="sm:col-span-7">
           <Link
             href={FEATURES[0].href}
-            className="group relative flex h-full flex-col justify-between gap-6 overflow-hidden rounded-2xl border border-hairline bg-surface p-7 shadow-sm transition-all hover:-translate-y-1 hover:border-accent/40 hover:shadow-xl"
+            className="group flex h-full flex-col justify-between gap-6 bg-surface p-7 transition-colors duration-100 hover:bg-surface-hover"
           >
-            <div
-              aria-hidden="true"
-              className="pointer-events-none absolute -right-12 -top-12 h-48 w-48 rounded-full bg-accent-soft opacity-0 blur-2xl transition-opacity duration-300 group-hover:opacity-100"
-            />
+            {/* 2026-08-12 (de-generic-ify pass): the rounded-xl bg-accent-soft
+                icon box is gone — replaced with a monospace index tag (this
+                app's own JetBrains Mono / --ink-faint tokens, already used
+                for numeric data elsewhere via the `.num` utility) plus the
+                same glyph rendered inline instead of boxed. See PLAN.md's
+                "de-AI-ify" entry. */}
             <div className="flex flex-col gap-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-accent-soft text-2xl text-accent">
-                <span aria-hidden="true">⇄</span>
+              <div className="flex items-center gap-2">
+                <span className="font-mono text-xs text-ink-faint">[01]</span>
+                <span aria-hidden="true" className="text-lg text-accent">
+                  ⇄
+                </span>
               </div>
               <h2 className="font-display text-2xl font-normal text-ink">{FEATURES[0].title}</h2>
               <p className="max-w-md text-sm text-ink-muted">{FEATURES[0].description}</p>
@@ -193,19 +208,16 @@ export default async function LandingPage() {
           </Link>
         </Reveal>
 
-        <div className="flex flex-col gap-4 sm:col-span-5">
+        <div className="grid grid-rows-2 gap-px bg-hairline sm:col-span-5">
           {FEATURES.slice(1).map((f, i) => (
-            <Reveal key={f.title} delay={(i + 1) * 0.08} className="flex-1">
+            <Reveal key={f.title} delay={(i + 1) * 0.08}>
               <Link
                 href={f.href}
-                className="group relative flex h-full flex-col gap-2 overflow-hidden rounded-2xl border border-hairline bg-surface p-5 shadow-sm transition-all hover:-translate-y-1 hover:border-accent/40 hover:shadow-xl"
+                className="group flex h-full flex-col gap-2 bg-surface p-5 transition-colors duration-100 hover:bg-surface-hover"
               >
-                <div
-                  aria-hidden="true"
-                  className="pointer-events-none absolute -right-8 -top-8 h-28 w-28 rounded-full bg-accent-soft opacity-0 blur-2xl transition-opacity duration-300 group-hover:opacity-100"
-                />
-                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-accent-soft text-accent">
-                  <span aria-hidden="true" className="text-lg">
+                <div className="flex items-center gap-2">
+                  <span className="font-mono text-xs text-ink-faint">{i === 0 ? "[02]" : "[03]"}</span>
+                  <span aria-hidden="true" className="text-lg text-accent">
                     {i === 0 ? "◆" : "✦"}
                   </span>
                 </div>
@@ -236,12 +248,16 @@ export default async function LandingPage() {
               Browse all →
             </Link>
           </div>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-6">
+          {/* 2026-08-12 (de-generic-ify pass): same gap-px structural-grid
+              treatment as Features/More tools above — see PLAN.md's
+              "de-AI-ify" entry. NftImage keeps its own rounded-xl (photo
+              corner treatment, not container chrome — distinct concern). */}
+          <div className="grid grid-cols-2 gap-px border border-hairline bg-hairline sm:grid-cols-3 md:grid-cols-6">
             {trending.map((c) => (
               <Link
                 key={`${c.vendor}-${c.slug}`}
                 href={`/nft/${c.vendor}/${encodeURIComponent(c.slug)}`}
-                className="group flex flex-col gap-2 rounded-2xl border border-hairline bg-surface p-2.5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-accent/40 hover:shadow-lg"
+                className="group flex flex-col gap-2 bg-surface p-2.5 transition-colors duration-100 hover:bg-surface-hover"
               >
                 <NftImage src={c.imageUrl} alt={c.name} className="aspect-square w-full rounded-xl" />
                 <div className="flex flex-col gap-0.5 px-0.5">
@@ -290,12 +306,15 @@ export default async function LandingPage() {
           visitor's attention. */}
       <Reveal className="flex flex-col gap-4">
         <h2 className="font-display text-xl font-normal text-ink">More tools</h2>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+        {/* 2026-08-12 (de-generic-ify pass): same gap-px structural-grid
+            treatment as the Features section above — see PLAN.md's
+            "de-AI-ify" entry. */}
+        <div className="grid grid-cols-2 gap-px border border-hairline bg-hairline sm:grid-cols-3 lg:grid-cols-5">
           {MORE_TOOLS.map((tool) => (
             <Link
               key={tool.href}
               href={tool.href}
-              className="flex flex-col items-center gap-2 rounded-2xl border border-hairline bg-surface px-3 py-5 text-center shadow-sm transition-all hover:-translate-y-0.5 hover:border-accent/40 hover:shadow-md"
+              className="flex flex-col items-center gap-2 bg-surface px-3 py-5 text-center transition-colors duration-100 hover:bg-surface-hover"
             >
               <span aria-hidden="true" className="text-2xl">
                 {tool.icon}

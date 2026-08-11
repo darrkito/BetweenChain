@@ -643,7 +643,7 @@ export function CollectionPageClient({
                   // after fetch, never reordered/filtered in place.
                   <div
                     key={`${l.vendor}-${l.tokenId}-${i}`}
-                    className="group flex flex-col overflow-hidden rounded-2xl border border-hairline bg-surface shadow-sm transition-all duration-200 hover:-translate-y-1 hover:border-accent/40 hover:shadow-lg"
+                    className="group flex flex-col overflow-hidden rounded-2xl border border-hairline bg-surface transition-colors duration-100 hover:border-accent/40 hover:bg-surface-hover"
                     style={{ animation: `fadeInUp 0.3s ease ${Math.min(i, 20) * 0.02}s both` }}
                   >
                     <div className="relative aspect-square w-full overflow-hidden">

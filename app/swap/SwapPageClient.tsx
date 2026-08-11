@@ -977,12 +977,15 @@ export function SwapPageClient() {
           homepage now uses, for real cross-page consistency. */}
       <div className="mx-auto flex w-full max-w-lg flex-col gap-3">
         <h2 className="px-1 text-sm font-semibold text-ink-muted">More tools</h2>
-        <div className="grid grid-cols-3 gap-3 sm:grid-cols-5">
+        {/* 2026-08-12 (de-generic-ify pass, item 5) — same gap-px
+            structural-grid treatment as the homepage's identical MORE_TOOLS
+            tile row (app/page.tsx) — see PLAN.md's "de-AI-ify" entry. */}
+        <div className="grid grid-cols-3 gap-px border border-hairline bg-hairline sm:grid-cols-5">
           {MORE_TOOLS.map((tool) => (
             <Link
               key={tool.href}
               href={tool.href}
-              className="flex flex-col items-center gap-2 rounded-2xl border border-hairline bg-surface px-2 py-4 text-center shadow-sm transition-all hover:-translate-y-0.5 hover:border-accent/40 hover:shadow-md"
+              className="flex flex-col items-center gap-2 bg-surface px-2 py-4 text-center transition-colors duration-100 hover:bg-surface-hover"
             >
               <span aria-hidden="true" className="text-xl">
                 {tool.icon}

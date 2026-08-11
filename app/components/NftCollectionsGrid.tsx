@@ -11,12 +11,13 @@ import { proxiedImageUrl } from "@/lib/client/imageProxy";
 import { usePrefersReducedMotion } from "@/lib/client/usePrefersReducedMotion";
 import type { NftCollection } from "@/lib/nft/types";
 
-// 3D tilt on hover (2026-08-06 visual pass) — imperative DOM mutation
-// (no React state) so it doesn't fight the existing hover:-translate-y-1
-// Tailwind utility or cause a re-render per mousemove across a full grid of
-// cards. Combines the tilt with the same lift the CSS hover already applies
-// (inline style wins specificity over the utility class once set, so the
-// lift has to be folded in here too, not left to the CSS hover alone).
+// 3D tilt on hover (2026-08-06 visual pass) — imperative DOM mutation (no
+// React state) so it doesn't cause a re-render per mousemove across a full
+// grid of cards. The card's own CSS hover no longer applies a translateY
+// lift (2026-08-12 de-generic-ify pass removed it, see PLAN.md), so the
+// small translateY(-4px) folded in below is now this effect's only lift —
+// real micro-interaction feedback, not the decorative hover-float pattern
+// that pass removed elsewhere.
 const TILT_MAX_DEG = 7;
 
 function handleCardTilt(e: React.MouseEvent<HTMLElement>) {
@@ -237,7 +238,7 @@ export function NftCollectionsGrid({ collections }: { collections: NftCollection
               <Link
                 key={`${c.vendor}-${c.slug}`}
                 href={`/nft/${c.vendor}/${encodeURIComponent(c.slug)}`}
-                className={`group flex flex-col overflow-hidden rounded-2xl border border-hairline bg-surface shadow-sm transition-all duration-200 hover:-translate-y-1 hover:border-accent/40 hover:shadow-lg ${featured ? "col-span-2" : ""}`}
+                className={`group flex flex-col overflow-hidden rounded-2xl border border-hairline bg-surface transition-colors duration-100 hover:border-accent/40 hover:bg-surface-hover ${featured ? "col-span-2" : ""}`}
                 style={{ animation: `fadeInUp 0.35s ease ${Math.min(i, 12) * 0.03}s both`, willChange: reducedMotion ? undefined : "transform" }}
                 {...tiltHandlers}
               >

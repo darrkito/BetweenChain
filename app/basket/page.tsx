@@ -29,12 +29,15 @@ export default function BasketIndexPage() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+      {/* 2026-08-12 (de-generic-ify pass, broader sweep) — same gap-px
+          structural-grid treatment as the homepage's Features/More tools
+          sections — see PLAN.md's "de-AI-ify" entry. */}
+      <div className="grid grid-cols-1 gap-px border border-hairline bg-hairline sm:grid-cols-2">
         {baskets.map((basket) => (
           <Link
             key={basket.slug}
             href={`/basket/${basket.slug}`}
-            className="flex flex-col gap-3 rounded-2xl border border-hairline bg-surface p-5 shadow-sm transition-all hover:border-accent/40 hover:shadow-md"
+            className="flex flex-col gap-3 bg-surface p-5 transition-colors duration-100 hover:bg-surface-hover"
           >
             <div className="flex items-center gap-2">
               <span className="text-2xl" aria-hidden="true">

@@ -7,15 +7,20 @@ const CATEGORY_LABEL: Record<GameMeta["category"], string> = {
   community: "Community",
 };
 
-// Same card visual language as every other grid card in this app
-// (rounded-2xl/border-hairline/shadow-sm, hover-lift, accent-soft badge
-// pill) — see NftCollectionsGrid.tsx / the homepage trending-collections
-// section for the established convention this matches.
+// Same card visual language as every other media card in this app
+// (rounded-2xl/border-hairline, accent-soft badge pill, hover image zoom)
+// — see NftCollectionsGrid.tsx / CollectionPageClient.tsx for the
+// established convention this matches. 2026-08-12 (de-generic-ify pass,
+// broader sweep) — dropped the resting shadow-sm and hover-lift/shadow-lg
+// (see PLAN.md's "de-AI-ify" entry) in favor of a flat border + background
+// tint on hover, same fix already applied to those two NFT card families;
+// the real image-zoom-on-hover below is untouched, that's purposeful
+// media-card craft, not the decorative pattern that pass removed.
 export function GameCard({ game, playCount }: { game: GameMeta; playCount?: number }) {
   return (
     <Link
       href={`/games/${game.slug}`}
-      className="group flex flex-col overflow-hidden rounded-2xl border border-hairline bg-surface shadow-sm transition-all duration-200 hover:-translate-y-1 hover:border-accent/40 hover:shadow-lg"
+      className="group flex flex-col overflow-hidden rounded-2xl border border-hairline bg-surface transition-colors duration-100 hover:border-accent/40 hover:bg-surface-hover"
     >
       <div className="relative aspect-video w-full overflow-hidden bg-surface-hover">
         {/* eslint-disable-next-line @next/next/no-img-element -- external, game-team-hosted cover images, same reasoning as TokenIcon/NftImage elsewhere in this app */}

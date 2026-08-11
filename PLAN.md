@@ -949,3 +949,97 @@ plumbing, fits the same constraint as everything else in this session's batch.
 - Safety/Discovery batch's Estate Shield — confirmed architecturally impossible without either real custody or a deployed/audited smart contract; correctly not attempted, logged as a business decision if ever wanted.
 
 **Next concrete step, if this thread continues**: push notifications' v1 (scope is written, nothing built) is the next item with no open architecture question and no custody/vendor blocker.
+
+## "De-AI-ify the visual design" pitch — assessment + plan (2026-08-12)
+
+A pasted design critique (centered heroes, purple ambient glow, floating
+bento cards, Lucide-icon-in-rounded-box = "AI slop"; asymmetry, structural
+1px grids, real UI widgets = "human high-craft") was checked against this
+app's real, current code before planning anything — same discipline as
+every other external pitch logged in this file.
+
+**Verdict: the diagnosis holds.** `app/page.tsx:88-92` still centers the
+hero (`text-center`, `items-center`) behind a radial ambient glow
+(`radial-gradient(ellipse 60% 100% at 50% 0%, var(--accent-soft), transparent 70%)`).
+Every card site-wide — homepage feature cards (`app/page.tsx:147-151,
+201-205`), trending-NFT tiles (`:244`), quick-pair chips, the swap panel
+itself (`SwapPanel.tsx:322,371`), and the review modal
+(`SwapPageClient.tsx:899,985,1008`) — uses the identical
+`rounded-2xl border-hairline shadow-sm transition-all hover:-translate-y-1
+hover:shadow-xl` recipe, several with a `blur-2xl` accent-soft glow blob
+that fades in on hover (`app/page.tsx:151,205`). Feature icons sit in a
+`rounded-xl bg-accent-soft` box (`app/page.tsx:159,222`) — the exact
+icon-in-colored-rounded-square pattern named in the critique, just with a
+text glyph instead of a Lucide import.
+
+**What's already right, and NOT being reset:**
+- Typography already avoids Inter-only: Calistoga (display serif, headings
+  only) + IBM Plex Sans (body) + JetBrains Mono (numeric data throughout,
+  via the `.num` utility) — `app/layout.tsx`. Real pairing, real contrast,
+  done before this pitch ever arrived.
+- The hero is already NOT a naive 3-card grid — the 2026-08-11 redesign
+  (see above) already gave the flagship swap feature a 7/5 asymmetric
+  split. The remaining centering problem is the hero *copy block* above
+  the swap widget, not the feature grid below it.
+- Real interactive widgets already anchor the page (`QuotePreviewWidget`,
+  live `TrustBar`/`StatsBar`, real Magic Eden trending data) — not abstract
+  3D spheres or wireframe filler. This is the "authentic product
+  micro-craft" the critique asks for; it exists, just wrapped in the
+  generic card chrome above.
+
+**Deliberately NOT adopting**: the pasted code's neon-terminal skin
+(`[SYS_METRIC_01]`, `bg-neutral-950`, emerald status pills, safety-orange
+accents). That's a real, well-known *alternative* template at this point,
+not a neutral fix — wholesale copying it would trade one recognizable
+generator-default for another, and would abandon the indigo-violet +
+serif identity this app has been building since the 2026-07-20 redesign
+(`STATE.md`). The useful part of the pitch is structural (kill ambient
+glow, edge-to-edge grids over floating cards, denser information, sharper
+hover physics) — that applies inside this app's own palette/type, not by
+importing `neutral-800`/mono-label chrome verbatim.
+
+**Scoped plan, in build order:**
+1. **Hero**: drop `text-center`/`items-center` on `app/page.tsx`'s hero
+   section, remove the radial-gradient glow div, left-align headline/
+   subtext/trust lines against the existing `QuotePreviewWidget` (already
+   a real, functional swap-quote preview — exactly the "live product
+   preview on the right" the critique wants, just needs the copy column
+   to actually sit beside it instead of stacked above/centered).
+2. **Structural grid for the feature section**: replace the two
+   `rounded-2xl` cards + hover-glow blobs with the gap-px technique
+   (`bg-hairline` container, `gap-px`, `bg-surface` cells) — reuses this
+   app's own `--hairline`/`--surface` tokens, not a new neutral palette.
+   Keep the existing asymmetric 7/5 split; just change the cell chrome
+   from floating card to structural grid cell. Same treatment for the
+   4-utility-tile block (Dust Sweeper/Trigger Orders/Baskets/ClickPay) the
+   pitch calls out by name — that block currently uses the same
+   `rounded-2xl` card pattern via `moreTools.ts`'s shared rendering.
+3. **Kill hover glow blobs + soften-to-sharp hover physics**: remove the
+   `blur-2xl`/`opacity-0→100` glow divs; replace
+   `hover:-translate-y-1 hover:shadow-xl` (300ms-feeling, "mushy") with a
+   fast border-color/background shift (`hover:border-accent`,
+   `transition-colors duration-100`) — matches the critique's "sharp
+   100ms" guidance without inventing a new interaction language, since
+   `hover:border-accent` already exists as a variant on several cards.
+4. **Icon treatment**: swap the `rounded-xl bg-accent-soft` icon boxes for
+   inline glyphs at text scale, or small monospace tags (`// SWAP`,
+   `[01]`) in `--ink-faint`/`font-mono` — both already-established tokens,
+   no new dependency.
+5. **NFT/trending grid + swap panel**: lower priority, same
+   `rounded-2xl`+`shadow` pattern but less visually load-bearing than the
+   hero/features (a visitor's first impression forms before they scroll
+   this far) — revisit after 1-4 land and are reviewed live.
+
+**Explicitly out of scope for this plan**: rewriting the color system or
+swapping the accent off indigo-violet (no problem was found with the
+palette itself, only with glow/shadow/roundness treatment), and the
+pasted code's exact copy rewrites ("Cross-Chain Swaps, Instant
+Execution.") — copy changes need the same fact-checking discipline
+`STATE.md`'s SEO passes already apply (e.g. "~6s" speed and "MEV
+Protected" badges in the pitch aren't measured/true today per this app's
+own Route Auditor/MEV Shield feature docs — don't ship a stat this app
+can't back).
+
+**Status: plan only, nothing implemented.** Next step is item 1 (hero)
+once confirmed — smallest, highest-visibility change, good first checkpoint
+before touching the grid-heavy items.
