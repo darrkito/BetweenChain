@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { AppHeader } from "@/app/components/AppHeader";
 import { Breadcrumb } from "@/app/components/Breadcrumb";
 import { NftChainTabs } from "@/app/components/NftChainTabs";
@@ -88,6 +89,13 @@ export default async function NftBrowsePage({
           real scale. A real h1 fixes both the flagged hierarchy issue and a
           genuine wayfinding gap (no page ever said what page you were on). */}
       <h1 className="font-display px-1 text-2xl font-normal text-ink sm:text-3xl">NFT Marketplace</h1>
+      <p className="px-1 text-sm text-ink-muted">
+        Solana, Ethereum, and Sui collections in one place — pay from any supported chain. New to buying across chains? See{" "}
+        <Link href="/blog/solana-vs-ethereum-nfts" className="text-accent hover:underline">
+          what actually differs between Solana and Ethereum NFTs
+        </Link>
+        .
+      </p>
       <NftChainTabs active={family} />
       {family === "evm" && <EvmChainSubTabs active={evmChain} />}
       <Breadcrumb items={[{ label: "NFTs", href: "/nft" }, { label: nftChainFamilyLabel(family) }]} />

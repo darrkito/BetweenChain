@@ -1,0 +1,37 @@
+---
+title: "Blockchains.Click vs. Jumper vs. deBridge: Comparing Cross-Chain Swap Fees"
+description: "How Blockchains.Click's flat 0.25%-per-leg fee actually compares to Jumper's route-dependent aggregator cost and deBridge's flat-fee-plus-solver-spread model."
+date: "2026-08-11"
+category: "Guides"
+faq:
+  - question: "Does Jumper charge a platform fee?"
+    answer: "Not directly — Jumper (built on LI.FI's routing infrastructure) doesn't add its own fee on top. Your total cost is the sum of whichever underlying bridge and DEX fees the selected route uses, typically in the 0.5–1% range, plus gas on both chains."
+  - question: "How does deBridge's fee work?"
+    answer: "deBridge charges a small flat protocol fee (around $0.50 per transfer) plus a 4 bps variable fee, and a market-based solver spread that's baked into the destination amount you're quoted rather than shown as a separate line item."
+  - question: "What does Blockchains.Click charge?"
+    answer: "A flat 0.25% per leg. A same-chain swap or a direct SOL-to-destination-chain swap is one leg (0.25% total); a swap starting from an SPL token that first needs converting to SOL is two legs (0.5% total). The rate is fixed and shown before you sign — it never depends on which route gets picked."
+mentions:
+  - "Jumper Exchange"
+  - "LI.FI"
+  - "deBridge"
+---
+
+If you've priced a cross-chain swap on more than one platform, you've probably noticed the numbers don't compare cleanly — one tool shows "0% fee," another shows a total that moves every time you requote. That's because Jumper, deBridge, and Blockchains.Click each price a swap through a genuinely different mechanism, not just a different percentage.
+
+<QuickFacts items='["Blockchains.Click: flat 0.25% per leg, shown before you sign", "Jumper: no platform fee, but the underlying route fee varies (typically 0.5–1%)", "deBridge: flat ~$0.50 fee + 4 bps + a solver spread baked into the quote", "Figures below reflect official documentation as of August 2026 — confirm current rates directly before relying on them"]' />
+
+## Jumper Exchange: no platform fee, but the total isn't fixed
+
+Jumper is the consumer-facing app built on top of [LI.FI](https://li.fi)'s routing infrastructure — it aggregates dozens of bridges and DEXs across 60+ chains and picks a route for you. Jumper itself doesn't charge a platform fee on top of that route. The catch is that "no platform fee" isn't the same as "no fee": the total cost is whatever the selected bridge protocol and DEX(s) along that route charge, which published fee ranges put at roughly 0.5–1% of the transfer amount, plus gas on both chains. Two swaps of the same size can land at different total costs depending purely on which route Jumper's aggregator selects that moment — the quote screen shows the net output, but the fee itself isn't a fixed number you can quote from memory.
+
+## deBridge: a flat fee plus a spread, not a percentage
+
+deBridge's own fee documentation describes a different shape entirely: a small flat protocol fee (published around $0.50 per transfer, paid to deBridge's validator network) plus a 4 basis-point variable fee taken from the input token. On top of that, deBridge's DLN model works via solvers who bid to fulfill your order — the solver's margin (their "spread") is implicit in the destination amount you're quoted, not broken out as a separate fee line. In practice this can be very cheap on larger transfers (a $1,000 transfer quoted around $0.86 all-in in one published example) but the *rate* isn't something you can express as a clean percentage the way a flat-bps fee can, since the flat component matters proportionally more on small transfers and the spread moves with market conditions.
+
+## Blockchains.Click: one flat rate, quoted up front
+
+Blockchains.Click charges a flat 0.25% per leg — no route-dependent variance, no separate spread to account for. A same-chain swap, or a cross-chain swap starting from native SOL, is a single leg (0.25% total). A cross-chain swap starting from an SPL token that needs converting to SOL first is two legs (0.5% total, one per leg). Whichever case applies, the fee is fixed and shown in the review step before you confirm — see [how cross-chain swaps actually work](/blog/how-cross-chain-swaps-work) for the full mechanics of the two-leg model. The tradeoff for that predictability is scope: Blockchains.Click routes through Jupiter (Solana) and Relay (cross-chain), not a 60-plus-chain aggregator — if your swap is EVM-to-EVM outside Relay's supported chains, or you need a chain neither engine reaches, a broader aggregator like Jumper will cover more ground.
+
+## Choosing between them
+
+If you want to compare a fixed, published rate against what you'd actually pay elsewhere: Blockchains.Click's 0.25%-per-leg is simplest to reason about ahead of time, since it doesn't move with route selection or market conditions. Jumper is the better fit if you need its wider chain coverage and are comfortable with a total cost that varies by route. deBridge tends to be cheapest on larger transfers specifically because its fee has a flat-dollar component rather than a pure percentage. None of these numbers are fixed forever — protocol fees change, and the figures above reflect each project's own current public documentation, not a live quote — so confirm the real number on whichever platform you're about to use.

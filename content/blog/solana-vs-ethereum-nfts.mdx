@@ -1,27 +1,45 @@
 ---
 title: "Solana vs. Ethereum NFTs: What's Actually Different"
-description: "Fees, marketplaces, and mint culture — a practical comparison for anyone buying NFTs across chains for the first time."
+description: "Fees, marketplaces, buy-flow mechanics, and mint culture — a practical comparison for anyone buying NFTs across chains for the first time."
 date: "2026-07-22"
+updatedDate: "2026-08-11"
 category: "NFTs"
+mentions:
+  - "Magic Eden"
+  - "OpenSea"
+  - "Tradeport"
+faq:
+  - question: "Can I buy a Solana NFT with ETH, without bridging first?"
+    answer: "Yes — connect an EVM wallet, pick the Solana listing, and Blockchains.Click handles the cross-chain delivery as part of the purchase flow. You never hold an intermediate wrapped asset."
+  - question: "Do Solana and Ethereum NFT purchases use the same number of signatures?"
+    answer: "A same-chain purchase (ETH-in-hand buying an Ethereum NFT, or SOL-in-hand buying a Solana NFT) is one signature. A cross-chain purchase is two: one to deliver the paying asset to the destination chain, one to actually sign the marketplace's buy transaction once funds land."
+  - question: "Which marketplaces does Blockchains.Click pull listings from?"
+    answer: "Magic Eden for Solana, OpenSea for Ethereum/Base/Arbitrum and other EVM chains, and Tradeport for Sui — one browse and buy flow across all three, rather than three separate accounts."
 ---
 
-NFT culture on Solana and Ethereum grew up separately, and it shows — the marketplaces, fee structures, and even the vocabulary differ more than people expect. If you're used to one chain and buying on the other for the first time, here's what actually changes.
+NFT culture on Solana and Ethereum grew up separately, and it shows — the marketplaces, fee structures, buy-flow mechanics, and even the vocabulary differ more than people expect. If you're used to one chain and buying on the other for the first time, here's what actually changes.
 
 ## Marketplaces
 
-Blockchains.Click pulls NFT listings from across every ecosystem it supports — Solana, Ethereum and other EVM chains (including Base and ApeChain), and Sui.
+Blockchains.Click pulls NFT listings from across every ecosystem it supports: **Magic Eden** for Solana, **OpenSea** for Ethereum and other EVM chains (including Base and ApeChain), and **Tradeport** for Sui.
 
-You browse and buy from all of them in one place, and — the actually useful part — you can pay from a different chain than the NFT itself lives on. Want a Solana NFT but you're holding ETH? You don't need to bridge and swap manually first.
+You browse and buy from all three in one place, and — the actually useful part — you can pay from a different chain than the NFT itself lives on. Want a Solana NFT but you're holding ETH? You don't need to bridge and swap manually first; see [how cross-chain swaps actually work](/blog/how-cross-chain-swaps-work) for the underlying mechanism this reuses.
+
+## How the buy flow itself differs
+
+This is the part that surprises people more than fees do. A **same-chain** purchase — ETH in your wallet buying an Ethereum listing, or SOL buying a Solana listing — is one signature: you sign the marketplace's buy transaction directly, and there's no platform fee on that leg since no cross-chain conversion happened.
+
+A **cross-chain** purchase is two signatures, not one: first, the paying asset is delivered to your own wallet on the NFT's chain (a real, self-custodied delivery step, not a middleman holding funds), then you separately sign the actual marketplace buy transaction once that lands. Splitting it this way exists for a real safety reason — see [Swap Security 101](/blog/swap-security-101) for why a single combined signature would have been unsafe for this specific flow.
 
 ## Fees and speed
 
 Solana's transaction fees are a rounding error compared to Ethereum mainnet — this is why "minting culture" (rapid, cheap, often speculative minting of new collections) is so much more prevalent on Solana. Ethereum NFT activity skews toward established, higher-value collections where a larger gas fee is a smaller percentage of the transaction.
 
-Sui, still newer to NFTs than either, has fee economics closer to Solana's — fast and cheap — with a smaller but growing collection ecosystem.
+Sui, still newer to NFTs than either, has fee economics closer to Solana's — fast and cheap — with a smaller but growing collection ecosystem, and its own buy-transaction shape (Tradeport listings execute via Sui's Kiosk model, distinct from both Solana's and Ethereum's transaction formats under the hood, though you never have to think about that difference as a buyer).
 
 ## What doesn't change
 
-Whichever chain the NFT lives on, the same protections apply: your destination address is locked in at quote time and can't be altered mid-transaction, and every purchase is independently re-verified against the real on-chain result before it's marked complete.
+Whichever chain the NFT lives on, the same protections apply: your destination/paying address is locked in at quote time and can't be altered mid-transaction, and every purchase is independently re-verified against the real on-chain result before it's marked complete — not accepted on a client-reported transaction hash alone.
 
 ## Browse
 
