@@ -108,6 +108,27 @@ const nextConfig: NextConfig = {
   // auto-augmentation collision) but needs a real browser (either the user
   // testing it live, or a future session with working browser tooling)
   // BEFORE it ships, not after.
+  // Real SEO gap found 2026-08-11 via a GSC Coverage export: `www.
+  // blockchains.click` was serving full 200 content on its own (not
+  // redirecting) for every path, and only carried a <link rel="canonical">
+  // pointing at the apex as its (weaker, hint-only) defense. Google's own
+  // Index Coverage report showed the real cost — 9 of 12 "Crawled -
+  // currently not indexed" URLs were www-duplicates of pages already
+  // correctly canonicalized to the apex, real crawl budget spent
+  // discovering and then discarding duplicates on a brand-new site that
+  // can't afford to waste any. A real 308 host redirect is a directive
+  // Google (and every other crawler/browser) respects immediately, instead
+  // of a hint it has to first crawl both versions to notice.
+  async redirects() {
+    return [
+      {
+        source: "/:path*",
+        has: [{ type: "host", value: "www.blockchains.click" }],
+        destination: "https://blockchains.click/:path*",
+        permanent: true,
+      },
+    ];
+  },
   async headers() {
     return [
       {
