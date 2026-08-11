@@ -3,6 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { AppHeader } from "@/app/components/AppHeader";
 import { QuotePreviewWidget } from "@/app/components/QuotePreviewWidget";
+import { QuickPairChips } from "@/app/components/QuickPairChips";
 import { Reveal } from "@/app/components/Reveal";
 import { HeroVisual } from "@/app/components/HeroVisual";
 import { TrustBar } from "@/app/components/TrustBar";
@@ -12,8 +13,7 @@ import { JsonLd, faqPageSchema } from "@/lib/seo/jsonld";
 import { FAQ_ITEMS } from "@/lib/content/faq";
 import { NFT_VENDOR_CLIENTS } from "@/lib/nft/vendorClients";
 import { SUI_ICON_URL } from "@/lib/nft/labels";
-import { GameCard } from "@/app/components/GameCard";
-import { getAllGames } from "@/lib/content/games";
+import { MORE_TOOLS } from "@/lib/content/moreTools";
 
 // 2026-08-05 (landing-page overhaul, Phase 2) — `/` used to BE the swap
 // tool (now relocated to /swap, see that route's own history). This is a
@@ -73,7 +73,6 @@ async function getTrendingCollections() {
 
 export default async function LandingPage() {
   const trending = await getTrendingCollections();
-  const games = getAllGames().slice(0, 6);
 
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-col gap-16 p-6">
@@ -97,130 +96,44 @@ export default async function LandingPage() {
           All the blockchains, <span className="text-accent">zero manual bridging.</span>
         </h1>
         <p className="max-w-xl text-base text-ink-muted sm:text-lg">
-          Swap tokens and buy NFTs across Solana, Ethereum, and Sui for 0.25% per leg — one destination address,
-          locked in and verified on-chain, every time.
+          Swap tokens and buy NFTs across Solana, Ethereum, and Sui — no bridging, no manual steps, ever.
         </p>
         <QuotePreviewWidget />
+        <QuickPairChips />
+        {/* Real security trust line (2026-08-11, homepage redesign) — this
+            claim is already true and already shipped (the destination-
+            address-lock + on-chain re-verification behavior this links to),
+            just previously buried in a blog post nobody reached from here.
+            Placed right under the CTA area, where trust signals do the most
+            work per the research this redesign is based on. */}
+        <p className="max-w-md text-xs text-ink-faint">
+          🔒 Destination address locked at quote time, re-verified on-chain before every swap completes.{" "}
+          <Link href="/blog/swap-security-101" className="font-medium text-accent hover:underline">
+            How it works →
+          </Link>
+        </p>
+        {/* Real, verifiable wallet-support line, text-only (2026-08-11) —
+            deliberately NOT a logo row: this app has no static wallet-logo
+            list anywhere (Solana wallets come from live Wallet Standard
+            auto-detection, EVM from live EIP-6963 discovery — both runtime-
+            only, see app/providers.tsx / lib/client/EvmWalletProvider.tsx),
+            and TrustBar.tsx's own doc comment already establishes "never
+            fabricate a logo" as a hard rule for this codebase. Every name
+            below is genuinely supported since Wallet Standard/EIP-6963 are
+            exactly the protocols these wallets implement — same "real text
+            badge" pattern TrustBar uses for Jupiter/Relay. */}
+        <p className="max-w-md text-xs text-ink-faint">
+          Works with Phantom, Solflare, MetaMask, Rabby, Coinbase Wallet, and any Wallet Standard / EIP-6963 wallet.
+        </p>
         <TrustBar />
         <StatsBar />
       </section>
 
-      {/* Trending NFT collections — real, live Magic Eden data (see
-          getTrendingCollections above), placed right under the swap widget
-          (2026-08-06, real user request: "swap, nft trend and then the
-          other" — moved above the Features tiles) so it doubles as an
-          immediate, genuine trust signal (real floor prices / 24h volume,
-          not invented copy) before a visitor even reaches the feature
-          list. */}
-      {trending.length > 0 && (
-        <Reveal className="flex flex-col gap-4">
-          <div className="flex items-center justify-between">
-            <h2 className="font-display text-2xl font-normal text-ink">Trending NFT collections</h2>
-            <Link href="/nft" className="text-sm font-medium text-accent hover:underline">
-              Browse all →
-            </Link>
-          </div>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-6">
-            {trending.map((c) => (
-              <Link
-                key={`${c.vendor}-${c.slug}`}
-                href={`/nft/${c.vendor}/${encodeURIComponent(c.slug)}`}
-                className="group flex flex-col gap-2 rounded-2xl border border-hairline bg-surface p-2.5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-accent/40 hover:shadow-lg"
-              >
-                <NftImage src={c.imageUrl} alt={c.name} className="aspect-square w-full rounded-xl" />
-                <div className="flex flex-col gap-0.5 px-0.5">
-                  <p className="truncate text-xs font-semibold text-ink">{c.name}</p>
-                  {c.floorPrice && (
-                    <p className="num truncate text-xs text-ink-muted">
-                      {c.floorPrice} {c.floorPriceCurrency}
-                    </p>
-                  )}
-                </div>
-              </Link>
-            ))}
-          </div>
-        </Reveal>
-      )}
-
-      {/* Community Games (2026-08-07) — same "no fetch needed, GAMES is a
-          static in-repo array" reasoning as lib/content/games.ts's own doc
-          comment, plus the same inline-grid card pattern as Trending NFT
-          collections directly above. */}
-      {games.length > 0 && (
-        <Reveal className="flex flex-col gap-4">
-          <div className="flex items-center justify-between">
-            <h2 className="font-display text-2xl font-normal text-ink">🎮 Community Games</h2>
-            <Link href="/games" className="text-sm font-medium text-accent hover:underline">
-              Browse all →
-            </Link>
-          </div>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-6">
-            {games.map((g) => (
-              <GameCard key={g.slug} game={g} />
-            ))}
-          </div>
-        </Reveal>
-      )}
-
-      {/* Dust Sweeper + Portfolio Baskets + ClickPay + Trigger Orders promo
-          (2026-08-08) — single-feature cards side by side once there were
-          several of these to promote, rather than stacking full-width rows. */}
-      <Reveal className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Link
-          href="/dust-sweeper"
-          className="flex flex-col gap-2 rounded-2xl border border-hairline bg-surface p-6 shadow-sm transition-all hover:border-accent/40"
-        >
-          <h2 className="font-display text-xl font-normal text-ink">🧹 Dust Sweeper</h2>
-          <p className="text-sm text-ink-muted">
-            Small stranded token balances add up across chains. Scan your wallets and consolidate them into one
-            token in a guided flow.
-          </p>
-          <span className="mt-1 self-start rounded-full bg-accent px-4 py-2 text-sm font-semibold text-accent-ink">
-            Sweep your dust →
-          </span>
-        </Link>
-        <Link
-          href="/basket"
-          className="flex flex-col gap-2 rounded-2xl border border-hairline bg-surface p-6 shadow-sm transition-all hover:border-accent/40"
-        >
-          <h2 className="font-display text-xl font-normal text-ink">🧺 Portfolio Baskets</h2>
-          <p className="text-sm text-ink-muted">
-            Split one token into a curated basket of destination tokens across chains — one guided flow instead of
-            several manual swaps.
-          </p>
-          <span className="mt-1 self-start rounded-full bg-accent px-4 py-2 text-sm font-semibold text-accent-ink">
-            Browse baskets →
-          </span>
-        </Link>
-        <Link
-          href="/pay/create"
-          className="flex flex-col gap-2 rounded-2xl border border-hairline bg-surface p-6 shadow-sm transition-all hover:border-accent/40"
-        >
-          <h2 className="font-display text-xl font-normal text-ink">⚡ ClickPay</h2>
-          <p className="text-sm text-ink-muted">
-            Create a payment link for the exact token and chain you want to receive — the payer sends whatever they
-            hold on any chain.
-          </p>
-          <span className="mt-1 self-start rounded-full bg-accent px-4 py-2 text-sm font-semibold text-accent-ink">
-            Create a link →
-          </span>
-        </Link>
-        <Link
-          href="/orders"
-          className="flex flex-col gap-2 rounded-2xl border border-hairline bg-surface p-6 shadow-sm transition-all hover:border-accent/40"
-        >
-          <h2 className="font-display text-xl font-normal text-ink">⏱️ Trigger Orders</h2>
-          <p className="text-sm text-ink-muted">
-            Set a Solana price target or a recurring DCA schedule — filled automatically, even while you&apos;re
-            offline.
-          </p>
-          <span className="mt-1 self-start rounded-full bg-accent px-4 py-2 text-sm font-semibold text-accent-ink">
-            Set an order →
-          </span>
-        </Link>
-      </Reveal>
-
-      {/* Features — 2026-08-06 (frontend audit, Impeccable detector:
+      {/* Features — MOVED UP (2026-08-11 homepage redesign) — right after the
+          interactive hero widget, before any other content, so a first-time
+          visitor knows what this product actually IS before seeing NFT
+          proof-of-life content or secondary tools. 2026-08-06 (frontend
+          audit, Impeccable detector:
           "avoid cookie-cutter grids") — replaced the uniform 3-equal-column
           grid with an intentionally asymmetric 7/5 split: the flagship
           feature (swap) gets a wider, taller "hero" card with a bigger
@@ -310,7 +223,46 @@ export default async function LandingPage() {
         </div>
       </section>
 
-      {/* FAQ preview */}
+      {/* Trending NFT collections — MOVED (2026-08-11 homepage redesign) to
+          right after Features, so it now makes contextual sense: Features
+          just told the visitor this is an NFT marketplace, this proves that
+          claim with real, live Magic Eden data (real floor prices, not
+          invented copy) before FAQ/objection-handling. */}
+      {trending.length > 0 && (
+        <Reveal className="flex flex-col gap-4">
+          <div className="flex items-center justify-between">
+            <h2 className="font-display text-2xl font-normal text-ink">Trending NFT collections</h2>
+            <Link href="/nft" className="text-sm font-medium text-accent hover:underline">
+              Browse all →
+            </Link>
+          </div>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-6">
+            {trending.map((c) => (
+              <Link
+                key={`${c.vendor}-${c.slug}`}
+                href={`/nft/${c.vendor}/${encodeURIComponent(c.slug)}`}
+                className="group flex flex-col gap-2 rounded-2xl border border-hairline bg-surface p-2.5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-accent/40 hover:shadow-lg"
+              >
+                <NftImage src={c.imageUrl} alt={c.name} className="aspect-square w-full rounded-xl" />
+                <div className="flex flex-col gap-0.5 px-0.5">
+                  <p className="truncate text-xs font-semibold text-ink">{c.name}</p>
+                  {c.floorPrice && (
+                    <p className="num truncate text-xs text-ink-muted">
+                      {c.floorPrice} {c.floorPriceCurrency}
+                    </p>
+                  )}
+                </div>
+              </Link>
+            ))}
+          </div>
+        </Reveal>
+      )}
+
+      {/* FAQ preview — MOVED UP (2026-08-11) closer to the decision point,
+          right after proof-of-life content, instead of dead last after
+          several more feature pitches (objection-handling belongs near
+          where the visitor is actually deciding, per the research this
+          redesign is based on). */}
       <Reveal className="flex flex-col gap-4">
         <div className="flex items-center justify-between">
           <h2 className="font-display text-2xl font-normal text-ink">Frequently asked questions</h2>
@@ -324,6 +276,32 @@ export default async function LandingPage() {
               <h3 className="text-sm font-semibold text-ink">{item.question}</h3>
               <p className="max-w-[65ch] text-sm text-ink-muted">{item.answer}</p>
             </div>
+          ))}
+        </div>
+      </Reveal>
+
+      {/* "More tools" (2026-08-11 homepage redesign) — Dust Sweeper,
+          Baskets, ClickPay, Trigger Orders, and Games, consolidated from
+          5 equal-weight full promo cards into one clearly-secondary row:
+          icon + one-line label only, the whole tile is the link, no
+          competing full CTA button. "Every converting landing page has one
+          clear goal" — these are real, still-reachable features, just no
+          longer competing with the primary swap CTA for a first-time
+          visitor's attention. */}
+      <Reveal className="flex flex-col gap-4">
+        <h2 className="font-display text-xl font-normal text-ink">More tools</h2>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+          {MORE_TOOLS.map((tool) => (
+            <Link
+              key={tool.href}
+              href={tool.href}
+              className="flex flex-col items-center gap-2 rounded-2xl border border-hairline bg-surface px-3 py-5 text-center shadow-sm transition-all hover:-translate-y-0.5 hover:border-accent/40 hover:shadow-md"
+            >
+              <span aria-hidden="true" className="text-2xl">
+                {tool.icon}
+              </span>
+              <span className="text-xs font-medium text-ink-muted">{tool.label}</span>
+            </Link>
           ))}
         </div>
       </Reveal>

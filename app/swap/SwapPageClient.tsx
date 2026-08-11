@@ -31,6 +31,7 @@ import { useSavedAddresses } from "@/lib/client/useSavedAddresses";
 import { useSessionActivity } from "@/lib/client/useSessionActivity";
 import { fetchNativeToken } from "@/lib/client/nativeToken";
 import { swapChainForSlug, BTC_CHAIN_ID } from "@/lib/chains/swapChains";
+import { MORE_TOOLS } from "@/lib/content/moreTools";
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -836,6 +837,14 @@ export function SwapPageClient() {
             the widget, so text sizes clustered with nothing bigger to anchor
             a real scale. */}
         <h1 className="font-display px-1 text-2xl font-normal text-ink">Swap</h1>
+        {/* Real gap fixed 2026-08-11 (site-wide audit) — a visitor landing
+            directly on /swap (a bookmark, a shared link, an ad) got zero
+            context: no subtext, no trust signal, unlike the homepage which
+            now has both. This is the actual page a real signature happens
+            on, so it needs this more than the homepage does, not less. */}
+        <p className="px-1 text-sm text-ink-muted">
+          Cross-chain and same-chain swaps across Solana, Ethereum, and more — no bridging, no manual steps.
+        </p>
         <TrendingBar chainId={SOLANA_CHAIN_ID_CLIENT} />
 
         <SwapPanel
@@ -863,6 +872,16 @@ export function SwapPageClient() {
 
         <SlippageControl bps={slippageBps} onChange={setSlippageBps} />
         <TrustBar />
+        {/* Same real security trust line as the homepage (2026-08-11 site-
+            wide audit) — right before the real signature/CTA, where trust
+            signals do the most work. Same true claim, same link, reused
+            verbatim for consistency rather than re-worded per page. */}
+        <p className="px-1 text-xs text-ink-faint">
+          🔒 Destination address locked at quote time, re-verified on-chain before every swap completes.{" "}
+          <Link href="/blog/swap-security-101" className="font-medium text-accent hover:underline">
+            How it works →
+          </Link>
+        </p>
 
         <button
           onClick={handleMainButtonClick}
@@ -948,99 +967,31 @@ export function SwapPageClient() {
       </div>
       </div>
 
-      {/* Stronger CTA (2026-08-08d, real user request: "a better CTA...
-          close accounts and get back some cash") — replaced a plain text
-          link with a real benefit-led card: leads with the concrete,
-          guaranteed part (empty-account rent is real SOL, refundable on
-          click, no swap/price risk involved) rather than the vaguer "sweep
-          dust" framing alone. */}
-      <Link
-        href="/dust-sweeper"
-        className="mx-auto flex w-full max-w-lg items-center gap-4 rounded-2xl border border-hairline bg-surface p-4 shadow-sm transition-all hover:border-accent/40 hover:shadow-md"
-      >
-        <span
-          aria-hidden="true"
-          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-accent-soft text-xl"
-        >
-          🧹
-        </span>
-        <span className="min-w-0 flex-1">
-          <span className="block text-sm font-semibold text-ink">Close empty accounts, get real cash back</span>
-          <span className="block text-xs text-ink-faint">
-            Reclaim rent SOL from dead token accounts and consolidate stranded dust — free money sitting in your
-            wallet right now.
-          </span>
-        </span>
-        <span className="shrink-0 rounded-full bg-accent px-3 py-1.5 text-xs font-semibold text-accent-ink">
-          Check my wallet →
-        </span>
-      </Link>
-
-      <Link
-        href="/basket"
-        className="mx-auto flex w-full max-w-lg items-center gap-4 rounded-2xl border border-hairline bg-surface p-4 shadow-sm transition-all hover:border-accent/40 hover:shadow-md"
-      >
-        <span
-          aria-hidden="true"
-          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-accent-soft text-xl"
-        >
-          🧺
-        </span>
-        <span className="min-w-0 flex-1">
-          <span className="block text-sm font-semibold text-ink">Diversify in one swap, not five</span>
-          <span className="block text-xs text-ink-faint">
-            Split a single token into a curated basket across chains — one guided flow instead of manually swapping
-            into each one.
-          </span>
-        </span>
-        <span className="shrink-0 rounded-full bg-accent px-3 py-1.5 text-xs font-semibold text-accent-ink">
-          Browse baskets →
-        </span>
-      </Link>
-
-      <Link
-        href="/pay/create"
-        className="mx-auto flex w-full max-w-lg items-center gap-4 rounded-2xl border border-hairline bg-surface p-4 shadow-sm transition-all hover:border-accent/40 hover:shadow-md"
-      >
-        <span
-          aria-hidden="true"
-          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-accent-soft text-xl"
-        >
-          ⚡
-        </span>
-        <span className="min-w-0 flex-1">
-          <span className="block text-sm font-semibold text-ink">Get paid in exactly what you want</span>
-          <span className="block text-xs text-ink-faint">
-            Create a ClickPay link — the payer sends whatever they hold, you receive the exact token and chain you
-            asked for.
-          </span>
-        </span>
-        <span className="shrink-0 rounded-full bg-accent px-3 py-1.5 text-xs font-semibold text-accent-ink">
-          Create link →
-        </span>
-      </Link>
-
-      <Link
-        href="/orders"
-        className="mx-auto flex w-full max-w-lg items-center gap-4 rounded-2xl border border-hairline bg-surface p-4 shadow-sm transition-all hover:border-accent/40 hover:shadow-md"
-      >
-        <span
-          aria-hidden="true"
-          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-accent-soft text-xl"
-        >
-          ⏱️
-        </span>
-        <span className="min-w-0 flex-1">
-          <span className="block text-sm font-semibold text-ink">Don&apos;t want to watch the price?</span>
-          <span className="block text-xs text-ink-faint">
-            Set a Trigger Order — a limit order or recurring DCA that fills automatically, even while you&apos;re
-            offline.
-          </span>
-        </span>
-        <span className="shrink-0 rounded-full bg-accent px-3 py-1.5 text-xs font-semibold text-accent-ink">
-          Set an order →
-        </span>
-      </Link>
+      {/* Consolidated (2026-08-11 site-wide audit) — this used to be 4 big
+          full-width cards, each with its own big accent CTA pill, the exact
+          same "competing CTAs" anti-pattern found and fixed on the
+          homepage. A first-time visitor's one real goal on THIS page is
+          connecting a wallet and swapping — these are real, useful
+          secondary tools, but they shouldn't visually compete with that.
+          Reuses the same shared MORE_TOOLS list + compact tile pattern the
+          homepage now uses, for real cross-page consistency. */}
+      <div className="mx-auto flex w-full max-w-lg flex-col gap-3">
+        <h2 className="px-1 text-sm font-semibold text-ink-muted">More tools</h2>
+        <div className="grid grid-cols-3 gap-3 sm:grid-cols-5">
+          {MORE_TOOLS.map((tool) => (
+            <Link
+              key={tool.href}
+              href={tool.href}
+              className="flex flex-col items-center gap-2 rounded-2xl border border-hairline bg-surface px-2 py-4 text-center shadow-sm transition-all hover:-translate-y-0.5 hover:border-accent/40 hover:shadow-md"
+            >
+              <span aria-hidden="true" className="text-xl">
+                {tool.icon}
+              </span>
+              <span className="text-[11px] font-medium text-ink-muted">{tool.label}</span>
+            </Link>
+          ))}
+        </div>
+      </div>
 
       {/*
         Real gap fixed 2026-08-03: clicking "Swap" used to go straight from

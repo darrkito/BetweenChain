@@ -249,7 +249,7 @@ export function OrdersClient() {
       <AppHeader />
       <div className="mx-auto flex w-full max-w-md flex-col gap-4">
         <section className="flex flex-col gap-1">
-          <h1 className="text-xl font-semibold text-ink">⏱️ Trigger Orders</h1>
+          <h1 className="font-display text-2xl font-normal text-ink">⏱️ Trigger Orders</h1>
           <p className="text-sm text-ink-muted">
             Set a Solana price target or a recurring DCA schedule — filled automatically by Jupiter&apos;s own on-chain program and
             keeper network, even while you&apos;re offline. Non-custodial: your tokens stay in a Jupiter-controlled escrow, never with

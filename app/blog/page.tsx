@@ -41,28 +41,31 @@ export default function BlogIndexPage() {
         </div>
 
         <div className="flex flex-col gap-4">
+          {/* Real redundancy fixed 2026-08-11 (site-wide audit) — this card
+              used to show BOTH the post's opengraph-image (which itself has
+              the title/category baked into the graphic, see
+              app/blog/[slug]/opengraph-image.tsx) AND the same title/
+              category as real text directly below it. Same information
+              twice per card, and the tall 1200x630 image made a ~20-post
+              list roughly 31,000px tall. The OG image's real job is social-
+              media link previews (X/Discord unfurls), not an in-app list
+              thumbnail — dropped here, kept everywhere it's actually needed
+              (real <meta> tags, unchanged). Text-only cards scan far faster
+              for a list this long. */}
           {posts.map((post, i) => (
             <Reveal key={post.slug} delay={i * 0.05}>
               <Link
                 href={`/blog/${post.slug}`}
-                className="group flex flex-col gap-3 overflow-hidden rounded-2xl border border-hairline bg-surface shadow-sm transition-all hover:-translate-y-0.5 hover:border-accent/40 hover:shadow-lg sm:flex-row"
+                className="group flex flex-col gap-2 rounded-2xl border border-hairline bg-surface p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-accent/40 hover:shadow-lg"
               >
-                {/* eslint-disable-next-line @next/next/no-img-element -- same-origin, Next-generated ImageResponse PNG */}
-                <img
-                  src={`/blog/${post.slug}/opengraph-image`}
-                  alt=""
-                  className="aspect-[1200/630] w-full shrink-0 object-cover sm:w-56"
-                />
-                <div className="flex flex-col gap-2 p-5">
-                  <div className="flex flex-wrap items-center gap-2 text-xs font-medium text-ink-faint">
-                    <span className="rounded-full bg-accent-soft px-2 py-0.5 text-accent">{post.category}</span>
-                    <time dateTime={post.date}>{formatDate(post.date)}</time>
-                    <span aria-hidden="true">·</span>
-                    <span>{post.readingTimeMinutes} min read</span>
-                  </div>
-                  <h2 className="font-display text-xl font-normal text-ink">{post.title}</h2>
-                  <p className="text-sm text-ink-muted">{post.description}</p>
+                <div className="flex flex-wrap items-center gap-2 text-xs font-medium text-ink-faint">
+                  <span className="rounded-full bg-accent-soft px-2 py-0.5 text-accent">{post.category}</span>
+                  <time dateTime={post.date}>{formatDate(post.date)}</time>
+                  <span aria-hidden="true">·</span>
+                  <span>{post.readingTimeMinutes} min read</span>
                 </div>
+                <h2 className="font-display text-xl font-normal text-ink">{post.title}</h2>
+                <p className="text-sm text-ink-muted">{post.description}</p>
               </Link>
             </Reveal>
           ))}

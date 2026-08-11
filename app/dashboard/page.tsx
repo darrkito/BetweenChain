@@ -13,7 +13,17 @@ export default function DashboardPage() {
   const [referralCount, setReferralCount] = useState<number | null>(null);
   const [inviteCode, setInviteCode] = useState<string | null>(null);
   const [redeemCode, setRedeemCode] = useState("");
-  const [message, setMessage] = useState<string | null>(null);
+  // Real bug fixed 2026-08-11 (site-wide audit) — these two used to share
+  // one `message` state, rendered ONLY at the very bottom of the page. The
+  // sign-in prompt is the single most important thing a signed-out visitor
+  // needs to know (it explains every "—" placeholder above it), but it was
+  // getting buried below Dust Sweeper/invite-code/redeem-code cards, and
+  // could be silently overwritten by a later redeem-code result anyway —
+  // same "one state, two async writers" bug class already documented
+  // elsewhere in this project's history. Split so each renders where it's
+  // actually relevant: auth prompt at the top, redeem feedback by its form.
+  const [authMessage, setAuthMessage] = useState<string | null>(null);
+  const [redeemMessage, setRedeemMessage] = useState<string | null>(null);
 
   useEffect(() => {
     fetch("/api/points")
@@ -22,7 +32,7 @@ export default function DashboardPage() {
         setBalance(d.balance);
         setReferralCount(d.referralCount);
       })
-      .catch(() => setMessage("Sign in on the swap page to see your points."));
+      .catch(() => setAuthMessage("Sign in on the swap page to see your points."));
 
     fetch("/api/referral")
       .then((r) => (r.ok ? r.json() : Promise.reject(r)))
@@ -37,7 +47,7 @@ export default function DashboardPage() {
       body: JSON.stringify({ code: redeemCode }),
     });
     const body = await res.json();
-    setMessage(res.ok ? "Invite code applied." : body.error);
+    setRedeemMessage(res.ok ? "Invite code applied." : body.error);
   }
 
   return (
@@ -48,6 +58,15 @@ export default function DashboardPage() {
       <AppHeader />
       <div className="mx-auto flex w-full max-w-lg flex-col gap-4">
         <h1 className="font-display px-1 text-2xl font-normal text-ink">Dashboard</h1>
+
+        {authMessage && (
+          <p className="rounded-xl border border-hairline bg-surface px-3 py-2 text-sm text-ink-muted">
+            {authMessage}{" "}
+            <Link href="/swap" className="font-medium text-accent hover:underline">
+              Go to swap →
+            </Link>
+          </p>
+        )}
 
         <section className="flex flex-col gap-3 rounded-2xl border border-hairline bg-surface p-5 shadow-sm">
           <p className="text-sm text-ink-muted">Points balance <span className="text-ink-faint">($1 volume = 1 point)</span></p>
@@ -86,11 +105,8 @@ export default function DashboardPage() {
           >
             Apply code
           </button>
+          {redeemMessage && <p className="text-sm text-ink-muted">{redeemMessage}</p>}
         </section>
-
-        {message && (
-          <p className="rounded-xl border border-hairline bg-surface px-3 py-2 text-sm text-ink-muted">{message}</p>
-        )}
       </div>
     </main>
   );

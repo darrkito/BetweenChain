@@ -219,3 +219,13 @@ npx supabase db reset           # drop + recreate local DB, reapply all migratio
   silently retired mid-project and broke points crediting until caught live. When adding
   a new external call, prefer verifying it live (curl/test call) over trusting
   documentation or memory of how it used to work.
+- Page `<h1>` styling: `font-display text-2xl font-normal text-ink` (or `text-3xl
+  sm:text-4xl` for marketing-weight pages like `/`, `/faq`, `/blog`) — every page
+  should match this, checked during the 2026-08-11 site-wide audit after
+  `/orders` was found to have drifted to a plain `text-xl font-semibold`.
+- **Explicit decision (2026-08-11)**: power-tool page `<h1>`s carry a leading emoji
+  (🧹 Dust Sweeper, 🚨 Evac Engine, 🛡️ Sentinel/Burner Shield, ⚖️ Rebalancer, ⏱️
+  Trigger Orders, 🎮 Games) while core pages don't (NFT Marketplace, Blog, FAQ,
+  Dashboard, Meme Radar). This is a deliberate "core product vs. extra tools"
+  differentiator now, not accidental drift — keep it that way; don't add or remove
+  emoji from either group without updating this note.
