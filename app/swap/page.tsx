@@ -10,8 +10,14 @@ import { SwapPageClient } from "./SwapPageClient";
 // purely to give /swap its own real metadata — same split pattern already
 // used for the NFT collection detail page (see app/nft/[vendor]/[slug]/
 // page.tsx + CollectionPageClient.tsx).
+// Title made keyword-specific (2026-08-11, SEO pass) — was just "Swap" (one
+// word, no real target keyword), while GSC showed this page indexed
+// correctly but with almost no impressions. Not a technical indexing bug
+// (confirmed via the URL Inspection API — "Submitted and indexed", crawled,
+// canonical correct); title/description matching real search phrasing is
+// the actual lever available here.
 export const metadata: Metadata = {
-  title: "Swap",
+  title: "Swap Tokens Across Chains — Solana, Ethereum & More",
   description:
     "Swap meme coins and tokens across Solana, Ethereum, and more — one click, no bridging headaches. Connect your wallet and go.",
   alternates: { canonical: "/swap" },

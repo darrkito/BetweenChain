@@ -929,6 +929,18 @@ export function SwapPageClient() {
           View points &amp; referrals
           <span aria-hidden="true">→</span>
         </Link>
+        {/* Real internal link (2026-08-11, SEO pass) — this page had zero
+            outbound links to the one blog post that explains what a
+            cross-chain swap actually does under the hood; a first-time
+            visitor unsure what "swap" even means here had no path to that
+            explainer short of finding /blog on their own. */}
+        <Link
+          href="/blog/how-cross-chain-swaps-work"
+          className="flex items-center gap-1.5 self-start text-sm font-medium text-ink-muted transition-colors hover:text-accent"
+        >
+          How does a cross-chain swap actually work?
+          <span aria-hidden="true">→</span>
+        </Link>
       </Reveal>
 
       <div className="mx-auto w-full max-w-lg lg:sticky lg:top-6 lg:mx-0">

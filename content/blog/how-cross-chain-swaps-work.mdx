@@ -7,24 +7,36 @@ category: "Guides"
 
 If you've ever tried to move value between blockchains the "old" way, you know the drill: wrap a token, bridge it, wait for confirmations on two different networks, then swap again on the other side. It's slow, it's error-prone, and it's easy to send the wrong asset to the wrong address.
 
-Blockchains.Click collapses that into a single transaction from your perspective: you start with a token on one chain (say, SOL on Solana) and end with a token on another chain (say, an ERC-20 on Ethereum or Base) — one swap, one confirmation flow.
+Blockchains.Click collapses that into a single transaction from your perspective: you start with a token on one chain (say, SOL on Solana) and end with a token on another chain (say, an ERC-20 on Ethereum or Base) — one swap, one confirmation flow. The same flow also works same-chain (EVM token to EVM token on the same network, no bridging leg needed at all).
+
+## Why this isn't the same thing as "a bridge"
+
+A classic token bridge (lock-and-mint, or a liquidity-pool bridge) moves the *same* asset representation from one chain to another — you still end up needing a separate swap afterward if you actually wanted a different token. A cross-chain **swap** is a stronger guarantee: you specify the exact destination token you want, and the whole multi-step process (routing, bridging, final conversion) is quoted and executed as one unit. You never hold an intermediate wrapped asset you didn't ask for.
 
 ## What's actually happening under the hood
 
 There are two independent legs to a cross-chain swap:
 
-- **The Solana leg** routes your source token into wrapped SOL — the bridge-ready asset — using deep, aggregated liquidity across Solana's DEXs to get you the best price.
-- **The cross-chain leg** moves that value to the destination chain and completes the swap into your chosen destination token.
+- **The Solana leg** (via Jupiter) routes your source token into native SOL — the bridge-ready asset — using deep, aggregated liquidity across Solana's DEXs to get you the best price. If your source token is already on an EVM chain, this leg doesn't run at all; the EVM-origin path skips straight to the cross-chain leg.
+- **The cross-chain leg** (via Relay's solver network) moves that value to the destination chain and completes the swap into your chosen destination token. Relay's solvers deliver the output from their own inventory on the destination chain — you're not waiting on a slow, sequential bridge-then-swap; both legs are priced together up front.
 
-Both legs are quoted together up front, so the price you see before confirming is the price you actually get — not a rough estimate that gets revised as the transaction executes.
+Both legs are quoted together, so the price you see before confirming is the price you actually get — not a rough estimate that gets revised as the transaction executes.
 
 ## What it costs
 
-There's a flat 0.25% platform fee applied on each leg of the swap — no separate "hidden" fee beyond that, plus whatever network/gas fee the underlying chain itself charges (which varies by network congestion, not something Blockchains.Click controls or marks up).
+There's a flat 0.25% platform fee applied on each leg of the swap — no separate "hidden" fee beyond that, plus whatever network/gas fee the underlying chain itself charges (which varies by network congestion, not something Blockchains.Click controls or marks up). Same-chain swaps only ever pay one leg's worth of fee, since there's no bridging leg to fee separately.
 
 ## Why the destination address can't change mid-swap
 
-One deliberate design choice: the address you're sending funds to is locked in the moment you get a quote, and it cannot be altered afterward — not from the frontend, not from the backend. Every completed swap is also independently re-verified against the real on-chain result before it's ever marked complete. That closes the door on a whole class of address-substitution attacks that plague less careful bridging setups.
+One deliberate design choice: the address you're sending funds to is locked in the moment you get a quote, and it cannot be altered afterward — not from the frontend, not from the backend. Every completed swap is also independently re-verified against the real on-chain result before it's ever marked complete. That closes the door on a whole class of address-substitution attacks that plague less careful bridging setups — see [Swap Security 101](/blog/swap-security-101) for the full threat model this protects against.
+
+## Common questions
+
+**Do I need a wallet on both chains?** Only if the swap actually spans two chains — you need a Solana wallet for any swap starting from Solana, and an EVM wallet as the destination if you're swapping into an EVM chain (or as the source, for an EVM-origin swap).
+
+**How long does it take?** A same-chain swap confirms as fast as the one chain it touches. A cross-chain swap depends on both legs' confirmation times — typically well under a minute, since Relay's solver network delivers from its own inventory rather than waiting on a slow canonical bridge.
+
+**What happens if the destination chain leg fails after the first leg succeeds?** This is exactly the scenario the on-chain re-verification step (above) exists to catch — a swap is never marked complete based on a client-reported transaction hash alone.
 
 ## Try it
 
