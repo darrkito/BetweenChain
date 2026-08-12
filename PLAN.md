@@ -1043,3 +1043,92 @@ can't back).
 **Status: plan only, nothing implemented.** Next step is item 1 (hero)
 once confirmed — smallest, highest-visibility change, good first checkpoint
 before touching the grid-heavy items.
+
+**Update 2026-08-12: all 5 items + a broader site-wide sweep (blog,
+basket, games) shipped, live-verified via real Playwright screenshots
+against production, and deployed.** Commits `3f95f00` + `2e96bc1` (the
+second a real regression fix — a 5-item mobile grid gap the first commit
+introduced, caught by screenshotting production, not by code review
+alone). See `STATE.md` for the deploy-verification detail.
+
+## Lovable mockup assessment (crosschain-click-glow.lovable.app) — 2026-08-12
+
+User shared a Lovable-generated mockup ("just a mockup") asking what's worth
+taking. Screenshotted it directly with Playwright (desktop + mobile + zoomed
+sections) rather than trusting a text extraction, then checked every
+candidate idea against this app's real code before scoping anything —
+same discipline as the pitch above.
+
+**Real, worth-building — scoped against actual code:**
+
+1. **Inline route breadcrumb on the homepage quote-preview widget** — the
+   mockup shows `Route: Solana → Jupiter → Relay → Ethereum` under the
+   swap inputs. **Correction to the mockup's implied gap**: this already
+   exists — `app/components/RoutePathVisualizer.tsx`, wired into
+   `SwapPanel.tsx:578` (the real `/swap` flow) — but NOT into
+   `QuotePreviewWidget.tsx` (the wallet-free homepage preview the mockup's
+   hero actually mirrors). Real fix is small: wire the same component into
+   `QuotePreviewWidget.tsx`, which already has `preview.route` available
+   from the same `/api/quote/preview` response `SwapPanel` uses.
+2. **24h floor-price % change chips on NFT cards** — real, already-computed,
+   currently-unused data: `lib/nft/tradeport.ts:241-261` computes
+   `floorChange24hrPct` (real `collection_floors(period: days_1)` vs
+   current floor) and it's on the shared `NftCollection` type
+   (`lib/nft/types.ts:51`), but **zero UI currently renders it** — confirmed
+   via grep, matches the earlier "re-check existing API responses for
+   unused fields" lesson from the GoPlus `is_open_source` discovery
+   (`STATE.md` 2026-08-10). Only real for Sui/Tradeport — Magic Eden/OpenSea
+   don't expose it (already-established fact, see
+   [[swapperbetweenchains_project]] memory / `PLAN.md`'s NFT vendor
+   history) — render "—" or hide the chip for those two, same
+   don't-fabricate-a-signal discipline as `hasRealVolume()`.
+3. **Top announcement/ticker bar** — genuinely new, zero existing
+   infrastructure (confirmed via grep — no ticker/announcement component
+   exists anywhere in this app). Small, low-risk to add. Content must be
+   real facts already true elsewhere on the site (fee rate, chain count,
+   security-lock claim) — not invented stats like the mockup's implied
+   "<30s swaps" (nothing in this app measures swap speed, same fact-check
+   bar that killed a similar claim in the 2026-08-06 SEO pass).
+
+**Explicitly NOT recommended, with real reasons:**
+
+- **The mockup's own "Powerful Cross-Chain Tools" cards are the exact
+  icon-in-gradient-rounded-box + equal-width bento pattern** this app's
+  2026-08-12 de-generic-ify pass (above) just removed from these same
+  four features (Dust Sweeper/Baskets/ClickPay/Trigger Orders). Copying
+  the mockup's card treatment would directly undo that work.
+- **Hero headline glow** — the mockup's gradient text has a soft blurred
+  glow behind it, the same ambient-glow anti-pattern removed everywhere
+  else this session, just a different color.
+- **"All Systems Operational" status badge** — not backed by any real
+  uptime/status source this app has; would repeat the exact fabricated-
+  status-claim mistake already flagged and rejected in the 2026-08-10
+  growth-pitch assessment ("never ship a status claim this app can't back
+  with a real, verifiable link").
+- **NFT/game card artwork** — the mockup's thumbnails are AI-generated
+  stock art, not real collection data; this app already does better here
+  (real Magic Eden/OpenSea/Tradeport images).
+
+**Scoped but flagged as bigger, real decisions — not quick copies:**
+
+- **Tabbed Swap / Cross-Chain / DCA-Limit widget.** Checked against real
+  architecture: `SwapPanel.tsx`/`QuotePreviewWidget.tsx` already
+  auto-detect cross-chain purely from the selected sell/buy chain pair
+  (`isCrossChain` computed, not a separate mode) — there's no real
+  underlying "Swap" vs. "Cross-Chain" distinction in this app for a tab to
+  represent; building one would be cosmetic, not functional. Trigger
+  Orders (`/orders`, `OrdersClient.tsx`) is a genuinely separate flow with
+  its own wallet-connect/token-select state, not a small embed — folding
+  it into the homepage widget as a real third tab is a real integration
+  project, not a styling change. Worth doing only as its own scoped piece
+  of work, not bundled into this pass.
+- **Dark-first cyan/blue theme.** The mockup is dark-only with a cyan
+  accent, a different design-system decision than this app's current
+  indigo-violet accent with real light+dark support (`app/globals.css`).
+  A full retheme is a real, larger call — not evaluated further here
+  unless explicitly wanted.
+
+**Recommendation**: items 1-3 are small, real, and have no open
+architecture question — good next-build candidates. The route-breadcrumb
+wiring (item 1) is the smallest and most directly ties back to this
+session's homepage work.

@@ -7,6 +7,7 @@ import { toAtomicAmount } from "@/lib/client/amount";
 import { TokenSelectModal, type SelectedToken } from "@/app/components/TokenSelectModal";
 import { TokenIcon } from "@/app/components/TokenIcon";
 import { isBuyTokenAllowed } from "@/app/components/SwapPanel";
+import { RoutePathVisualizer } from "@/app/components/RoutePathVisualizer";
 import { fetchNativeToken } from "@/lib/client/nativeToken";
 import { swapChainForChainId } from "@/lib/chains/swapChains";
 
@@ -58,7 +59,11 @@ export function QuotePreviewWidget({
   const [buyToken, setBuyToken] = useState<SelectedToken | null>(null);
   const [sellPickerOpen, setSellPickerOpen] = useState(false);
   const [buyPickerOpen, setBuyPickerOpen] = useState(false);
-  const [result, setResult] = useState<{ destAmountFormatted: string | null; destAmountUsd: string | null } | null>(null);
+  const [result, setResult] = useState<{
+    destAmountFormatted: string | null;
+    destAmountUsd: string | null;
+    route: Array<{ label: string; engine: "jupiter" | "relay" }>;
+  } | null>(null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -106,9 +111,20 @@ export function QuotePreviewWidget({
       });
       fetch(`/api/quote/preview?${params.toString()}`)
         .then((r) => r.json())
-        .then((body: { destAmountFormatted?: string | null; destAmountUsd?: string | null }) => {
-          if (!ignore) setResult({ destAmountFormatted: body.destAmountFormatted ?? null, destAmountUsd: body.destAmountUsd ?? null });
-        })
+        .then(
+          (body: {
+            destAmountFormatted?: string | null;
+            destAmountUsd?: string | null;
+            route?: Array<{ label: string; engine: "jupiter" | "relay" }>;
+          }) => {
+            if (!ignore)
+              setResult({
+                destAmountFormatted: body.destAmountFormatted ?? null,
+                destAmountUsd: body.destAmountUsd ?? null,
+                route: body.route ?? [],
+              });
+          },
+        )
         .catch(() => {
           if (!ignore) setResult(null);
         })
@@ -189,6 +205,15 @@ export function QuotePreviewWidget({
           <p className="text-xs text-ink-faint">Enter an amount to see an estimate.</p>
         )}
       </div>
+
+      {/* 2026-08-12 — RoutePathVisualizer already existed for SwapPanel.tsx
+          (the real /swap flow) but was never wired into this wallet-free
+          preview widget, even though this route's own API response
+          (/api/quote/preview) already returns the same `route` field.
+          Real trust signal, not a new component. */}
+      {sellToken && buyToken && result?.route && result.route.length > 0 && (
+        <RoutePathVisualizer sellChainId={sellToken.chainId} buyChainId={buyToken.chainId} route={result.route} />
+      )}
 
       <Link
         href={swapHref(sellToken, buyToken)}
