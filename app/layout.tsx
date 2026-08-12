@@ -6,6 +6,7 @@ import "./globals.css";
 import { Providers } from "./providers";
 import { JsonLd, siteGraphSchema } from "@/lib/seo/jsonld";
 import { Footer } from "@/app/components/Footer";
+import { AnnouncementBar } from "@/app/components/AnnouncementBar";
 
 // 2026-08-06 (frontend audit, Impeccable detector) — Geist/Geist Mono
 // replaced. Impeccable's "overused-font" rule calls out Geist by name (along
@@ -154,6 +155,7 @@ export default function RootLayout({
         <JsonLd data={siteGraphSchema()} />
       </head>
       <body className="min-h-full flex flex-col">
+        <AnnouncementBar />
         <Providers>{children}</Providers>
         <Footer />
         {/* 2026-08-04 (reliability/observability pass) — this app had zero
