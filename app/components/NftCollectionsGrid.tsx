@@ -295,8 +295,22 @@ export function NftCollectionsGrid({ collections }: { collections: NftCollection
                   <div className="flex flex-1 flex-col gap-0.5">
                     <span className={`uppercase tracking-wide text-ink-faint ${featured ? "text-xs" : "text-[11px]"}`}>Floor</span>
                     {floor != null ? (
-                      <span className="num font-semibold text-ink">
-                        {roundUpTo3Decimals(floor)} <span className="text-ink-faint">{c.floorPriceCurrency}</span>
+                      <span className="flex items-center gap-1.5">
+                        <span className="num font-semibold text-ink">
+                          {roundUpTo3Decimals(floor)} <span className="text-ink-faint">{c.floorPriceCurrency}</span>
+                        </span>
+                        {/* 24h floor change (2026-08-12) — only Tradeport/Sui
+                            ever populates this (lib/nft/tradeport.ts, real
+                            collection_floors data); Magic Eden/OpenSea don't
+                            expose it, so it's honestly absent there rather
+                            than fabricated — same don't-invent-a-signal rule
+                            as hasRealVolume() below. */}
+                        {c.floorChange24hrPct != null && (
+                          <span className={`num text-[11px] font-medium ${c.floorChange24hrPct >= 0 ? "text-success" : "text-danger"}`}>
+                            {c.floorChange24hrPct >= 0 ? "↑" : "↓"}
+                            {Math.abs(c.floorChange24hrPct).toFixed(1)}%
+                          </span>
+                        )}
                       </span>
                     ) : (
                       <span className="text-ink-faint">—</span>

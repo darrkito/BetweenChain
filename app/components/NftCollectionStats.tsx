@@ -55,8 +55,9 @@ export interface TotalSupplyInfo {
  * volume but no cheap listedCount. Every value here is real vendor data or
  * "—", never computed/guessed to fill a gap — see lib/nft/types.ts's
  * NftCollection comment for the full breakdown of what's available where.
- * 24hr floor-price-change isn't exposed by any researched vendor, so that
- * column is permanently "—" until one adds it, not silently dropped.
+ * 24hr floor-price-change is only exposed by Tradeport/Sui (added
+ * 2026-07-21, lib/nft/tradeport.ts) — Magic Eden/OpenSea don't have it, so
+ * that column stays honestly "—" for those two rather than fabricated.
  *
  * `listedCountInfo` overrides `collection.listedCount` when present — used
  * for OpenSea, where the count isn't free (see lib/nft/opensea.ts's
@@ -198,7 +199,15 @@ export function NftCollectionStats({
         title={hasListedRatio ? undefined : listedGapTitle}
       />
       <Stat label="Total Assets" value={totalSupplyValue} />
-      <Stat label="24hr Change" value="—" title="Not exposed by this collection's data source yet" />
+      {/* 2026-08-12 — correction to the doc comment above: Tradeport (Sui)
+          DOES expose this (lib/nft/tradeport.ts's real collection_floors
+          data, since 2026-07-21) — Magic Eden/OpenSea still don't, so this
+          stays honestly "—" for those two, not fabricated. */}
+      <Stat
+        label="24hr Change"
+        value={collection.floorChange24hrPct != null ? `${collection.floorChange24hrPct >= 0 ? "+" : ""}${collection.floorChange24hrPct.toFixed(1)}%` : "—"}
+        title={collection.floorChange24hrPct != null ? undefined : "Not exposed by this collection's data source"}
+      />
     </div>
   );
 }
