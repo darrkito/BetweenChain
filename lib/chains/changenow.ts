@@ -47,7 +47,11 @@ function requireChangeNowKey() {
 // sell:true}, and a real reverse-estimate quote (fromCurrency=btc, exact 20
 // SUI out) succeeded with a real rateId — every function below already
 // treats this as an opaque string, no BTC-specific branching needed.
-export type ChangeNowOriginCurrency = "eth" | "sol" | "btc";
+// sui/sui added 2026-08-18 (Sui as a SELL-side origin, not just the
+// original NFT-purchase destination) — confirmed live via GET
+// /v2/exchange/currencies: {ticker:"sui", network:"sui", buy:true,
+// sell:true}, same ticker-equals-network shape as eth/sol/btc.
+export type ChangeNowOriginCurrency = "eth" | "sol" | "btc" | "sui";
 
 function changenowHeaders(): HeadersInit {
   return { "content-type": "application/json", "x-changenow-api-key": requireChangeNowKey() };

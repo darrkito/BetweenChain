@@ -1,4 +1,5 @@
 import { isAddress } from "viem";
+import { isValidSuiAddress } from "@mysten/sui/utils";
 
 // Upgraded 2026-08-03 from a format-only regex (0x + 40 hex chars, no
 // checksum check) to viem's `isAddress` — confirmed live behavior before
@@ -27,4 +28,12 @@ const BTC_BECH32 = /^bc1[a-z0-9]{25,62}$/;
 
 export function isPlausibleBtcAddress(address: string): boolean {
   return BTC_LEGACY_OR_P2SH.test(address) || BTC_BECH32.test(address);
+}
+
+// Real SDK validator (2026-08-18, Sui swap support), not a hand-rolled
+// regex — @mysten/sui/utils already ships the correct 0x + 64 hex char
+// check this app's other NFT/wallet code implicitly trusts, so reuse it
+// rather than re-deriving the same rule.
+export function isPlausibleSuiAddress(address: string): boolean {
+  return isValidSuiAddress(address);
 }

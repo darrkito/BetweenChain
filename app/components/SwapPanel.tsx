@@ -8,7 +8,7 @@ import { normalizeSolanaSourceMint } from "@/lib/client/constants";
 import type { TokenListItem } from "@/lib/chains/types";
 import { chainBrandColor } from "@/lib/chainBrandColors";
 import { RoutePathVisualizer } from "@/app/components/RoutePathVisualizer";
-import { BTC_CHAIN_ID } from "@/lib/chains/swapChains";
+import { BTC_CHAIN_ID, SUI_CHAIN_ID } from "@/lib/chains/swapChains";
 import { generateFreshSolanaWallet, generateFreshEvmWallet, type FreshWallet } from "@/lib/client/generateFreshWallet";
 
 const SOLANA_CHAIN_ID = 792703809;
@@ -83,15 +83,19 @@ function TokenPill({ token, onClick }: { token: SelectedToken | null; onClick: (
 // BTC buy target is only reachable from a native-SOL or native-Ethereum-ETH
 // sell side, and (symmetrically) once BTC is the sell side, only native SOL
 // or native Ethereum ETH are valid buy targets.
+// Sui (2026-08-18): same ChangeNOW execution engine, same conservative
+// constraint — only paired with native SOL/ETH, not with BTC (that combo
+// is unverified; ChangeNOW likely supports it, but this app hasn't tested
+// it live, same discipline as every other untested pair in this file).
 function isNativeSolOrEth(t: { chainId: number; isNative: boolean }): boolean {
   return (t.chainId === SOLANA_CHAIN_ID || t.chainId === ETHEREUM_CHAIN_ID) && t.isNative;
 }
 
 export function isBuyTokenAllowed(sellChainId: number | undefined, t: { chainId: number; isNative: boolean }): boolean {
-  if (t.chainId === BTC_CHAIN_ID) {
+  if (t.chainId === BTC_CHAIN_ID || t.chainId === SUI_CHAIN_ID) {
     return sellChainId === SOLANA_CHAIN_ID || sellChainId === ETHEREUM_CHAIN_ID;
   }
-  if (sellChainId === BTC_CHAIN_ID) {
+  if (sellChainId === BTC_CHAIN_ID || sellChainId === SUI_CHAIN_ID) {
     return isNativeSolOrEth(t);
   }
   if (t.chainId === SOLANA_CHAIN_ID && !t.isNative) {
@@ -199,7 +203,15 @@ export function SwapPanel({
 
   const amount = Number(sellAmount);
   const hasValidInput = Boolean(sellToken && buyToken && sellAmount && Number.isFinite(amount) && amount > 0);
-  const isBtcPair = sellToken?.chainId === BTC_CHAIN_ID || buyToken?.chainId === BTC_CHAIN_ID;
+  // Name kept as "isBtcPair" (not renamed to something like
+  // isChangeNowPair) to minimize diff on a working real-money flow — it now
+  // also covers Sui, both routed through the same ChangeNOW-backed
+  // /api/quote/btc* endpoints (see btcPairCurrency below).
+  const isBtcPair =
+    sellToken?.chainId === BTC_CHAIN_ID ||
+    buyToken?.chainId === BTC_CHAIN_ID ||
+    sellToken?.chainId === SUI_CHAIN_ID ||
+    buyToken?.chainId === SUI_CHAIN_ID;
 
   // Sell-side USD value (2026-08-10 UX-audit follow-up) — the Buy side
   // already gets destAmountUsd from the quote preview; this mirrors it for
@@ -234,12 +246,13 @@ export function SwapPanel({
   }, [sellToken]);
   const sellAmountUsd = sellPriceUsd != null && Number.isFinite(amount) && amount > 0 ? (amount * sellPriceUsd).toFixed(2) : null;
 
-  // "btc" | "sol" | "eth" ticker for a token known to be one of the three
+  // "btc" | "sui" | "sol" | "eth" ticker for a token known to be one of the
   // currencies /api/quote/btc handles — only ever called when isBtcPair is
-  // true, i.e. the non-BTC side is already guaranteed native SOL or native
-  // Ethereum ETH by isBuyTokenAllowed's own constraint above.
-  function btcPairCurrency(t: SelectedToken): "btc" | "sol" | "eth" {
+  // true, i.e. the non-BTC/Sui side is already guaranteed native SOL or
+  // native Ethereum ETH by isBuyTokenAllowed's own constraint above.
+  function btcPairCurrency(t: SelectedToken): "btc" | "sui" | "sol" | "eth" {
     if (t.chainId === BTC_CHAIN_ID) return "btc";
+    if (t.chainId === SUI_CHAIN_ID) return "sui";
     return t.chainId === SOLANA_CHAIN_ID ? "sol" : "eth";
   }
 

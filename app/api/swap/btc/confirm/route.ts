@@ -3,7 +3,7 @@ import { z } from "zod";
 import { requireSession, SessionError } from "@/lib/auth/session";
 import { supabaseAdmin } from "@/lib/supabase/server";
 import { getChangeNowExchangeStatus } from "@/lib/chains/changenow";
-import { getSolUsdPrice, getEthUsdPrice, getBtcUsdPrice } from "@/lib/pricing";
+import { getSolUsdPrice, getEthUsdPrice, getBtcUsdPrice, getSuiUsdPrice } from "@/lib/pricing";
 import { creditSwapPoints } from "@/lib/points";
 import { rateLimit, clientKey } from "@/lib/rate-limit";
 import { safeErrorResponse } from "@/lib/apiError";
@@ -80,9 +80,15 @@ export async function POST(req: Request) {
     // Points crediting is best-effort, isolated from the "complete" status
     // already persisted above — same reasoning as /api/bridge/confirm.
     try {
-      const originCurrency = swap.swap_quotes.source_chain as "btc" | "sol" | "eth";
+      const originCurrency = swap.swap_quotes.source_chain as "btc" | "sol" | "eth" | "sui";
       const originUsdPrice =
-        originCurrency === "sol" ? await getSolUsdPrice() : originCurrency === "btc" ? await getBtcUsdPrice() : await getEthUsdPrice();
+        originCurrency === "sol"
+          ? await getSolUsdPrice()
+          : originCurrency === "btc"
+            ? await getBtcUsdPrice()
+            : originCurrency === "sui"
+              ? await getSuiUsdPrice()
+              : await getEthUsdPrice();
       const usdVolume = Number(swap.swap_quotes.source_amount) * originUsdPrice;
 
       await creditSwapPoints(db, { swapId: swap.id, userId: session.userId, usdVolume });

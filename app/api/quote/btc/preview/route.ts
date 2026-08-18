@@ -19,9 +19,9 @@ const PREVIEW_TTL_MS = 5_000; // matches /api/quote/preview's own TTL
 // nothing, binds nothing — same "preview vs. execute" split as the rest of
 // this app (see that route's own doc).
 const querySchema = z.object({
-  sourceCurrency: z.enum(["btc", "sol", "eth"]),
+  sourceCurrency: z.enum(["btc", "sol", "eth", "sui"]),
   sourceAmount: z.string().regex(/^\d+(\.\d+)?$/),
-  destCurrency: z.enum(["btc", "sol", "eth"]),
+  destCurrency: z.enum(["btc", "sol", "eth", "sui"]),
 });
 
 export async function GET(req: Request) {
@@ -33,7 +33,11 @@ export async function GET(req: Request) {
   if (!parsed.success) return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   const input = parsed.data;
 
-  if (input.sourceCurrency === input.destCurrency || (input.sourceCurrency !== "btc" && input.destCurrency !== "btc")) {
+  const CHANGENOW_ONLY_CURRENCIES = new Set(["btc", "sui"]);
+  if (
+    input.sourceCurrency === input.destCurrency ||
+    (!CHANGENOW_ONLY_CURRENCIES.has(input.sourceCurrency) && !CHANGENOW_ONLY_CURRENCIES.has(input.destCurrency))
+  ) {
     return NextResponse.json({ destAmountFormatted: null, destAmountUsd: null, route: [], feeBreakdown: [], autoRefuelAvailable: false });
   }
   if (Number(input.sourceAmount) <= 0) {

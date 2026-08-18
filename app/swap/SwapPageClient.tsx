@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { PublicKey, SystemProgram, Transaction, VersionedTransaction } from "@solana/web3.js";
+import { useCurrentAccount, useSignAndExecuteTransaction } from "@mysten/dapp-kit";
+import { buildSuiTransferTransaction } from "@/lib/client/suiTransfer";
 import { SOLANA_CHAIN_ID_CLIENT, normalizeSolanaSourceMint } from "@/lib/client/constants";
 import { toAtomicAmount } from "@/lib/client/amount";
 import { buildRelayDepositTransaction } from "@/lib/client/relayTransaction";
@@ -15,7 +17,7 @@ import { useBtcWallet } from "@/lib/client/BtcWalletProvider";
 import { useSolanaBalance } from "@/lib/client/useSolanaBalance";
 import { useEvmTokenBalance } from "@/lib/client/useEvmTokenBalance";
 import { useConnectWalletModal } from "@/lib/client/ConnectWalletModalProvider";
-import { isPlausibleEvmAddress, isPlausibleBtcAddress } from "@/lib/validation";
+import { isPlausibleEvmAddress, isPlausibleBtcAddress, isPlausibleSuiAddress } from "@/lib/validation";
 import { AppHeader } from "@/app/components/AppHeader";
 import { TrendingBar } from "@/app/components/TrendingBar";
 import { Reveal } from "@/app/components/Reveal";
@@ -31,7 +33,7 @@ import { useRecentPairs } from "@/lib/client/useRecentPairs";
 import { useSavedAddresses } from "@/lib/client/useSavedAddresses";
 import { useSessionActivity } from "@/lib/client/useSessionActivity";
 import { fetchNativeToken } from "@/lib/client/nativeToken";
-import { swapChainForSlug, BTC_CHAIN_ID } from "@/lib/chains/swapChains";
+import { swapChainForSlug, BTC_CHAIN_ID, SUI_CHAIN_ID } from "@/lib/chains/swapChains";
 import { MORE_TOOLS } from "@/lib/content/moreTools";
 
 function sleep(ms: number) {
@@ -51,14 +53,17 @@ function isValidDestAddress(address: string, chainId: number): boolean {
     }
   }
   if (chainId === BTC_CHAIN_ID) return isPlausibleBtcAddress(address);
+  if (chainId === SUI_CHAIN_ID) return isPlausibleSuiAddress(address);
   return isPlausibleEvmAddress(address);
 }
 
-// btc/sol/eth ticker for a token on one of the 3 currencies the BTC swap
-// flow handles — only ever called on a pair isBtcPair has already confirmed
-// is one of these three (see SwapPanel.tsx's isBuyTokenAllowed constraint).
-function btcFlowCurrency(t: SelectedToken): "btc" | "sol" | "eth" {
+// btc/sui/sol/eth ticker for a token on one of the currencies the BTC/Sui
+// (ChangeNOW) swap flow handles — only ever called on a pair isBtcPair has
+// already confirmed is one of these (see SwapPanel.tsx's
+// isBuyTokenAllowed constraint).
+function btcFlowCurrency(t: SelectedToken): "btc" | "sui" | "sol" | "eth" {
   if (t.chainId === BTC_CHAIN_ID) return "btc";
+  if (t.chainId === SUI_CHAIN_ID) return "sui";
   return t.chainId === SOLANA_CHAIN_ID_CLIENT ? "sol" : "eth";
 }
 
@@ -114,6 +119,13 @@ export function SwapPageClient() {
 
   const evmWallet = useEvmWallet();
   const btcWallet = useBtcWallet();
+  // Sui wallet (2026-08-18) — dapp-kit's own hooks, same pattern
+  // NftBuyModalSui.tsx already uses for signing a Sui transaction.
+  // lib/client/SuiWalletProvider.tsx (wrapped around this page in
+  // app/providers.tsx) is only the SuiClientProvider/dapp-kit setup, not a
+  // custom hook — every consumer reads dapp-kit's hooks directly.
+  const suiAccount = useCurrentAccount();
+  const { mutateAsync: signAndExecuteSuiTransaction } = useSignAndExecuteTransaction();
 
   // Meaningful in both directions now that Sell isn't Solana-only — see
   // STATE.md 2026-07-18i.
@@ -131,13 +143,19 @@ export function SwapPageClient() {
   // truth instead of some checking the right wallet and some not.
   const sellIsSolana = sellToken?.chainId === SOLANA_CHAIN_ID_CLIENT;
 
-  // BTC pairs (2026-08-08b) — Bitcoin is a real, selectable chain in the
-  // main picker now (see SwapPanel.tsx's isBuyTokenAllowed constraint: a
-  // BTC side is only ever paired with native SOL or native Ethereum ETH),
-  // but its execution engine is ChangeNOW, not Jupiter/Relay — runBtcSwap()
-  // below is an entirely separate code path from runSwap(), never entered
-  // unless one side is BTC.
-  const isBtcPair = sellToken?.chainId === BTC_CHAIN_ID || buyToken?.chainId === BTC_CHAIN_ID;
+  // BTC/Sui pairs (2026-08-08b, Sui added 2026-08-18) — both are real,
+  // selectable chains in the main picker now (see SwapPanel.tsx's
+  // isBuyTokenAllowed constraint: either side is only ever paired with
+  // native SOL or native Ethereum ETH), but their execution engine is
+  // ChangeNOW, not Jupiter/Relay — runBtcSwap() below is an entirely
+  // separate code path from runSwap(), never entered unless one side is
+  // BTC or Sui. Name kept as isBtcPair to minimize diff on a real-money
+  // flow — see runBtcSwap's own doc.
+  const isBtcPair =
+    sellToken?.chainId === BTC_CHAIN_ID ||
+    buyToken?.chainId === BTC_CHAIN_ID ||
+    sellToken?.chainId === SUI_CHAIN_ID ||
+    buyToken?.chainId === SUI_CHAIN_ID;
 
   // Whether a Relay leg (the "leg2_pending" phase below) is needed at all —
   // broader than isCrossChain since 2026-08-06 (same-chain EVM support):
@@ -156,6 +174,8 @@ export function SwapPageClient() {
   const ownDestAddress = buyToken
     ? buyToken.chainId === BTC_CHAIN_ID
       ? (btcWallet.address ?? null)
+      : buyToken.chainId === SUI_CHAIN_ID
+      ? (suiAccount?.address ?? null)
       : buyToken.chainId === SOLANA_CHAIN_ID_CLIENT
       ? (publicKey?.toBase58() ?? null)
       : (evmWallet.address ?? null)
@@ -223,13 +243,18 @@ export function SwapPageClient() {
   // Bitcoin's chain id against the EVM balances endpoint for a meaningless
   // empty result.
   const sellIsBtc = sellToken?.chainId === BTC_CHAIN_ID;
+  // Sui (2026-08-18): same "no balance fetcher" treatment as BTC above —
+  // no dedicated Sui balance endpoint exists yet (dapp-kit's own client
+  // could fetch one, but that's a separate feature; the ChangeNOW swap
+  // flow itself doesn't need it, same as BTC never has).
+  const sellIsSui = sellToken?.chainId === SUI_CHAIN_ID;
   const { balance: evmSellBalance, loading: evmSellBalanceLoading } = useEvmTokenBalance(
-    !sellIsSolana && !sellIsBtc && sellToken ? sellToken.chainId : null,
-    !sellIsSolana && !sellIsBtc ? evmWallet.address : null,
-    !sellIsSolana && !sellIsBtc && sellToken ? sellToken.address : null,
+    !sellIsSolana && !sellIsBtc && !sellIsSui && sellToken ? sellToken.chainId : null,
+    !sellIsSolana && !sellIsBtc && !sellIsSui ? evmWallet.address : null,
+    !sellIsSolana && !sellIsBtc && !sellIsSui && sellToken ? sellToken.address : null,
   );
-  const sellBalance = sellIsBtc ? null : sellIsSolana ? solanaSellBalance : evmSellBalance;
-  const sellBalanceLoading = sellIsBtc ? false : sellIsSolana ? solanaSellBalanceLoading : evmSellBalanceLoading;
+  const sellBalance = sellIsBtc || sellIsSui ? null : sellIsSolana ? solanaSellBalance : evmSellBalance;
+  const sellBalanceLoading = sellIsBtc || sellIsSui ? false : sellIsSolana ? solanaSellBalanceLoading : evmSellBalanceLoading;
 
   // Real user report 2026-08-06: picking an Arbitrum (or any non-Ethereum
   // EVM) sell token and connecting a wallet still left the wallet on
@@ -245,7 +270,14 @@ export function SwapPageClient() {
   // just avoids re-firing on every unrelated re-render for the same pairing.
   const lastEnsuredChainRef = useRef<string | null>(null);
   useEffect(() => {
-    if (!evmWallet.address || !sellToken || sellToken.chainId === SOLANA_CHAIN_ID_CLIENT || sellToken.chainId === BTC_CHAIN_ID) return;
+    if (
+      !evmWallet.address ||
+      !sellToken ||
+      sellToken.chainId === SOLANA_CHAIN_ID_CLIENT ||
+      sellToken.chainId === BTC_CHAIN_ID ||
+      sellToken.chainId === SUI_CHAIN_ID
+    )
+      return;
     const key = `${evmWallet.address}:${sellToken.chainId}`;
     if (lastEnsuredChainRef.current === key) return;
     lastEnsuredChainRef.current = key;
@@ -357,13 +389,28 @@ export function SwapPageClient() {
   const hasValidInput = Boolean(sellToken && buyToken && sellAmount && Number.isFinite(amount) && amount > 0);
   const destAddressError =
     isCrossChain && destAddress && buyToken && !isValidDestAddress(destAddress, buyToken.chainId)
-      ? `Doesn't look like a valid ${buyToken.chainId === SOLANA_CHAIN_ID_CLIENT ? "Solana" : buyToken.chainId === BTC_CHAIN_ID ? "Bitcoin" : "EVM"} address.`
+      ? `Doesn't look like a valid ${
+          buyToken.chainId === SOLANA_CHAIN_ID_CLIENT
+            ? "Solana"
+            : buyToken.chainId === BTC_CHAIN_ID
+              ? "Bitcoin"
+              : buyToken.chainId === SUI_CHAIN_ID
+                ? "Sui"
+                : "EVM"
+        } address.`
       : null;
   // The wallet that actually needs to be connected to sell — Solana for a
-  // Solana sell token, Bitcoin for a BTC sell token, the EVM wallet for
-  // anything else. Both the button and canOpenReview need this same check
-  // (see sellIsSolana's own comment above for the real bug this fixes).
-  const sellWalletReady = sellIsSolana ? Boolean(publicKey) : sellIsBtc ? Boolean(btcWallet.address) : Boolean(evmWallet.address);
+  // Solana sell token, Bitcoin for a BTC sell token, Sui for a Sui sell
+  // token, the EVM wallet for anything else. Both the button and
+  // canOpenReview need this same check (see sellIsSolana's own comment
+  // above for the real bug this fixes).
+  const sellWalletReady = sellIsSolana
+    ? Boolean(publicKey)
+    : sellIsBtc
+      ? Boolean(btcWallet.address)
+      : sellIsSui
+        ? Boolean(suiAccount?.address)
+        : Boolean(evmWallet.address);
   const canOpenReview =
     Boolean(sellWalletReady && sellToken && buyToken && hasValidInput) &&
     (!isCrossChain || (Boolean(destAddress) && !destAddressError)) &&
@@ -401,9 +448,20 @@ export function SwapPageClient() {
     }
     const sourceCurrency = btcFlowCurrency(sellToken);
     const destCurrency = btcFlowCurrency(buyToken);
-    const destAddr = destCurrency === "btc" ? btcWallet.address : destCurrency === "sol" ? publicKey?.toBase58() : evmWallet.address;
+    const destAddr =
+      destCurrency === "btc"
+        ? btcWallet.address
+        : destCurrency === "sui"
+          ? suiAccount?.address
+          : destCurrency === "sol"
+            ? publicKey?.toBase58()
+            : evmWallet.address;
     if (sourceCurrency === "btc" && !btcWallet.address) {
       setMessage("Connect a Bitcoin wallet to sell BTC.");
+      return;
+    }
+    if (sourceCurrency === "sui" && !suiAccount?.address) {
+      setMessage("Connect a Sui wallet to sell SUI.");
       return;
     }
     if (sourceCurrency === "sol" && (!publicKey || !signTransaction)) {
@@ -416,7 +474,13 @@ export function SwapPageClient() {
     }
     if (!destAddr) {
       setMessage(
-        destCurrency === "btc" ? "Connect a Bitcoin wallet first." : destCurrency === "sol" ? "Connect a Solana wallet first." : "Connect an EVM wallet first.",
+        destCurrency === "btc"
+          ? "Connect a Bitcoin wallet first."
+          : destCurrency === "sui"
+            ? "Connect a Sui wallet first."
+            : destCurrency === "sol"
+              ? "Connect a Solana wallet first."
+              : "Connect an EVM wallet first.",
       );
       return;
     }
@@ -450,6 +514,13 @@ export function SwapPageClient() {
       setMessage(`Confirm the ${sourceCurrency.toUpperCase()} payment in your wallet…`);
       if (execBody.depositCurrency === "btc") {
         await btcWallet.sendPayment(execBody.depositAddress, Number(execBody.depositAmount));
+      } else if (execBody.depositCurrency === "sui") {
+        // MIST has 9 decimals, same convention as SUI_CHAIN_INFO's
+        // nativeCurrency — matches how lamports/wei are derived for
+        // SOL/ETH just below.
+        const mist = BigInt(Math.round(Number(execBody.depositAmount) * 1e9));
+        const tx = buildSuiTransferTransaction({ toAddress: execBody.depositAddress, mist });
+        await signAndExecuteSuiTransaction({ transaction: tx });
       } else if (execBody.depositCurrency === "sol") {
         const lamports = Math.round(Number(execBody.depositAmount) * 1e9);
         const { blockhash } = await connection.getLatestBlockhash();

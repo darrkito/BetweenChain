@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getRelayChains } from "@/lib/chains/relayChains";
-import { SWAP_CHAINS, BTC_CHAIN_ID } from "@/lib/chains/swapChains";
+import { SWAP_CHAINS, BTC_CHAIN_ID, SUI_CHAIN_INFO } from "@/lib/chains/swapChains";
 import { rateLimit, clientKey } from "@/lib/rate-limit";
 import { safeErrorResponse } from "@/lib/apiError";
 
@@ -32,7 +32,11 @@ export async function GET(req: Request) {
 
   try {
     const chains = (await getRelayChains()).filter((c) => ALLOWED_CHAIN_IDS.has(c.id));
-    return NextResponse.json({ chains });
+    // Sui (2026-08-18) — appended, not filtered from Relay's list, since
+    // Relay's /chains has no Sui entry at all (ChangeNOW is the execution
+    // engine, same as Bitcoin, but Bitcoin's metadata happens to already be
+    // in Relay's list while Sui's isn't) — see SUI_CHAIN_INFO's own doc.
+    return NextResponse.json({ chains: [...chains, SUI_CHAIN_INFO] });
   } catch (err) {
     return safeErrorResponse("tokens/chains", err, 502);
   }

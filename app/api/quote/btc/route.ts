@@ -3,7 +3,7 @@ import { z } from "zod";
 import { requireSession, SessionError } from "@/lib/auth/session";
 import { supabaseAdmin } from "@/lib/supabase/server";
 import { getChangeNowDirectEstimate, ChangeNowAmountOutOfRangeError, type ChangeNowOriginCurrency } from "@/lib/chains/changenow";
-import { isPlausibleEvmAddress, isPlausibleBtcAddress } from "@/lib/validation";
+import { isPlausibleEvmAddress, isPlausibleBtcAddress, isPlausibleSuiAddress } from "@/lib/validation";
 import { rateLimit, clientKey } from "@/lib/rate-limit";
 import { safeErrorResponse } from "@/lib/apiError";
 
@@ -13,13 +13,17 @@ import { safeErrorResponse } from "@/lib/apiError";
 // lib/fetchWithTimeout.ts's doc comment for the failure mode this closes).
 export const maxDuration = 20;
 
-// General BTC<->SOL/ETH swaps on /swap, embedded directly in the main
+// General BTC/SUI<->SOL/ETH swaps on /swap, embedded directly in the main
 // Sell/Buy pickers (2026-08-08b — Bitcoin is a real, selectable "chain" in
 // SwapPanel's picker via lib/chains/swapChains.ts's BTC_CHAIN_ID, same
-// picker every other chain uses). Deliberately a SEPARATE route from
-// /api/quote rather than a new branch inside it — see that route's/this
-// file's earlier version doc for why (ChangeNOW's custodial model has no
-// signable "leg 1" the way Jupiter/Relay do).
+// picker every other chain uses; Sui added 2026-08-18 the same way via
+// SUI_CHAIN_ID). Deliberately a SEPARATE route from /api/quote rather than
+// a new branch inside it — see that route's/this file's earlier version
+// doc for why (ChangeNOW's custodial model has no signable "leg 1" the way
+// Jupiter/Relay do). Despite the URL/directory still saying "btc" (kept to
+// avoid an unnecessary rename of a working route), this route and its
+// execute/confirm siblings are currency-agnostic — see changenow.ts's
+// ChangeNowOriginCurrency, now "eth" | "sol" | "btc" | "sui".
 //
 // Uses ChangeNOW's "direct" (forward) estimate mode — sourceAmount is what
 // the user actually typed into the Sell field (their spend amount),
@@ -28,9 +32,9 @@ export const maxDuration = 20;
 // already uses. Verified live before switching to this from the previous
 // reverse-only design (see STATE.md 2026-08-08c/d).
 const bodySchema = z.object({
-  sourceCurrency: z.enum(["btc", "sol", "eth"]),
+  sourceCurrency: z.enum(["btc", "sol", "eth", "sui"]),
   sourceAmount: z.string().regex(/^\d+(\.\d+)?$/),
-  destCurrency: z.enum(["btc", "sol", "eth"]),
+  destCurrency: z.enum(["btc", "sol", "eth", "sui"]),
   destAddress: z.string().min(1),
 });
 
@@ -51,8 +55,9 @@ export async function POST(req: Request) {
   if (input.sourceCurrency === input.destCurrency) {
     return NextResponse.json({ error: "Sell and Buy can't be the same currency" }, { status: 400 });
   }
-  if (input.sourceCurrency !== "btc" && input.destCurrency !== "btc") {
-    return NextResponse.json({ error: "This route only handles pairs involving BTC" }, { status: 400 });
+  const CHANGENOW_ONLY_CURRENCIES = new Set(["btc", "sui"]);
+  if (!CHANGENOW_ONLY_CURRENCIES.has(input.sourceCurrency) && !CHANGENOW_ONLY_CURRENCIES.has(input.destCurrency)) {
+    return NextResponse.json({ error: "This route only handles pairs involving BTC or Sui" }, { status: 400 });
   }
 
   if (input.destCurrency === "sol") {
@@ -64,6 +69,10 @@ export async function POST(req: Request) {
   } else if (input.destCurrency === "btc") {
     if (!isPlausibleBtcAddress(input.destAddress)) {
       return NextResponse.json({ error: "Invalid Bitcoin destination address" }, { status: 400 });
+    }
+  } else if (input.destCurrency === "sui") {
+    if (!isPlausibleSuiAddress(input.destAddress)) {
+      return NextResponse.json({ error: "Invalid Sui destination address" }, { status: 400 });
     }
   } else if (!isPlausibleEvmAddress(input.destAddress)) {
     return NextResponse.json({ error: "Invalid EVM destination address" }, { status: 400 });

@@ -3,7 +3,27 @@ import { getRelayChain } from "@/lib/chains/relayChains";
 import { getTrendingForChain } from "@/lib/chains/trending";
 import { searchRelayCurrencies, filterRoutableCurrencies, SOLANA_CHAIN_ID } from "@/lib/chains/relay";
 import { searchJupiterTokens } from "@/lib/chains/jupiter";
+import { SUI_CHAIN_ID, SUI_CHAIN_INFO } from "@/lib/chains/swapChains";
 import type { TokenListItem } from "@/lib/chains/types";
+
+// Sui's only swappable token, full stop (2026-08-18) — this app's ChangeNOW
+// integration only ever quotes native SUI, never a Sui-side ERC20-
+// equivalent, so there is nothing to search/filter/trend here the way
+// every Relay-backed chain below has. getRelayChain(SUI_CHAIN_ID) always
+// returns undefined (Relay has no Sui entry) so this MUST be handled
+// before falling through to the Relay-sourced logic, not as an edge case
+// of it.
+const NATIVE_SUI_TOKEN: TokenListItem = {
+  chainId: SUI_CHAIN_ID,
+  address: SUI_CHAIN_INFO.nativeCurrency.address,
+  symbol: "SUI",
+  name: "Sui",
+  decimals: 9,
+  logoURI: SUI_CHAIN_INFO.iconUrl ?? "",
+  verified: true,
+  isNative: true,
+  source: "featured",
+};
 
 /**
  * Ordered token list for a chain: [native gas token, USDC, USDT, ...other
@@ -27,6 +47,13 @@ import type { TokenListItem } from "@/lib/chains/types";
  * return here even though Buy narrows it further downstream.)
  */
 export async function getTokenListForChain(chainId: number, term?: string): Promise<TokenListItem[]> {
+  if (chainId === SUI_CHAIN_ID) {
+    if (term && term.trim().length > 0) {
+      return "sui".includes(term.trim().toLowerCase()) ? [NATIVE_SUI_TOKEN] : [];
+    }
+    return [NATIVE_SUI_TOKEN];
+  }
+
   if (term && term.trim().length > 0) {
     return chainId === SOLANA_CHAIN_ID ? searchJupiterTokens(term.trim()) : searchRelayCurrencies(chainId, term.trim());
   }
