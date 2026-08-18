@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import Script from "next/script";
 import { Calistoga, IBM_Plex_Sans, JetBrains_Mono } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
@@ -168,6 +169,21 @@ export default function RootLayout({
             the user creating one. */}
         <Analytics />
         <SpeedInsights />
+        {/* GA4 — added 2026-08-17 alongside Vercel Analytics/Speed Insights
+            for traffic reporting outside the Vercel dashboard (Search
+            Console linkage, audience/acquisition breakdowns). */}
+        <Script
+          src="https://www.googletagmanager.com/gtag/js?id=G-9NV769VBEJ"
+          strategy="afterInteractive"
+        />
+        <Script id="ga4-init" strategy="afterInteractive">
+          {`
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', 'G-9NV769VBEJ');
+          `}
+        </Script>
       </body>
     </html>
   );
