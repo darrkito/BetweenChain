@@ -230,15 +230,26 @@ export async function createChangeNowExchange(params: {
   payoutAddress: string;
   toCurrency?: string; // defaults to "sui", see getChangeNowReverseEstimate's doc
   toNetwork?: string;
+  // Real bug found live 2026-08-18 (user report, "arbitrum to SUI?"): this
+  // param existed on getChangeNowDirectEstimate but was silently IGNORED
+  // here, hardcoded to `fromNetwork: params.fromCurrency` regardless of
+  // what was actually passed in — harmless while every origin currency's
+  // ticker equaled its network (eth/eth, sol/sol, btc/btc, sui/sui), but
+  // would have sent the exchange-creation request to the wrong network the
+  // moment an ETH L2 (Arbitrum/Base/etc.) was wired up, even though the
+  // quote step itself had already correctly used the L2's network. Now
+  // actually threaded through, same as the quote step.
+  fromNetwork?: string;
 }): Promise<ChangeNowExchange> {
   const toCurrency = params.toCurrency ?? "sui";
   const toNetwork = params.toNetwork ?? toCurrency;
+  const fromNetwork = params.fromNetwork ?? params.fromCurrency;
   const res = await fetch(`${CHANGENOW_API}/exchange`, {
     method: "POST",
     headers: changenowHeaders(),
     body: JSON.stringify({
       fromCurrency: params.fromCurrency,
-      fromNetwork: params.fromCurrency,
+      fromNetwork,
       toCurrency,
       toNetwork,
       fromAmount: Number(params.fromAmount),

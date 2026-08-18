@@ -10,6 +10,7 @@ import { chainBrandColor } from "@/lib/chainBrandColors";
 import { RoutePathVisualizer } from "@/app/components/RoutePathVisualizer";
 import { BTC_CHAIN_ID, SUI_CHAIN_ID } from "@/lib/chains/swapChains";
 import { generateFreshSolanaWallet, generateFreshEvmWallet, type FreshWallet } from "@/lib/client/generateFreshWallet";
+import { CHANGENOW_ETH_NETWORK_BY_CHAIN_ID } from "@/lib/chains/changenowEvmNetworks";
 
 const SOLANA_CHAIN_ID = 792703809;
 const ETHEREUM_CHAIN_ID = 1;
@@ -93,7 +94,13 @@ function isNativeSolOrEth(t: { chainId: number; isNative: boolean }): boolean {
 
 export function isBuyTokenAllowed(sellChainId: number | undefined, t: { chainId: number; isNative: boolean }): boolean {
   if (t.chainId === BTC_CHAIN_ID || t.chainId === SUI_CHAIN_ID) {
-    return sellChainId === SOLANA_CHAIN_ID || sellChainId === ETHEREUM_CHAIN_ID;
+    if (sellChainId === SOLANA_CHAIN_ID || sellChainId === ETHEREUM_CHAIN_ID) return true;
+    // Real gap found live 2026-08-18 (user report, "arbitrum to SUI?"):
+    // ChangeNOW supports ETH's native L2 representations landing on Sui
+    // (confirmed live, see lib/chains/changenowEvmNetworks.ts) — scoped to
+    // a Sui buy target only, per instruction; BTC keeps its original
+    // mainnet-ETH-only scope (untested for L2s, no reason yet to widen).
+    return t.chainId === SUI_CHAIN_ID && sellChainId != null && sellChainId in CHANGENOW_ETH_NETWORK_BY_CHAIN_ID;
   }
   if (sellChainId === BTC_CHAIN_ID || sellChainId === SUI_CHAIN_ID) {
     return isNativeSolOrEth(t);
@@ -102,6 +109,26 @@ export function isBuyTokenAllowed(sellChainId: number | undefined, t: { chainId:
     return sellChainId === SOLANA_CHAIN_ID;
   }
   return true;
+}
+
+// Symmetric counterpart to isBuyTokenAllowed above, for the OTHER pick
+// order: Buy already fixed to BTC/Sui, now choosing Sell. Real gap found
+// live 2026-08-18 (user report): there was no such filter at all — the
+// Sell modal had zero chain restriction, so e.g. BNB Chain or Polygon
+// (neither of which is ETH, a completely different ChangeNOW currency this
+// app doesn't support) could be picked as Sell for a BTC/Sui buy target,
+// silently mis-quoted as if it were ETH. isBuyTokenAllowed's own
+// isNativeSolOrEth check only ever ran in the other pick order and never
+// caught this.
+export function isSellTokenAllowedForBtcPair(buyChainId: number | undefined, t: { chainId: number; isNative: boolean }): boolean {
+  if (buyChainId !== BTC_CHAIN_ID && buyChainId !== SUI_CHAIN_ID) return true; // not a ChangeNOW pair at all — unrestricted
+  if (t.chainId === buyChainId) return false; // can't sell what you're buying (BTC/Sui chains each have exactly one token)
+  if (t.chainId === BTC_CHAIN_ID || t.chainId === SUI_CHAIN_ID) return true;
+  if (t.chainId === SOLANA_CHAIN_ID) return t.isNative; // ChangeNOW only ever handles native SOL, never an SPL token
+  if (!t.isNative) return false; // ChangeNOW only ever handles each EVM chain's native ETH, never an ERC20
+  if (t.chainId === ETHEREUM_CHAIN_ID) return true;
+  // See isBuyTokenAllowed's comment just above — same Sui-only scoping.
+  return buyChainId === SUI_CHAIN_ID && t.chainId in CHANGENOW_ETH_NETWORK_BY_CHAIN_ID;
 }
 
 export function SwapPanel({
@@ -220,6 +247,15 @@ export function SwapPanel({
       !(sellToken && t.chainId === sellToken.chainId && t.address.toLowerCase() === sellToken.address.toLowerCase()),
     [sellToken],
   );
+  // Symmetric filter for the other pick order — see
+  // isSellTokenAllowedForBtcPair's own doc for the real gap this closes
+  // (2026-08-18).
+  const filterSellTokens = useCallback(
+    (t: TokenListItem) =>
+      isSellTokenAllowedForBtcPair(buyToken?.chainId, t) &&
+      !(buyToken && t.chainId === buyToken.chainId && t.address.toLowerCase() === buyToken.address.toLowerCase()),
+    [buyToken],
+  );
 
   const amount = Number(sellAmount);
   const hasValidInput = Boolean(sellToken && buyToken && sellAmount && Number.isFinite(amount) && amount > 0);
@@ -317,6 +353,11 @@ export function SwapPanel({
             sourceCurrency: btcPairCurrency(sellToken),
             sourceAmount: sellAmount,
             destCurrency: btcPairCurrency(buyToken),
+            // Real gap found live 2026-08-18 (user report, "arbitrum to
+            // SUI?") — see SwapPageClient.tsx's identical param on the
+            // real quote request for the full explanation. A no-op
+            // (server ignores it) unless the Sell token is EVM.
+            ...(btcPairCurrency(sellToken) === "eth" ? { sourceChainId: String(sellToken.chainId) } : {}),
           })}`
         : `/api/quote/preview?${new URLSearchParams({
             sourceChainId: String(sellToken.chainId),
@@ -652,6 +693,7 @@ export function SwapPanel({
         onClose={() => setSellModalOpen(false)}
         mode="multi-chain"
         onSelect={onSellTokenChange}
+        filterTokens={filterSellTokens}
       />
       <TokenSelectModal
         open={buyModalOpen}

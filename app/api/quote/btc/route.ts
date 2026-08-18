@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireSession, SessionError } from "@/lib/auth/session";
 import { supabaseAdmin } from "@/lib/supabase/server";
 import { getChangeNowDirectEstimate, ChangeNowAmountOutOfRangeError, type ChangeNowOriginCurrency } from "@/lib/chains/changenow";
+import { resolveChangeNowFromNetwork } from "@/lib/chains/changenowEvmNetworks";
 import { isPlausibleEvmAddress, isPlausibleBtcAddress, isPlausibleSuiAddress } from "@/lib/validation";
 import { rateLimit, clientKey } from "@/lib/rate-limit";
 import { safeErrorResponse } from "@/lib/apiError";
@@ -38,6 +39,10 @@ const bodySchema = z.object({
   sourceAmount: z.string().regex(/^\d*\.?\d+$/),
   destCurrency: z.enum(["btc", "sol", "eth", "sui"]),
   destAddress: z.string().min(1),
+  // Real gap found live 2026-08-18 (user report, "arbitrum to SUI?") — see
+  // app/api/quote/btc/preview/route.ts's identical field for the full
+  // explanation.
+  sourceChainId: z.string().regex(/^\d+$/).optional(),
 });
 
 export async function POST(req: Request) {
@@ -80,11 +85,18 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid EVM destination address" }, { status: 400 });
   }
 
+  const networkResult = resolveChangeNowFromNetwork(input.sourceCurrency, input.sourceChainId ? Number(input.sourceChainId) : null);
+  if ("error" in networkResult) {
+    return NextResponse.json({ error: networkResult.error }, { status: 400 });
+  }
+  const fromNetwork = networkResult.network;
+
   try {
     const estimate = await getChangeNowDirectEstimate({
       fromCurrency: input.sourceCurrency,
       fromAmount: input.sourceAmount,
       toCurrency: input.destCurrency,
+      fromNetwork,
     });
 
     const db = supabaseAdmin();
@@ -104,7 +116,13 @@ export async function POST(req: Request) {
         dest_address: input.destAddress,
         expected_output_min: estimate.toAmount,
         changenow_rate_id: estimate.rateId,
-        changenow_estimate: estimate,
+        // fromNetwork/fromChainId folded into the existing jsonb estimate
+        // column rather than a new table column — /api/swap/btc/execute
+        // reads them back to (a) pass the SAME network to
+        // createChangeNowExchange that was quoted here, and (b) tell the
+        // client which chain to actually sign the deposit transaction on
+        // (see that route's own doc for why these two must never diverge).
+        changenow_estimate: { ...estimate, fromNetwork: fromNetwork ?? null, fromChainId: input.sourceChainId ?? null },
         expires_at: new Date(Date.now() + 10 * 60_000).toISOString(), // matches ChangeNOW's own rateId validity window
       })
       .select("id, expires_at")

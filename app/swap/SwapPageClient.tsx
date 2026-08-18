@@ -18,6 +18,7 @@ import { useSolanaBalance } from "@/lib/client/useSolanaBalance";
 import { useEvmTokenBalance } from "@/lib/client/useEvmTokenBalance";
 import { useConnectWalletModal } from "@/lib/client/ConnectWalletModalProvider";
 import { isPlausibleEvmAddress, isPlausibleBtcAddress, isPlausibleSuiAddress } from "@/lib/validation";
+import { resolveChangeNowFromNetwork } from "@/lib/chains/changenowEvmNetworks";
 import { AppHeader } from "@/app/components/AppHeader";
 import { TrendingBar } from "@/app/components/TrendingBar";
 import { Reveal } from "@/app/components/Reveal";
@@ -510,6 +511,18 @@ export function SwapPageClient() {
       setMessage("Connect an EVM wallet to sell ETH.");
       return;
     }
+    // Real gap found live 2026-08-18 (user report, "arbitrum to SUI?"): the
+    // Sell-token picker restricts EVM choices for a ChangeNOW pair (see
+    // SwapPanel.tsx's isSellTokenAllowedForBtcPair), but this is the same
+    // "don't trust the picker to be the only gate" discipline the rest of
+    // this function already applies to wallet connection — belt-and-braces
+    // in case sellToken was set before buyToken (the filter is keyed off
+    // buyToken, so an already-picked, now-unsupported chain could survive a
+    // later Buy change) or via a prefilled ?sell= URL param.
+    if (sourceCurrency === "eth" && "error" in resolveChangeNowFromNetwork("eth", sellToken.chainId)) {
+      setMessage("This network isn't supported for this pair yet — pick a different chain to sell from.");
+      return;
+    }
     if (!destAddr) {
       setMessage(
         destCurrency === "btc"
@@ -532,7 +545,18 @@ export function SwapPageClient() {
       const quoteRes = await fetch("/api/quote/btc", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ sourceCurrency, sourceAmount: sellAmount, destCurrency, destAddress: destAddr }),
+        body: JSON.stringify({
+          sourceCurrency,
+          sourceAmount: sellAmount,
+          destCurrency,
+          destAddress: destAddr,
+          // Real gap found live 2026-08-18 (user report, "arbitrum to
+          // SUI?") — tells the server which actual chain this ETH is
+          // coming from, so it quotes (and later signs) the right
+          // network instead of always assuming Ethereum mainnet. A no-op
+          // for every non-"eth" currency (server ignores it).
+          sourceChainId: sourceCurrency === "eth" ? String(sellToken.chainId) : undefined,
+        }),
       });
       if (!quoteRes.ok) throw new Error((await quoteRes.json()).error ?? "Quote failed");
       const { quoteId } = await quoteRes.json();
@@ -570,7 +594,22 @@ export function SwapPageClient() {
         await connection.confirmTransaction(sig, "confirmed");
       } else {
         const weiAmount = toAtomicAmount(execBody.depositAmount, 18);
-        await evmWallet.sendStepAndWait({ from: evmWallet.address!, to: execBody.depositAddress, data: "0x", value: weiAmount, chainId: 1 });
+        // Real gap found live 2026-08-18 (user report, "arbitrum to
+        // SUI?"): this used to hardcode chainId: 1 (Ethereum mainnet)
+        // regardless of which EVM chain the Sell token actually came
+        // from — silently redirecting the signing prompt to mainnet even
+        // when the user picked, say, Arbitrum. execBody.depositChainId
+        // is the exact chain /api/quote/btc quoted against (see that
+        // route's doc for why these are guaranteed to match); falls back
+        // to mainnet only for pre-existing quote rows that predate this
+        // field, preserving the old behavior for those.
+        await evmWallet.sendStepAndWait({
+          from: evmWallet.address!,
+          to: execBody.depositAddress,
+          data: "0x",
+          value: weiAmount,
+          chainId: execBody.depositChainId ?? 1,
+        });
       }
 
       phase = "leg1_confirming";

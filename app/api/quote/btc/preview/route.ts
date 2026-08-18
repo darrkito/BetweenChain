@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { cached } from "@/lib/cache";
 import { getChangeNowDirectEstimate, ChangeNowAmountOutOfRangeError } from "@/lib/chains/changenow";
+import { resolveChangeNowFromNetwork } from "@/lib/chains/changenowEvmNetworks";
 import { rateLimit, clientKey } from "@/lib/rate-limit";
 import { safeErrorResponse } from "@/lib/apiError";
 import { getSolUsdPrice, getEthUsdPrice, getSuiUsdPrice, getBtcUsdPrice } from "@/lib/pricing";
@@ -45,6 +46,12 @@ const querySchema = z.object({
   // fix; this is defense-in-depth for any other caller of this route.
   sourceAmount: z.string().regex(/^\d*\.?\d+$/),
   destCurrency: z.enum(["btc", "sol", "eth", "sui"]),
+  // Real gap found live 2026-08-18 (user report, "arbitrum to SUI?"):
+  // every EVM chain's Sell token was quoted as plain Ethereum mainnet
+  // ("eth"/"eth"), regardless of which chain it actually came from — see
+  // resolveChangeNowFromNetwork's doc for why an unmapped chain id is
+  // rejected outright rather than silently falling back to mainnet.
+  sourceChainId: z.string().regex(/^\d+$/).optional(),
 });
 
 export async function GET(req: Request) {
@@ -81,7 +88,21 @@ export async function GET(req: Request) {
     });
   }
 
-  const cacheKey = `preview:btc:${input.sourceCurrency}:${input.sourceAmount}:${input.destCurrency}`;
+  const networkResult = resolveChangeNowFromNetwork(input.sourceCurrency, input.sourceChainId ? Number(input.sourceChainId) : null);
+  if ("error" in networkResult) {
+    return NextResponse.json({
+      destAmountFormatted: null,
+      destAmountUsd: null,
+      sourceAmountUsd: null,
+      route: [],
+      feeBreakdown: [],
+      autoRefuelAvailable: false,
+      error: networkResult.error,
+    });
+  }
+  const fromNetwork = networkResult.network;
+
+  const cacheKey = `preview:btc:${input.sourceCurrency}:${fromNetwork ?? ""}:${input.sourceAmount}:${input.destCurrency}`;
 
   try {
     const result = await cached(cacheKey, PREVIEW_TTL_MS, async () => {
@@ -90,6 +111,7 @@ export async function GET(req: Request) {
           fromCurrency: input.sourceCurrency,
           fromAmount: input.sourceAmount,
           toCurrency: input.destCurrency,
+          fromNetwork,
         }),
         getUsdPrice(input.sourceCurrency),
         getUsdPrice(input.destCurrency),

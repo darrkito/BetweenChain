@@ -62,6 +62,16 @@ export async function POST(req: Request) {
     .single();
   if (insertErr || !swapTx) return NextResponse.json({ error: "Failed to create swap transaction" }, { status: 500 });
 
+  // Real gap found live 2026-08-18 (user report, "arbitrum to SUI?") —
+  // fromNetwork/fromChainId were folded into changenow_estimate at quote
+  // time (see /api/quote/btc's own doc) specifically so the network
+  // ChangeNOW is told about here is GUARANTEED to be the exact same one
+  // that produced the quote, and depositChainId (returned below) is
+  // GUARANTEED to be the exact same chain SwapPageClient.tsx signs the
+  // deposit transaction on — never two independently-derived values that
+  // could silently disagree about which network real funds move on.
+  const estimate = quote.changenow_estimate as { fromNetwork?: string | null; fromChainId?: string | null } | null;
+
   try {
     const exchange = await createChangeNowExchange({
       fromCurrency: quote.source_chain as ChangeNowOriginCurrency,
@@ -69,6 +79,7 @@ export async function POST(req: Request) {
       rateId: quote.changenow_rate_id,
       payoutAddress: quote.dest_address,
       toCurrency: quote.dest_chain,
+      fromNetwork: estimate?.fromNetwork ?? undefined,
     });
 
     await db
@@ -87,6 +98,11 @@ export async function POST(req: Request) {
       depositAddress: exchange.depositAddress,
       depositAmount: exchange.fromAmount,
       depositCurrency: quote.source_chain,
+      // null for every pre-2026-08-18 quote row and every non-"eth"
+      // currency (btc/sol/sui have no chain-id concept in this app) —
+      // SwapPageClient.tsx falls back to chain 1 (mainnet) in that case,
+      // preserving the exact previous hardcoded behavior.
+      depositChainId: estimate?.fromChainId ? Number(estimate.fromChainId) : null,
     });
   } catch (err) {
     await db.from("swap_transactions").update({ status: "leg1_failed" }).eq("id", swapTx.id);
