@@ -40,6 +40,11 @@ export const SWAP_CHAINS: EvmChainOption[] = [SOLANA_SWAP_CHAIN, ...EVM_CHAINS, 
 // maps) that Bitcoin doesn't participate in.
 export const BTC_CHAIN_ID = 8253038;
 
+// Same Relay-hosted icon CDN as every EVM_CHAINS/SOLANA_SWAP_CHAIN entry,
+// confirmed live via GET /api/tokens/list?chainId=8253038's own
+// logoURI — reused here rather than a second hardcoded copy.
+export const BTC_ICON_URL = "https://assets.relay.link/icons/currencies/btc.png";
+
 // Sui (2026-08-18) — unlike Solana/BTC above, Sui has no real Relay-
 // assigned chain id to reuse (Relay's live /chains response has no Sui
 // entry at all; ChangeNOW is the execution engine here too, same as BTC —
@@ -78,4 +83,50 @@ export function swapChainForSlug(slug: string): EvmChainOption | undefined {
 
 export function swapChainForChainId(chainId: number): EvmChainOption | undefined {
   return SWAP_CHAINS.find((c) => c.chainId === chainId);
+}
+
+// "btc"/"sol"/"eth"/"sui" ChangeNOW-currency-ticker for a token on one of
+// the currencies the BTC/Sui (ChangeNOW) swap flow handles. 2026-08-18:
+// extracted here as the single source of truth — this exact function used
+// to be duplicated twice (SwapPanel.tsx's btcPairCurrency,
+// SwapPageClient.tsx's btcFlowCurrency), and a third near-copy would have
+// been needed for QuotePreviewWidget.tsx and the new BTC/Sui swap-pair
+// landing pages. Only ever meaningful when the caller has already confirmed
+// the pair involves BTC or Sui — see SwapPanel.tsx's isBuyTokenAllowed/
+// isSellTokenAllowedForBtcPair for that gate.
+export function btcFlowCurrency(t: { chainId: number }): "btc" | "sui" | "sol" | "eth" {
+  if (t.chainId === BTC_CHAIN_ID) return "btc";
+  if (t.chainId === SUI_CHAIN_ID) return "sui";
+  return t.chainId === SOLANA_SWAP_CHAIN.chainId ? "sol" : "eth";
+}
+
+// chain id -> slug for BTC/Sui, kept OUT of SWAP_CHAINS itself (see
+// BTC_CHAIN_ID/SUI_CHAIN_ID's own docs — that array feeds Relay-execution-
+// assuming code neither chain participates in). Used only for the
+// ?sell=&buy= prefill link shape (QuotePreviewWidget.tsx's swapHref) and
+// BTC/Sui swap-pair page slugs (lib/content/swapPairs.ts) — a purely
+// cosmetic URL concern, not an execution-path one.
+const BTC_SUI_SLUG_BY_CHAIN_ID: Record<number, string> = {
+  [BTC_CHAIN_ID]: "bitcoin",
+  [SUI_CHAIN_ID]: "sui",
+};
+
+export function slugForSwapChainId(chainId: number): string | undefined {
+  return swapChainForChainId(chainId)?.slug ?? BTC_SUI_SLUG_BY_CHAIN_ID[chainId];
+}
+
+/** Same BTC/Sui-inclusive coverage as slugForSwapChainId, for display labels instead of URL slugs. */
+export function labelForSwapChainId(chainId: number): string {
+  if (chainId === BTC_CHAIN_ID) return "Bitcoin";
+  if (chainId === SUI_CHAIN_ID) return "Sui";
+  return swapChainForChainId(chainId)?.label ?? "";
+}
+
+/** Reverse of the above — slug -> {chainId, label}, for ?sell=&buy= prefill parsing (SwapPageClient.tsx). */
+export function resolveSwapChainSlug(slug: string): { chainId: number; label: string } | undefined {
+  const chain = swapChainForSlug(slug);
+  if (chain) return { chainId: chain.chainId, label: chain.label };
+  if (slug === "bitcoin") return { chainId: BTC_CHAIN_ID, label: "Bitcoin" };
+  if (slug === "sui") return { chainId: SUI_CHAIN_ID, label: "Sui" };
+  return undefined;
 }

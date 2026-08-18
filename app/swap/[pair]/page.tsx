@@ -22,9 +22,19 @@ export async function generateMetadata({ params }: { params: Promise<{ pair: str
   const pair = pairForSlug(rawPair);
   if (!pair) return { title: "Swap", robots: { index: false } };
   const { from, to } = pair;
+  // Real gap found live 2026-08-18 (SEO audit, Tier 2): this hardcoded
+  // "flat 0.25% fee" for every pair, but that's only true for relay-engine
+  // pairs — a changenow pair (BTC/Sui) has no separate platform fee at all
+  // (see swapPairCopy/changeNowPairCopy's own doc). A wrong fee claim in
+  // the meta description a search result actually displays is worse than
+  // an unclear one.
+  const description =
+    pair.engine === "changenow"
+      ? `Swap ${from.label} to ${to.label} directly — no wrapped tokens, no manual bridging, no separate platform fee. Get a live rate before you send anything.`
+      : `Swap ${from.label} to ${to.label} for a flat 0.25% fee — no manual bridging. Get a live rate and swap directly, no wallet required to preview.`;
   return {
     title: `Swap ${from.label} to ${to.label}`,
-    description: `Swap ${from.label} to ${to.label} for a flat 0.25% fee — no manual bridging. Get a live rate and swap directly, no wallet required to preview.`,
+    description,
     alternates: { canonical: `/swap/${pair.slug}` },
   };
 }

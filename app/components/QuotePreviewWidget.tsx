@@ -6,10 +6,10 @@ import { SOLANA_CHAIN_ID_CLIENT, normalizeSolanaSourceMint } from "@/lib/client/
 import { toAtomicAmount } from "@/lib/client/amount";
 import { TokenSelectModal, type SelectedToken } from "@/app/components/TokenSelectModal";
 import { TokenIcon } from "@/app/components/TokenIcon";
-import { isBuyTokenAllowed } from "@/app/components/SwapPanel";
+import { isBuyTokenAllowed, isSellTokenAllowedForBtcPair } from "@/app/components/SwapPanel";
 import { RoutePathVisualizer } from "@/app/components/RoutePathVisualizer";
 import { fetchNativeToken } from "@/lib/client/nativeToken";
-import { swapChainForChainId } from "@/lib/chains/swapChains";
+import { slugForSwapChainId, labelForSwapChainId, BTC_CHAIN_ID, SUI_CHAIN_ID, btcFlowCurrency } from "@/lib/chains/swapChains";
 
 const DEBOUNCE_MS = 500;
 
@@ -22,8 +22,12 @@ const DEBOUNCE_MS = 500;
  */
 function swapHref(sellToken: SelectedToken | null, buyToken: SelectedToken | null): string {
   if (!sellToken || !buyToken) return "/swap";
-  const sellSlug = swapChainForChainId(sellToken.chainId)?.slug;
-  const buySlug = swapChainForChainId(buyToken.chainId)?.slug;
+  // slugForSwapChainId (not swapChainForChainId directly) so BTC/Sui — the
+  // new swap-pair landing pages this widget now supports (2026-08-18) —
+  // still resolve to a real slug despite being deliberately excluded from
+  // SWAP_CHAINS itself.
+  const sellSlug = slugForSwapChainId(sellToken.chainId);
+  const buySlug = slugForSwapChainId(buyToken.chainId);
   if (!sellSlug || !buySlug) return "/swap";
   return `/swap?sell=${sellSlug}&buy=${buySlug}`;
 }
@@ -63,12 +67,13 @@ export function QuotePreviewWidget({
     destAmountFormatted: string | null;
     destAmountUsd: string | null;
     route: Array<{ label: string; engine: "jupiter" | "relay" }>;
+    error?: string | null;
   } | null>(null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     const sellChainId = initialSellChainId ?? SOLANA_CHAIN_ID_CLIENT;
-    const label = sellChainId === SOLANA_CHAIN_ID_CLIENT ? "Solana" : (swapChainForChainId(sellChainId)?.label ?? "");
+    const label = sellChainId === SOLANA_CHAIN_ID_CLIENT ? "Solana" : labelForSwapChainId(sellChainId);
     let ignore = false;
     fetchNativeToken(sellChainId, label).then((token) => {
       if (!ignore && token) setSellToken(token);
@@ -82,7 +87,7 @@ export function QuotePreviewWidget({
   useEffect(() => {
     if (initialBuyChainId === undefined) return;
     let ignore = false;
-    fetchNativeToken(initialBuyChainId, swapChainForChainId(initialBuyChainId)?.label ?? "").then((token) => {
+    fetchNativeToken(initialBuyChainId, labelForSwapChainId(initialBuyChainId)).then((token) => {
       if (!ignore && token) setBuyToken(token);
     });
     return () => {
@@ -101,27 +106,51 @@ export function QuotePreviewWidget({
     Promise.resolve().then(() => {
       if (!ignore) setLoading(true);
     });
+    // BTC/Sui pairs (2026-08-18, swap-pair landing pages) run through
+    // ChangeNOW's own preview route instead of Jupiter/Relay's — same
+    // isBtcPair split SwapPanel.tsx's own live preview already uses. A
+    // plain decimal sourceAmount (not atomic units) and currency tickers
+    // instead of chain ids/mint addresses — a completely different param
+    // shape, not just a different URL.
+    const isBtcPair =
+      sellToken.chainId === BTC_CHAIN_ID ||
+      buyToken.chainId === BTC_CHAIN_ID ||
+      sellToken.chainId === SUI_CHAIN_ID ||
+      buyToken.chainId === SUI_CHAIN_ID;
+    const url = isBtcPair
+      ? `/api/quote/btc/preview?${new URLSearchParams({
+          sourceCurrency: btcFlowCurrency(sellToken),
+          sourceAmount: amount,
+          destCurrency: btcFlowCurrency(buyToken),
+          ...(btcFlowCurrency(sellToken) === "eth" ? { sourceChainId: String(sellToken.chainId) } : {}),
+        })}`
+      : `/api/quote/preview?${new URLSearchParams({
+          sourceChainId: String(sellToken.chainId),
+          sourceMint: normalizeSolanaSourceMint(sellToken.address),
+          sourceAmount: toAtomicAmount(amount, sellToken.decimals),
+          destChainId: String(buyToken.chainId),
+          destToken: buyToken.chainId === SOLANA_CHAIN_ID_CLIENT ? "SOL" : buyToken.address,
+        })}`;
     const timer = setTimeout(() => {
-      const params = new URLSearchParams({
-        sourceChainId: String(sellToken.chainId),
-        sourceMint: normalizeSolanaSourceMint(sellToken.address),
-        sourceAmount: toAtomicAmount(amount, sellToken.decimals),
-        destChainId: String(buyToken.chainId),
-        destToken: buyToken.chainId === SOLANA_CHAIN_ID_CLIENT ? "SOL" : buyToken.address,
-      });
-      fetch(`/api/quote/preview?${params.toString()}`)
+      fetch(url)
         .then((r) => r.json())
         .then(
           (body: {
             destAmountFormatted?: string | null;
             destAmountUsd?: string | null;
             route?: Array<{ label: string; engine: "jupiter" | "relay" }>;
+            // Set by /api/quote/btc/preview when the typed amount falls
+            // outside ChangeNOW's tradeable range — same field SwapPanel.tsx
+            // already surfaces, reused here rather than silently showing
+            // "no quote" for the exact same real bug fixed there.
+            error?: string | null;
           }) => {
             if (!ignore)
               setResult({
                 destAmountFormatted: body.destAmountFormatted ?? null,
                 destAmountUsd: body.destAmountUsd ?? null,
                 route: body.route ?? [],
+                error: body.error ?? null,
               });
           },
         )
@@ -201,6 +230,8 @@ export function QuotePreviewWidget({
             </span>
             {result.destAmountUsd && <span className="ml-1.5 text-xs text-ink-faint">(≈${result.destAmountUsd})</span>}
           </>
+        ) : result?.error ? (
+          <p className="text-xs text-danger">{result.error}</p>
         ) : (
           <p className="text-xs text-ink-faint">Enter an amount to see an estimate.</p>
         )}
@@ -222,7 +253,13 @@ export function QuotePreviewWidget({
         Swap now →
       </Link>
 
-      <TokenSelectModal open={sellPickerOpen} onClose={() => setSellPickerOpen(false)} mode="multi-chain" onSelect={setSellToken} />
+      <TokenSelectModal
+        open={sellPickerOpen}
+        onClose={() => setSellPickerOpen(false)}
+        mode="multi-chain"
+        onSelect={setSellToken}
+        filterTokens={(t) => isSellTokenAllowedForBtcPair(buyToken?.chainId, t)}
+      />
       <TokenSelectModal
         open={buyPickerOpen}
         onClose={() => setBuyPickerOpen(false)}

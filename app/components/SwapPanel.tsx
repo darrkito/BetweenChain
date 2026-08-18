@@ -8,7 +8,7 @@ import { normalizeSolanaSourceMint } from "@/lib/client/constants";
 import type { TokenListItem } from "@/lib/chains/types";
 import { chainBrandColor } from "@/lib/chainBrandColors";
 import { RoutePathVisualizer } from "@/app/components/RoutePathVisualizer";
-import { BTC_CHAIN_ID, SUI_CHAIN_ID } from "@/lib/chains/swapChains";
+import { BTC_CHAIN_ID, SUI_CHAIN_ID, btcFlowCurrency } from "@/lib/chains/swapChains";
 import { generateFreshSolanaWallet, generateFreshEvmWallet, type FreshWallet } from "@/lib/client/generateFreshWallet";
 import { CHANGENOW_ETH_NETWORK_BY_CHAIN_ID } from "@/lib/chains/changenowEvmNetworks";
 
@@ -262,7 +262,7 @@ export function SwapPanel({
   // Name kept as "isBtcPair" (not renamed to something like
   // isChangeNowPair) to minimize diff on a working real-money flow — it now
   // also covers Sui, both routed through the same ChangeNOW-backed
-  // /api/quote/btc* endpoints (see btcPairCurrency below).
+  // /api/quote/btc* endpoints (see lib/chains/swapChains.ts's btcFlowCurrency).
   const isBtcPair =
     sellToken?.chainId === BTC_CHAIN_ID ||
     buyToken?.chainId === BTC_CHAIN_ID ||
@@ -323,16 +323,6 @@ export function SwapPanel({
   }, [sellToken]);
   const sellAmountUsd = sellPriceUsd != null && Number.isFinite(amount) && amount > 0 ? (amount * sellPriceUsd).toFixed(2) : null;
 
-  // "btc" | "sui" | "sol" | "eth" ticker for a token known to be one of the
-  // currencies /api/quote/btc handles — only ever called when isBtcPair is
-  // true, i.e. the non-BTC/Sui side is already guaranteed native SOL or
-  // native Ethereum ETH by isBuyTokenAllowed's own constraint above.
-  function btcPairCurrency(t: SelectedToken): "btc" | "sui" | "sol" | "eth" {
-    if (t.chainId === BTC_CHAIN_ID) return "btc";
-    if (t.chainId === SUI_CHAIN_ID) return "sui";
-    return t.chainId === SOLANA_CHAIN_ID ? "sol" : "eth";
-  }
-
   // Live "how much would I get" preview — public/unauthenticated (see
   // app/api/quote/preview), so it works even before a wallet is connected.
   // Branches to /api/quote/btc/preview for any pair involving Bitcoin —
@@ -350,14 +340,14 @@ export function SwapPanel({
 
       const url = isBtcPair
         ? `/api/quote/btc/preview?${new URLSearchParams({
-            sourceCurrency: btcPairCurrency(sellToken),
+            sourceCurrency: btcFlowCurrency(sellToken),
             sourceAmount: sellAmount,
-            destCurrency: btcPairCurrency(buyToken),
+            destCurrency: btcFlowCurrency(buyToken),
             // Real gap found live 2026-08-18 (user report, "arbitrum to
             // SUI?") — see SwapPageClient.tsx's identical param on the
             // real quote request for the full explanation. A no-op
             // (server ignores it) unless the Sell token is EVM.
-            ...(btcPairCurrency(sellToken) === "eth" ? { sourceChainId: String(sellToken.chainId) } : {}),
+            ...(btcFlowCurrency(sellToken) === "eth" ? { sourceChainId: String(sellToken.chainId) } : {}),
           })}`
         : `/api/quote/preview?${new URLSearchParams({
             sourceChainId: String(sellToken.chainId),

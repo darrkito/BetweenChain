@@ -34,7 +34,7 @@ import { useRecentPairs } from "@/lib/client/useRecentPairs";
 import { useSavedAddresses } from "@/lib/client/useSavedAddresses";
 import { useSessionActivity } from "@/lib/client/useSessionActivity";
 import { fetchNativeToken } from "@/lib/client/nativeToken";
-import { swapChainForSlug, BTC_CHAIN_ID, SUI_CHAIN_ID } from "@/lib/chains/swapChains";
+import { resolveSwapChainSlug, BTC_CHAIN_ID, SUI_CHAIN_ID, btcFlowCurrency } from "@/lib/chains/swapChains";
 import { MORE_TOOLS } from "@/lib/content/moreTools";
 
 function sleep(ms: number) {
@@ -58,15 +58,6 @@ function isValidDestAddress(address: string, chainId: number): boolean {
   return isPlausibleEvmAddress(address);
 }
 
-// btc/sui/sol/eth ticker for a token on one of the currencies the BTC/Sui
-// (ChangeNOW) swap flow handles — only ever called on a pair isBtcPair has
-// already confirmed is one of these (see SwapPanel.tsx's
-// isBuyTokenAllowed constraint).
-function btcFlowCurrency(t: SelectedToken): "btc" | "sui" | "sol" | "eth" {
-  if (t.chainId === BTC_CHAIN_ID) return "btc";
-  if (t.chainId === SUI_CHAIN_ID) return "sui";
-  return t.chainId === SOLANA_CHAIN_ID_CLIENT ? "sol" : "eth";
-}
 
 export function SwapPageClient() {
   const { publicKey, signTransaction } = useWallet();
@@ -324,8 +315,14 @@ export function SwapPageClient() {
   useEffect(() => {
     const sellSlug = searchParams.get("sell");
     const buySlug = searchParams.get("buy");
-    const sellChain = sellSlug ? swapChainForSlug(sellSlug) : undefined;
-    const buyChain = buySlug ? swapChainForSlug(buySlug) : undefined;
+    // resolveSwapChainSlug (not the plainer swapChainForSlug) so a
+    // "bitcoin"/"sui" slug from a new BTC/Sui swap-pair landing page's
+    // "Continue to full swap" link (2026-08-18) also prefills correctly —
+    // those two chains are deliberately excluded from SWAP_CHAINS itself
+    // (see BTC_CHAIN_ID/SUI_CHAIN_ID's own docs), so the plain lookup would
+    // silently fail to prefill for exactly the pairs the new pages target.
+    const sellChain = sellSlug ? resolveSwapChainSlug(sellSlug) : undefined;
+    const buyChain = buySlug ? resolveSwapChainSlug(buySlug) : undefined;
     let ignore = false;
 
     if (sellChain && buyChain) {
