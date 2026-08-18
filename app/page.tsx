@@ -31,10 +31,18 @@ import { MORE_TOOLS } from "@/lib/content/moreTools";
 // doesn't inherit the automatic " | Blockchains.Click" suffix every deeper
 // page gets — added explicitly here instead, same net brand visibility,
 // just reordered.
+// Un-stuffed further (2026-08-18, Tier 3 competitor research) — real
+// top-ranking competitors (deBridge, Symbiosis, 1inch, ChangeNOW) all lead
+// with one clear headline capability and push a secondary one into the
+// description, never both crammed into the title — no real cross-chain-
+// swap competitor also tries to rank as an "NFT Marketplace" in the same
+// title. NFT positioning moved to the description instead of dropped
+// entirely, since (unlike those competitors) it's a genuinely real,
+// differentiated capability here, not filler.
 export const metadata: Metadata = {
-  title: "Cross-Chain Token Swaps & NFT Marketplace | Blockchains.Click",
+  title: "Cross-Chain Token Swaps — Solana, Ethereum & 40+ Chains | Blockchains.Click",
   description:
-    "Swap tokens across Solana, Ethereum, and more in one click. Browse and buy NFTs cross-chain on Solana, EVM chains, and Sui — pay from any supported wallet.",
+    "Swap tokens across Solana, Ethereum, Bitcoin, Sui and more in one click. Also buy NFTs cross-chain, paying with a token from a different chain than the NFT itself.",
   alternates: { canonical: "/" },
 };
 
