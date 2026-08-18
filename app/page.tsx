@@ -23,8 +23,16 @@ import { MORE_TOOLS } from "@/lib/content/moreTools";
 // pass uses for breadcrumbs' JSON-LD). Renders its own FAQPage JSON-LD
 // (same content as what's visible) since the questions genuinely appear on
 // this page too, not just linked to.
+// Flipped to keyword-first (2026-08-18, SEO pass) — was brand-first
+// ("Blockchains.Click — ..."), the exact pattern a prior audit on a
+// different project (Luvory) found no real competitor uses and fixed with
+// a measurable ranking improvement (see the SEO playbook's §15). This page
+// sits at the same layout level as app/layout.tsx's title template, so it
+// doesn't inherit the automatic " | Blockchains.Click" suffix every deeper
+// page gets — added explicitly here instead, same net brand visibility,
+// just reordered.
 export const metadata: Metadata = {
-  title: "Blockchains.Click — Cross-Chain Token Swaps & NFT Marketplace",
+  title: "Cross-Chain Token Swaps & NFT Marketplace | Blockchains.Click",
   description:
     "Swap tokens across Solana, Ethereum, and more in one click. Browse and buy NFTs cross-chain on Solana, EVM chains, and Sui — pay from any supported wallet.",
   alternates: { canonical: "/" },

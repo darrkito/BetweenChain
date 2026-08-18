@@ -6,8 +6,16 @@ import { FAQ_ITEMS } from "@/lib/content/faq";
 
 const SITE_URL = "https://blockchains.click";
 
+// Title made keyword-specific (2026-08-18, SEO pass) — was the single
+// generic word "FAQ", no real target keyword at all. Same lesson already
+// applied to /swap's title in an earlier pass (see that route's own
+// comment) and the exact pattern the SEO playbook's §15 warns about:
+// auditing "the important pages" implicitly skips the ones assumed
+// obviously fine. Distinct angle from the homepage title (which already
+// leads with "Cross-Chain Token Swaps & NFT Marketplace") to avoid
+// title-phrase overlap between sibling pages (playbook §5).
 export const metadata: Metadata = {
-  title: "FAQ",
+  title: "Cross-Chain Swap & NFT FAQ — Fees, Security, Supported Chains",
   description:
     "Answers to common questions about swapping tokens and buying NFTs across chains on Blockchains.Click — fees, security, points, and supported chains.",
   alternates: { canonical: "/faq" },
