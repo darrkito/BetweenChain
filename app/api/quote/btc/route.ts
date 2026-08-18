@@ -33,7 +33,9 @@ export const maxDuration = 20;
 // reverse-only design (see STATE.md 2026-08-08c/d).
 const bodySchema = z.object({
   sourceCurrency: z.enum(["btc", "sol", "eth", "sui"]),
-  sourceAmount: z.string().regex(/^\d+(\.\d+)?$/),
+  // See app/api/quote/btc/preview/route.ts's identical schema for why the
+  // leading digit is optional (".5", not just "0.5").
+  sourceAmount: z.string().regex(/^\d*\.?\d+$/),
   destCurrency: z.enum(["btc", "sol", "eth", "sui"]),
   destAddress: z.string().min(1),
 });

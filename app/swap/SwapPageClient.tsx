@@ -81,14 +81,28 @@ export function SwapPageClient() {
   // keyboards produce for inputMode="decimal", e.g. "0,5") makes
   // Number(sellAmount) silently NaN, so hasValidInput in SwapPanel goes
   // false and the preview effect never fires — no error, it just looks
-  // like nothing happens for any non-whole amount. The same "0,5" also
-  // fails the backend's `/^\d+(\.\d+)?$/` regex outright on Confirm,
-  // which would surface as "Invalid request". Whole numbers (typed with
-  // no separator at all) were never affected, matching the "1 and above
-  // works" symptom exactly. Normalized once here so every consumer
-  // downstream (preview fetch, quote POST, atomic-amount conversion)
-  // keeps working with a single dot-decimal source of truth.
-  const handleSellAmountChange = useCallback((v: string) => setSellAmount(v.replace(",", ".")), []);
+  // like nothing happens for any non-whole amount. Whole numbers (typed
+  // with no separator at all) were never affected, matching the "1 and
+  // above works" symptom exactly.
+  //
+  // Second gap, confirmed live 2026-08-18 after the comma fix: the
+  // backend's amount regex (`/^\d+(\.\d+)?$/`, both preview and quote
+  // routes) requires at least one digit BEFORE the decimal point. Many
+  // mobile decimal keypads let you type "." as the very first character
+  // with no leading zero inserted, producing e.g. ".5" — which fails that
+  // regex outright and surfaces as the literal "Invalid request" text
+  // (see app/api/quote/btc/preview/route.ts and app/api/quote/btc/route.ts's
+  // zod schemas). A whole-number amount like "1" never hits this path
+  // either, matching the exact reported symptom again. Prepend a leading
+  // "0" whenever the normalized value starts with a bare ".".
+  //
+  // Normalized once here so every consumer downstream (preview fetch,
+  // quote POST, atomic-amount conversion) keeps working with a single
+  // well-formed dot-decimal source of truth.
+  const handleSellAmountChange = useCallback((v: string) => {
+    const normalized = v.replace(",", ".");
+    setSellAmount(normalized.startsWith(".") ? `0${normalized}` : normalized);
+  }, []);
   const [destAddress, setDestAddress] = useState("");
   // Multi-wallet auto-fill (2026-08-07, Relay's own app does this): when the
   // user has BOTH a Solana and an EVM wallet connected and picks a

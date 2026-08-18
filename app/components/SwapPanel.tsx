@@ -152,6 +152,11 @@ export function SwapPanel({
   onPreviewChange?: (preview: {
     destAmountFormatted: string | null;
     destAmountUsd: string | null;
+    // Sell-side USD for a BTC/Sui pair (2026-08-18) — set by
+    // /api/quote/btc/preview, which is the only preview route that prices
+    // the Sell side at all; the Jupiter/Relay preview leaves this unset and
+    // SwapPanel falls back to its own client-side native-SOL calc instead.
+    sourceAmountUsd?: string | null;
     feeBreakdown?: Array<{ label: string; bps: number; amountUsd: string | null }>;
     route?: Array<{ label: string; engine: "jupiter" | "relay" }>;
     autoRefuelAvailable?: boolean;
@@ -180,6 +185,11 @@ export function SwapPanel({
   const [preview, setPreview] = useState<{
     destAmountFormatted: string | null;
     destAmountUsd: string | null;
+    // Sell-side USD for a BTC/Sui pair (2026-08-18) — set by
+    // /api/quote/btc/preview, which is the only preview route that prices
+    // the Sell side at all; the Jupiter/Relay preview leaves this unset and
+    // SwapPanel falls back to its own client-side native-SOL calc instead.
+    sourceAmountUsd?: string | null;
     feeBreakdown?: Array<{ label: string; bps: number; amountUsd: string | null }>;
     route?: Array<{ label: string; engine: "jupiter" | "relay" }>;
     autoRefuelAvailable?: boolean;
@@ -354,8 +364,19 @@ export function SwapPanel({
           />
           <TokenPill token={sellToken} onClick={() => setSellModalOpen(true)} />
         </div>
-        {sellToken?.chainId === SOLANA_CHAIN_ID && (
+        {/* Sell-side USD, 2026-08-18: native SOL prices itself client-side
+            (sellAmountUsd, above) regardless of pair — that already worked.
+            A SUI/BTC/ETH sell token in a BTC/Sui pair had no USD source at
+            all until now; falls back to the preview route's
+            sourceAmountUsd for that case. */}
+        {sellToken?.chainId === SOLANA_CHAIN_ID ? (
           <p className="num mt-2 text-sm text-ink-faint">{sellAmountUsd ? `$${sellAmountUsd}` : "$0.00"}</p>
+        ) : (
+          isBtcPair && (
+            <p className="num mt-2 text-sm text-ink-faint">
+              {hasValidInput && preview?.sourceAmountUsd ? `$${preview.sourceAmountUsd}` : "$0.00"}
+            </p>
+          )
         )}
         {/* Real gap fixed 2026-08-03: no balance shown for the Sell token at
             all before this, and no "Max" shortcut — Solana-only for now,
