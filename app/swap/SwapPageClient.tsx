@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useConnection, useWallet } from "@solana/wallet-adapter-react";
@@ -76,6 +76,19 @@ export function SwapPageClient() {
   const [sellToken, setSellToken] = useState<SelectedToken | null>(null);
   const [buyToken, setBuyToken] = useState<SelectedToken | null>(null);
   const [sellAmount, setSellAmount] = useState("");
+  // Real gap found live 2026-08-18 (user report): "SOL->SUI only quotes at
+  // 1 and above" — a comma decimal separator (what many non-US mobile
+  // keyboards produce for inputMode="decimal", e.g. "0,5") makes
+  // Number(sellAmount) silently NaN, so hasValidInput in SwapPanel goes
+  // false and the preview effect never fires — no error, it just looks
+  // like nothing happens for any non-whole amount. The same "0,5" also
+  // fails the backend's `/^\d+(\.\d+)?$/` regex outright on Confirm,
+  // which would surface as "Invalid request". Whole numbers (typed with
+  // no separator at all) were never affected, matching the "1 and above
+  // works" symptom exactly. Normalized once here so every consumer
+  // downstream (preview fetch, quote POST, atomic-amount conversion)
+  // keeps working with a single dot-decimal source of truth.
+  const handleSellAmountChange = useCallback((v: string) => setSellAmount(v.replace(",", ".")), []);
   const [destAddress, setDestAddress] = useState("");
   // Multi-wallet auto-fill (2026-08-07, Relay's own app does this): when the
   // user has BOTH a Solana and an EVM wallet connected and picks a
@@ -936,7 +949,7 @@ export function SwapPageClient() {
           onSellTokenChange={setSellToken}
           onBuyTokenChange={setBuyToken}
           sellAmount={sellAmount}
-          onSellAmountChange={setSellAmount}
+          onSellAmountChange={handleSellAmountChange}
           destAddress={destAddress}
           onDestAddressChange={handleDestAddressChange}
           destAddressError={destAddressError}
