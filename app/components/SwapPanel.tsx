@@ -252,10 +252,21 @@ export function SwapPanel({
       return;
     }
     let cancelled = false;
-    fetch(`/api/tokens/mint-prices?mints=${encodeURIComponent(sellToken.address)}`)
+    // Real gap found live 2026-08-18 (user report): native SOL picked from
+    // the token modal carries Relay's System Program sentinel address
+    // (RELAY_NATIVE_SOL_SENTINEL, see lib/client/constants.ts), not the
+    // real wrapped-SOL mint Jupiter's price API expects — this fetch was
+    // the one call site in the app that queried mint-prices with the raw
+    // token address instead of running it through normalizeSolanaSourceMint
+    // first (every other Relay-sentinel consumer already does — see that
+    // constant's own doc for the full list). The sentinel has no Jupiter
+    // price, so this always resolved to null: Sell-side USD showed $0.00
+    // for every native SOL sell, 100% of the time.
+    const priceMint = normalizeSolanaSourceMint(sellToken.address);
+    fetch(`/api/tokens/mint-prices?mints=${encodeURIComponent(priceMint)}`)
       .then((r) => (r.ok ? r.json() : Promise.reject(r)))
       .then((d: { prices: Record<string, number | null> }) => {
-        if (!cancelled) setSellPriceUsd(d.prices[sellToken.address] ?? null);
+        if (!cancelled) setSellPriceUsd(d.prices[priceMint] ?? null);
       })
       .catch(() => {
         if (!cancelled) setSellPriceUsd(null);
