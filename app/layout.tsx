@@ -22,10 +22,23 @@ const displayFont = Calistoga({
   subsets: ["latin"],
 });
 
+// display: "optional" (2026-08-18 perf pass, --font-body-sans specifically —
+// NOT applied blanket to the other two fonts below) — this is the font
+// backing every page's default body text (globals.css's --font-sans),
+// including the /swap hero paragraph Lighthouse identifies as the LCP
+// element. Confirmed live on a sibling project (Dizayn) that "swap" (the
+// next/font default) can let a late-arriving webfont's repaint register
+// as a NEW, later LCP candidate under throttled network conditions —
+// inflating measured LCP even though the fallback-font text was already
+// visible earlier. "optional" uses the fallback if the real font isn't
+// ready almost immediately and skips the swap for this render entirely
+// (subsequent loads use it once cached) — a targeted fix for this
+// specific diagnosed mechanism, not a general swap->optional migration.
 const bodySans = IBM_Plex_Sans({
   variable: "--font-body-sans",
   weight: ["400", "500", "600", "700"],
   subsets: ["latin"],
+  display: "optional",
 });
 
 const dataMono = JetBrains_Mono({
