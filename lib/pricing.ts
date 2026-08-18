@@ -179,6 +179,43 @@ export async function getEvmTokenUsdPrices(chainId: number, addresses: string[])
   return result;
 }
 
+// CoinGecko doesn't have a "native asset" entry under its token_price-by-
+// contract endpoint (address 0x00...00 isn't a listed contract) -- a
+// handful of EVM chains' native currencies with obvious, unambiguous
+// CoinGecko ids, matched by hand the same way COINGECKO_PLATFORM_FOR_CHAIN
+// above is: chains not in either map here just show no native $ figure
+// rather than a guessed one (same precedent as that map's own comment).
+const EVM_NATIVE_COINGECKO_ID: Record<number, string> = {
+  1: "ethereum",
+  8453: "ethereum",
+  42161: "ethereum",
+  10: "ethereum",
+  137: "matic-network", // Polygon (MATIC/POL)
+  56: "binancecoin", // BNB Chain
+  43114: "avalanche-2", // Avalanche (AVAX)
+};
+
+const NATIVE_PRICE_TTL_MS = 60_000;
+
+/**
+ * USD price for an EVM chain's native gas currency, for chains beyond the
+ * 4 already covered by getEthUsdPrice's fixed "ethereum" id. Used by
+ * SwapPanel's Sell-side USD (2026-08-18) — that display previously only
+ * ever covered native SOL, leaving every EVM sell token (native or ERC20)
+ * with no $ figure at all.
+ */
+export async function getEvmNativeUsdPrice(chainId: number): Promise<number | null> {
+  const id = EVM_NATIVE_COINGECKO_ID[chainId];
+  if (!id) return null;
+  return cached(`native-usd-price:${chainId}`, NATIVE_PRICE_TTL_MS, async () => {
+    const res = await fetch(`${COINGECKO_SIMPLE_PRICE_API}?ids=${id}&vs_currencies=usd`, { cache: "no-store" });
+    if (!res.ok) return null;
+    const body = await res.json();
+    const value = Number(body?.[id]?.usd);
+    return Number.isFinite(value) && value > 0 ? value : null;
+  }).catch(() => null);
+}
+
 const MINT_PRICE_TTL_MS = 30_000;
 
 /**

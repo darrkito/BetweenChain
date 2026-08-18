@@ -233,18 +233,22 @@ export function SwapPanel({
     sellToken?.chainId === SUI_CHAIN_ID ||
     buyToken?.chainId === SUI_CHAIN_ID;
 
-  // Sell-side USD value (2026-08-10 UX-audit follow-up) — the Buy side
-  // already gets destAmountUsd from the quote preview; this mirrors it for
-  // Sell using the same per-mint price source Dust Sweeper already uses
-  // (GET /api/tokens/mint-prices, Jupiter-backed). Solana-only for now,
-  // same honest scope as sellBalance/Max above in this file — EVM sell
-  // tokens show nothing rather than a fabricated/guessed price. Fetched
-  // once per token (a price, not per-keystroke), multiplied client-side by
-  // the live-typed amount so it updates immediately without a network
-  // round-trip on every digit.
+  // Sell-side USD value (2026-08-10 UX-audit follow-up, extended
+  // 2026-08-18 to EVM) — the Buy side already gets destAmountUsd from the
+  // quote preview; this mirrors it for Sell using a per-token price source,
+  // branched by chain: Solana via /api/tokens/mint-prices (same
+  // Jupiter-backed source Dust Sweeper already uses), EVM via
+  // /api/tokens/evm-price (new — mirrors the exact native/ERC20 price
+  // sources /api/tokens/balances already established for the
+  // wallet-holdings picker). BTC/Sui sell tokens are priced separately, via
+  // the quote preview's own sourceAmountUsd (see the isBtcPair branch
+  // below) — this effect skips them entirely rather than racing two price
+  // sources against each other. Fetched once per token (a price, not
+  // per-keystroke), multiplied client-side by the live-typed amount so it
+  // updates immediately without a network round-trip on every digit.
   const [sellPriceUsd, setSellPriceUsd] = useState<number | null>(null);
   useEffect(() => {
-    if (!sellToken || sellToken.chainId !== SOLANA_CHAIN_ID) {
+    if (!sellToken || sellToken.chainId === BTC_CHAIN_ID || sellToken.chainId === SUI_CHAIN_ID) {
       // Deferred via a microtask, not called synchronously in the effect
       // body — see PointsPill.tsx's identical pattern for the reasoning
       // (react-hooks/set-state-in-effect enforced strictly in this repo).
@@ -252,21 +256,27 @@ export function SwapPanel({
       return;
     }
     let cancelled = false;
-    // Real gap found live 2026-08-18 (user report): native SOL picked from
-    // the token modal carries Relay's System Program sentinel address
-    // (RELAY_NATIVE_SOL_SENTINEL, see lib/client/constants.ts), not the
-    // real wrapped-SOL mint Jupiter's price API expects — this fetch was
-    // the one call site in the app that queried mint-prices with the raw
-    // token address instead of running it through normalizeSolanaSourceMint
-    // first (every other Relay-sentinel consumer already does — see that
-    // constant's own doc for the full list). The sentinel has no Jupiter
-    // price, so this always resolved to null: Sell-side USD showed $0.00
-    // for every native SOL sell, 100% of the time.
-    const priceMint = normalizeSolanaSourceMint(sellToken.address);
-    fetch(`/api/tokens/mint-prices?mints=${encodeURIComponent(priceMint)}`)
+    const url =
+      sellToken.chainId === SOLANA_CHAIN_ID
+        ? // Real gap found live 2026-08-18 (user report): native SOL picked
+          // from the token modal carries Relay's System Program sentinel
+          // address (RELAY_NATIVE_SOL_SENTINEL, see lib/client/constants.ts),
+          // not the real wrapped-SOL mint Jupiter's price API expects — this
+          // fetch was the one call site in the app that queried mint-prices
+          // with the raw token address instead of running it through
+          // normalizeSolanaSourceMint first (every other Relay-sentinel
+          // consumer already does — see that constant's own doc for the
+          // full list). The sentinel has no Jupiter price, so this always
+          // resolved to null: Sell-side USD showed $0.00 for every native
+          // SOL sell, 100% of the time.
+          `/api/tokens/mint-prices?mints=${encodeURIComponent(normalizeSolanaSourceMint(sellToken.address))}`
+        : `/api/tokens/evm-price?chainId=${sellToken.chainId}&address=${encodeURIComponent(sellToken.address)}`;
+    const priceMint = sellToken.chainId === SOLANA_CHAIN_ID ? normalizeSolanaSourceMint(sellToken.address) : null;
+    fetch(url)
       .then((r) => (r.ok ? r.json() : Promise.reject(r)))
-      .then((d: { prices: Record<string, number | null> }) => {
-        if (!cancelled) setSellPriceUsd(d.prices[priceMint] ?? null);
+      .then((d: { prices?: Record<string, number | null>; price?: number | null }) => {
+        if (cancelled) return;
+        setSellPriceUsd(priceMint ? (d.prices?.[priceMint] ?? null) : (d.price ?? null));
       })
       .catch(() => {
         if (!cancelled) setSellPriceUsd(null);
@@ -375,20 +385,21 @@ export function SwapPanel({
           />
           <TokenPill token={sellToken} onClick={() => setSellModalOpen(true)} />
         </div>
-        {/* Sell-side USD, 2026-08-18: native SOL prices itself client-side
-            (sellAmountUsd, above) regardless of pair — that already worked.
-            A SUI/BTC/ETH sell token in a BTC/Sui pair had no USD source at
-            all until now; falls back to the preview route's
-            sourceAmountUsd for that case. */}
-        {sellToken?.chainId === SOLANA_CHAIN_ID ? (
-          <p className="num mt-2 text-sm text-ink-faint">{sellAmountUsd ? `$${sellAmountUsd}` : "$0.00"}</p>
-        ) : (
-          isBtcPair && (
-            <p className="num mt-2 text-sm text-ink-faint">
-              {hasValidInput && preview?.sourceAmountUsd ? `$${preview.sourceAmountUsd}` : "$0.00"}
-            </p>
-          )
-        )}
+        {/* Sell-side USD, 2026-08-18: Solana and EVM sell tokens price
+            themselves client-side (sellAmountUsd, above, via
+            /api/tokens/mint-prices or /api/tokens/evm-price). A BTC/Sui
+            sell token has no per-token price endpoint of its own — falls
+            back to the quote preview's sourceAmountUsd instead. */}
+        {sellToken &&
+          (sellToken.chainId === BTC_CHAIN_ID || sellToken.chainId === SUI_CHAIN_ID ? (
+            isBtcPair && (
+              <p className="num mt-2 text-sm text-ink-faint">
+                {hasValidInput && preview?.sourceAmountUsd ? `$${preview.sourceAmountUsd}` : "$0.00"}
+              </p>
+            )
+          ) : (
+            <p className="num mt-2 text-sm text-ink-faint">{sellAmountUsd ? `$${sellAmountUsd}` : "$0.00"}</p>
+          ))}
         {/* Real gap fixed 2026-08-03: no balance shown for the Sell token at
             all before this, and no "Max" shortcut — Solana-only for now,
             see the sellBalance prop's doc comment above. */}
