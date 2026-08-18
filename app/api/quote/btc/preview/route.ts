@@ -62,12 +62,27 @@ export async function GET(req: Request) {
         route: [],
         feeBreakdown: [],
         autoRefuelAvailable: false,
+        error: null as string | null,
       };
     });
     return NextResponse.json(result);
   } catch (err) {
     if (err instanceof ChangeNowAmountOutOfRangeError) {
-      return NextResponse.json({ destAmountFormatted: null, destAmountUsd: null, route: [], feeBreakdown: [], autoRefuelAvailable: false });
+      // Real bug found live 2026-08-18 (user report, testing a small SUI
+      // amount): this used to swallow the range error into a bare null
+      // preview with zero explanation — the field just silently stayed
+      // empty as the user typed, with no indication why. The real POST
+      // /api/quote/btc route already surfaces this exact message on
+      // submit; the live preview should say the same thing as the user
+      // types, not stay silent until they hit Confirm.
+      return NextResponse.json({
+        destAmountFormatted: null,
+        destAmountUsd: null,
+        route: [],
+        feeBreakdown: [],
+        autoRefuelAvailable: false,
+        error: `Amount out of range — ChangeNOW supports between ${err.minAmount} and ${err.maxAmount} ${err.fromCurrency.toUpperCase()}`,
+      });
     }
     return safeErrorResponse("quote/btc/preview", err, 502);
   }

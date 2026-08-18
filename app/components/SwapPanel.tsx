@@ -155,6 +155,11 @@ export function SwapPanel({
     feeBreakdown?: Array<{ label: string; bps: number; amountUsd: string | null }>;
     route?: Array<{ label: string; engine: "jupiter" | "relay" }>;
     autoRefuelAvailable?: boolean;
+    // Set by /api/quote/btc/preview when the typed amount falls outside
+    // ChangeNOW's tradeable range for a BTC/Sui pair (2026-08-18, real bug
+    // found live: this preview used to silently stay blank with no
+    // explanation for a too-small amount instead of saying why).
+    error?: string | null;
   } | null) => void;
   /** Just-In-Time Gas toggle (2026-08-07) — controlled from SwapPageClient
    * so the same value reaches both this panel's live preview AND the real
@@ -178,6 +183,11 @@ export function SwapPanel({
     feeBreakdown?: Array<{ label: string; bps: number; amountUsd: string | null }>;
     route?: Array<{ label: string; engine: "jupiter" | "relay" }>;
     autoRefuelAvailable?: boolean;
+    // Set by /api/quote/btc/preview when the typed amount falls outside
+    // ChangeNOW's tradeable range for a BTC/Sui pair (2026-08-18, real bug
+    // found live: this preview used to silently stay blank with no
+    // explanation for a too-small amount instead of saying why).
+    error?: string | null;
     routeAudit?: { priceImpactPct: number | null; timeEstimateSeconds: number | null; dexLabels: string[] };
   } | null>(
     null,
@@ -395,6 +405,9 @@ export function SwapPanel({
         <p className="num mt-2 text-sm text-ink-faint">
           {hasValidInput && preview?.destAmountUsd ? `$${preview.destAmountUsd}` : "$0.00"}
         </p>
+        {hasValidInput && !previewLoading && preview?.error && (
+          <p className="mt-2 rounded-xl border border-danger-soft bg-danger-soft px-3 py-2 text-xs text-danger">{preview.error}</p>
+        )}
 
         {/* Route Auditor (2026-08-09) — real fields both Relay and Jupiter
             already return on the quote this panel already fetches

@@ -446,14 +446,27 @@ export function SwapPageClient() {
     }
     const sourceCurrency = btcFlowCurrency(sellToken);
     const destCurrency = btcFlowCurrency(buyToken);
+    // Real gap found live 2026-08-18 (user report): this used to ONLY ever
+    // read the connected wallet's own address, completely ignoring the
+    // typed destAddress field runSwap() below already lets every other
+    // pair use — meaning a BTC/Sui-origin swap forced connecting (and,
+    // via requireSession() downstream, signing in with) a destination-side
+    // wallet even for a user who just wants to paste a receiving address
+    // they already have, exactly like every other cross-chain pair on
+    // this page already supports. Prefer the typed field when it's
+    // present and valid for the destination chain; fall back to the
+    // connected wallet's own address otherwise (unchanged behavior for
+    // anyone who hasn't typed one).
+    const typedDestAddr = destAddress && buyToken && isValidDestAddress(destAddress, buyToken.chainId) ? destAddress : null;
     const destAddr =
-      destCurrency === "btc"
+      typedDestAddr ??
+      (destCurrency === "btc"
         ? btcWallet.address
         : destCurrency === "sui"
           ? sui.address
           : destCurrency === "sol"
             ? publicKey?.toBase58()
-            : evmWallet.address;
+            : evmWallet.address);
     if (sourceCurrency === "btc" && !btcWallet.address) {
       setMessage("Connect a Bitcoin wallet to sell BTC.");
       return;
