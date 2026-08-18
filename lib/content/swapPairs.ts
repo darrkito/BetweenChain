@@ -63,6 +63,19 @@ const CHANGENOW_SWAP_PAIRS: SwapPair[] = [
 
 export const SWAP_PAIRS: SwapPair[] = [...RELAY_SWAP_PAIRS, ...CHANGENOW_SWAP_PAIRS];
 
+// Hand-maintained, same discipline as BlogPostMeta.date/getAllGames'
+// addedDate/getAllBaskets' addedDate — bump this whenever SWAP_PAIRS or
+// swapPairCopy/changeNowPairCopy changes substantively (a new pair added,
+// copy rewritten), not on every unrelated commit. Used by app/sitemap.ts
+// for swapPairEntries' lastModified — these pages share one generator, so
+// one shared date is honest here the way per-post dates are for
+// individually-authored blog content (see the SEO playbook's §9 on why a
+// stale/never-set lastmod is a real, easy-to-forget miss, and why
+// stamping "today" on every build regardless of actual change is the
+// opposite mistake — Google's own sitemap guidance explicitly warns
+// against that anti-pattern).
+export const SWAP_PAIRS_UPDATED = "2026-08-18"; // BTC/Sui pairs added
+
 export function pairForSlug(slug: string): SwapPair | undefined {
   return SWAP_PAIRS.find((p) => p.slug === slug);
 }

@@ -2,7 +2,7 @@ import type { MetadataRoute } from "next";
 import { NFT_VENDOR_CLIENTS, VENDOR_FOR_FAMILY } from "@/lib/nft/vendorClients";
 import type { NftChainFamily } from "@/lib/nft/types";
 import { getAllBlogPosts } from "@/lib/content/blog";
-import { SWAP_PAIRS } from "@/lib/content/swapPairs";
+import { SWAP_PAIRS, SWAP_PAIRS_UPDATED } from "@/lib/content/swapPairs";
 import { getAllGames } from "@/lib/content/games";
 import { getAllBaskets } from "@/lib/content/baskets";
 
@@ -43,11 +43,21 @@ async function nftCollectionEntries(): Promise<MetadataRoute.Sitemap> {
 // uses, so this can never list a pair-page slug the route itself doesn't
 // actually generate.
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  // lastModified only set where a real, hand-maintained date exists (this
+  // file itself substantively changed 2026-08-18: homepage title flip,
+  // /faq title, /nft's new FAQ section — same "bump on every substantive
+  // edit" discipline as blogEntries/gameEntries/basketEntries below, NOT
+  // stamped with today's date on every build regardless of whether
+  // anything changed, which Google's own sitemap guidance explicitly
+  // warns against). Pages not touched in that pass are left without one
+  // rather than fabricating a date — same "null, never fabricated" policy
+  // this codebase applies everywhere else.
+  const RECENT_STATIC_EDIT = "2026-08-18";
   const staticEntries: MetadataRoute.Sitemap = [
-    { url: SITE_URL, changeFrequency: "daily", priority: 1 },
+    { url: SITE_URL, lastModified: RECENT_STATIC_EDIT, changeFrequency: "daily", priority: 1 },
     { url: `${SITE_URL}/swap`, changeFrequency: "weekly", priority: 0.9 },
-    { url: `${SITE_URL}/nft`, changeFrequency: "hourly", priority: 0.8 },
-    { url: `${SITE_URL}/faq`, changeFrequency: "monthly", priority: 0.6 },
+    { url: `${SITE_URL}/nft`, lastModified: RECENT_STATIC_EDIT, changeFrequency: "hourly", priority: 0.8 },
+    { url: `${SITE_URL}/faq`, lastModified: RECENT_STATIC_EDIT, changeFrequency: "monthly", priority: 0.6 },
     { url: `${SITE_URL}/blog`, changeFrequency: "weekly", priority: 0.7 },
     { url: `${SITE_URL}/games`, changeFrequency: "weekly", priority: 0.7 },
     { url: `${SITE_URL}/dust-sweeper`, changeFrequency: "weekly", priority: 0.7 },
@@ -60,7 +70,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   ];
   const blogEntries: MetadataRoute.Sitemap = getAllBlogPosts().map((post) => ({
     url: `${SITE_URL}/blog/${post.slug}`,
-    lastModified: post.date,
+    // Real gap found 2026-08-18 (SEO Tier 3 audit): this always used the
+    // original publish date, even for a post with a real updatedDate set
+    // (BlogPostMeta's own field, already rendered visibly on the post
+    // page when it differs from date — see app/blog/[slug]/page.tsx's
+    // hasRealUpdate) — the sitemap was silently understating freshness
+    // for exactly the posts that had genuinely been revised.
+    lastModified: post.updatedDate ?? post.date,
     changeFrequency: "monthly",
     priority: 0.6,
   }));
@@ -72,6 +88,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   }));
   const swapPairEntries: MetadataRoute.Sitemap = SWAP_PAIRS.map((p) => ({
     url: `${SITE_URL}/swap/${p.slug}`,
+    lastModified: SWAP_PAIRS_UPDATED,
     changeFrequency: "weekly",
     priority: 0.8,
   }));
