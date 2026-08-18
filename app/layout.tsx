@@ -16,24 +16,28 @@ import { AnnouncementBar } from "@/app/components/AnnouncementBar";
 // distinctive. Calistoga is a warm display serif reserved for headings only
 // (bodyPlexSans/JetBrains Mono cover everything else) so it reads as
 // intentional, not a wholesale "use a fancy font everywhere" swap.
+//
+// display: "optional" on all three (2026-08-18 perf pass, extended
+// 2026-08-18c) — bodySans alone (the /swap hero paragraph's font) fixed
+// LCP's font-swap-as-new-LCP-candidate mechanism (confirmed on a sibling
+// project, Dizayn), but a real, reproducible CLS regression (0.257-0.287,
+// 3 consecutive PSI API runs against production, zero DOM mutation
+// detected in the shift window via a live Playwright layout-shift probe)
+// persisted after that fix — a whole-page reflow with no attributable
+// DOM change is exactly the signature of a LATE FONT SWAP changing
+// character/line metrics (headings via Calistoga, numeric "num"-class
+// text via JetBrains Mono are the two fonts this didn't yet cover).
+// "optional" everywhere removes the mechanism entirely at the cost of a
+// slow-first-visit user seeing the fallback stack for that whole session
+// (upgrades on a later, cached visit) — an accepted trade given CLS 0.257+
+// is solidly in Lighthouse's "Poor" band.
 const displayFont = Calistoga({
   variable: "--font-display-serif",
   weight: "400",
   subsets: ["latin"],
+  display: "optional",
 });
 
-// display: "optional" (2026-08-18 perf pass, --font-body-sans specifically —
-// NOT applied blanket to the other two fonts below) — this is the font
-// backing every page's default body text (globals.css's --font-sans),
-// including the /swap hero paragraph Lighthouse identifies as the LCP
-// element. Confirmed live on a sibling project (Dizayn) that "swap" (the
-// next/font default) can let a late-arriving webfont's repaint register
-// as a NEW, later LCP candidate under throttled network conditions —
-// inflating measured LCP even though the fallback-font text was already
-// visible earlier. "optional" uses the fallback if the real font isn't
-// ready almost immediately and skips the swap for this render entirely
-// (subsequent loads use it once cached) — a targeted fix for this
-// specific diagnosed mechanism, not a general swap->optional migration.
 const bodySans = IBM_Plex_Sans({
   variable: "--font-body-sans",
   weight: ["400", "500", "600", "700"],
@@ -45,6 +49,7 @@ const dataMono = JetBrains_Mono({
   variable: "--font-data-mono",
   weight: ["400", "500", "600"],
   subsets: ["latin"],
+  display: "optional",
 });
 
 // 2026-08-05 (SEO foundation pass) — this app had almost no metadata before
