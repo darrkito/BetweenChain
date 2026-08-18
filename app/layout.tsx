@@ -151,8 +151,14 @@ export default function RootLayout({
         {/* Lighthouse-flagged preconnect (2026-08-18 perf pass, /swap):
             SuiWalletProvider.tsx's slushWallet config fetches this on
             mount for every visitor, not just ones who connect a wallet —
-            a real, always-happening request, not a maybe. */}
-        <link rel="preconnect" href="https://api.slush.app" />
+            a real, always-happening request, not a maybe.
+            crossOrigin required (2026-08-18b, follow-up Lighthouse run
+            flagged the first version as "preconnect not used") — the
+            actual request is a CORS `fetch()`, so a preconnect without
+            crossOrigin opens a non-credentialed connection the browser
+            can't reuse for it and has to open a second one anyway,
+            wasting the hint entirely. */}
+        <link rel="preconnect" href="https://api.slush.app" crossOrigin="anonymous" />
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
         {/* Site-wide Organization+WebSite JSON-LD — every other page's own
             JSON-LD (breadcrumbs, FAQPage, BlogPosting) cross-links to these
