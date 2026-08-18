@@ -23,6 +23,7 @@ import { SwapPanel, isBuyTokenAllowed } from "@/app/components/SwapPanel";
 import { SlippageControl } from "@/app/components/SlippageControl";
 import { TrustBar } from "@/app/components/TrustBar";
 import { PointsSummaryCard } from "@/app/components/PointsSummaryCard";
+import { SwapSuccessRewards } from "@/app/components/SwapSuccessRewards";
 import type { SwapStep } from "@/app/components/SwapStepper";
 import { SwapProgressDrawer } from "@/app/components/SwapProgressDrawer";
 import type { SelectedToken } from "@/app/components/TokenSelectModal";
@@ -941,6 +942,11 @@ export function SwapPageClient() {
         )}
         {swapId && <p className="num px-1 text-xs text-ink-faint">swap {swapId}</p>}
 
+        {/* Success-state retention block (2026-08-18) — was previously just
+            the "View points & referrals" link below with no live reward
+            feedback. Only renders once step reaches "done". */}
+        <SwapSuccessRewards isActive={busy} isDone={isDone} swapId={swapId} />
+
         <Link
           href="/dashboard"
           className="flex items-center gap-1.5 self-start text-sm font-medium text-ink-muted transition-colors hover:text-accent"
@@ -963,7 +969,7 @@ export function SwapPageClient() {
       </Reveal>
 
       <div className="mx-auto w-full max-w-lg lg:sticky lg:top-6 lg:mx-0">
-        <PointsSummaryCard />
+        <PointsSummaryCard refreshKey={isDone ? swapId : null} />
       </div>
       </div>
 

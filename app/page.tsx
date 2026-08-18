@@ -4,6 +4,7 @@ import Link from "next/link";
 import { AppHeader } from "@/app/components/AppHeader";
 import { QuotePreviewWidget } from "@/app/components/QuotePreviewWidget";
 import { QuickPairChips } from "@/app/components/QuickPairChips";
+import { RecentPairChips } from "@/app/components/RecentPairChips";
 import { Reveal } from "@/app/components/Reveal";
 import { TrustBar } from "@/app/components/TrustBar";
 import { StatsBar } from "@/app/components/StatsBar";
@@ -123,6 +124,11 @@ export default async function LandingPage() {
           <div className="flex flex-col items-center gap-3 lg:items-end">
             <QuotePreviewWidget />
             <QuickPairChips />
+            {/* Renders nothing for first-time visitors (no localStorage
+                entries yet) — only returning users who've completed a swap
+                see this, one-click back into a pair they've actually used
+                (2026-08-18 retention pass — see RecentPairChips.tsx). */}
+            <RecentPairChips />
           </div>
         </div>
         <div className="flex flex-col items-center gap-4">

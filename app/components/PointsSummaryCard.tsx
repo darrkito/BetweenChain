@@ -9,7 +9,11 @@ import { TierBadge } from "@/app/components/TierBadge";
 // already uses, no new backend work. Renders nothing useful (a sign-in
 // prompt) rather than a fake "0" when the request 401s — matches
 // dashboard/page.tsx's own "sign in to see your points" fallback copy.
-export function PointsSummaryCard() {
+// `refreshKey` (2026-08-18, post-swap retention pass) — SwapPageClient
+// bumps this when a swap completes so the balance actually visibly moves
+// instead of staying frozen at whatever it was on mount; see the swap
+// success block there for the "+N points earned" delta this enables.
+export function PointsSummaryCard({ refreshKey }: { refreshKey?: string | number | null } = {}) {
   const [balance, setBalance] = useState<number | null>(null);
   const [signedIn, setSignedIn] = useState(true);
 
@@ -18,7 +22,7 @@ export function PointsSummaryCard() {
       .then((r) => (r.ok ? r.json() : Promise.reject(r)))
       .then((d) => setBalance(d.balance))
       .catch(() => setSignedIn(false));
-  }, []);
+  }, [refreshKey]);
 
   return (
     <aside className="flex flex-col gap-3 rounded-2xl border border-hairline bg-surface p-5 shadow-sm">
