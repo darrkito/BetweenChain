@@ -41,6 +41,7 @@
     "react-dom": "19.2.4",
     "sats-connect": "^4.2.1",
     "server-only": "^0.0.1",
+    "sharp": "^0.35.3",
     "tweetnacl": "^1.0.3",
     "viem": "^2.55.2",
     "web-push": "^3.6.7",

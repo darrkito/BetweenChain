@@ -1,4 +1,5 @@
 import "server-only";
+import sharp from "sharp";
 import { rateLimit, clientKey } from "@/lib/rate-limit";
 
 // External-call budget for this route -- prevents Vercel's platform-level
@@ -35,12 +36,29 @@ export const maxDuration = 15;
  * used to exfiltrate arbitrary internal API/JSON responses) — revisit with a
  * custom resolver + IP-pinned connection if this app's threat model
  * changes.
+ *
+ * Resizing (2026-08-18, Lighthouse perf pass) — next.config.ts's
+ * `images.unoptimized: true` (a required workaround for a real Next
+ * 16/Vercel platform bug, see that file's own comment) means next/image
+ * NEVER resizes/reencodes anything, including images served through this
+ * proxy — confirmed live via Lighthouse on /swap: an 18x18 CSS-displayed
+ * token icon was shipping its full 1000x1000 original (115 KiB for one
+ * icon). Since this route already owns the only server-side touchpoint
+ * every proxied image passes through, it does the resizing itself now via
+ * `sharp` (same version Next already vendors for its own optimizer) —
+ * optional `?w=` query param, re-encoded to WebP. SVGs and GIFs are left
+ * untouched (SVG is already vector/tiny; resizing a GIF would flatten any
+ * animation) — the images actually flagged as oversized were all raster
+ * (PNG/JPEG token logos), not either of those.
  */
 
 const ALLOWED_PROTOCOLS = new Set(["http:", "https:"]);
 const MAX_BYTES = 15 * 1024 * 1024; // generous for NFT art, still bounded
 const FETCH_TIMEOUT_MS = 8_000;
 const MAX_REDIRECTS = 3;
+const MIN_RESIZE_WIDTH = 8;
+const MAX_RESIZE_WIDTH = 512; // well above every real on-screen use (largest is SwapPanel's 32px icons at 2x-3x DPR)
+const RESIZE_SKIP_CONTENT_TYPES = new Set(["image/svg+xml", "image/gif"]);
 // 2026-08-05 (real cost issue: Vercel Image Optimization "Cache Writes"
 // quota exceeded) — raised from max-age=86400 (1 day). Confirmed live:
 // next/image's `minimumCacheTTL` (next.config.ts, set to 1 year the same
@@ -144,6 +162,32 @@ export async function GET(req: Request) {
   const buf = await upstream.arrayBuffer();
   if (buf.byteLength > MAX_BYTES) {
     return new Response("Image too large", { status: 413 });
+  }
+
+  const widthRaw = reqUrl.searchParams.get("w");
+  const requestedWidth = widthRaw ? Number(widthRaw) : null;
+  const canResize =
+    requestedWidth != null &&
+    Number.isInteger(requestedWidth) &&
+    requestedWidth >= MIN_RESIZE_WIDTH &&
+    requestedWidth <= MAX_RESIZE_WIDTH &&
+    !RESIZE_SKIP_CONTENT_TYPES.has(contentType.toLowerCase().split(";")[0].trim());
+
+  if (canResize) {
+    try {
+      const resized = await sharp(Buffer.from(buf))
+        .resize({ width: requestedWidth, withoutEnlargement: true })
+        .webp({ quality: 80 })
+        .toBuffer();
+      return new Response(resized, {
+        status: 200,
+        headers: { "Content-Type": "image/webp", "Cache-Control": CACHE_CONTROL },
+      });
+    } catch {
+      // Malformed/unsupported-by-sharp source image — fall through and
+      // serve the original bytes rather than 500ing on something that
+      // would otherwise have rendered fine unresized.
+    }
   }
 
   return new Response(buf, {

@@ -14,6 +14,13 @@ import { EvmConnectPicker } from "@/app/components/EvmConnectPicker";
 import { EVM_CHAINS, type EvmChainOption } from "@/lib/nft/evmChains";
 import type { NftListing } from "@/lib/nft/types";
 
+// styles.css moved here from app/providers.tsx (2026-08-18 perf pass) — see
+// that file's comment for why: it carries a render-blocking Google Fonts
+// @import that used to load globally even on pages with no WalletMultiButton
+// on screen. Co-located with this dynamic import so it only loads in the
+// same lazy chunk as the button it styles.
+import "@solana/wallet-adapter-react-ui/styles.css";
+
 const WalletMultiButton = dynamic(
   () => import("@solana/wallet-adapter-react-ui").then((m) => m.WalletMultiButton),
   { ssr: false },

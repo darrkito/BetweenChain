@@ -41,8 +41,12 @@ function Circle({
     // third-party host (any token's own logoURI), so next/image can't point
     // at it directly without every such host allowlisted. See
     // lib/client/imageProxy.ts.
+    // 2x the CSS display size (2026-08-18 perf pass) — covers real-world
+    // retina/high-DPR screens without requesting the source's full
+    // original resolution (Lighthouse found 1000x1000 originals being
+    // shipped for an 18x18 icon — see proxiedImageUrl's own doc).
     <Image
-      src={proxiedImageUrl(src)}
+      src={proxiedImageUrl(src, size * 2)}
       alt={fallbackLetter}
       width={size}
       height={size}

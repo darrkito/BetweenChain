@@ -7,7 +7,18 @@ import { SuiWalletProvider } from "@/lib/client/SuiWalletProvider";
 import { BtcWalletProvider } from "@/lib/client/BtcWalletProvider";
 import { AuthProvider } from "@/lib/client/AuthProvider";
 import { ConnectWalletModalProvider } from "@/lib/client/ConnectWalletModalProvider";
-import "@solana/wallet-adapter-react-ui/styles.css";
+// styles.css deliberately NOT imported here (2026-08-18 perf pass) — it
+// carries a render-blocking `@import url(fonts.googleapis.com/...DM+Sans)`
+// that used to load on EVERY page, even ones with zero WalletMultiButton
+// on screen (confirmed via Lighthouse on /swap — DM Sans is never even
+// used, this app's own type scale is Calistoga/IBM Plex Sans/JetBrains
+// Mono). WalletModalProvider itself still needs to wrap the app (its
+// context is a real runtime dependency of WalletMultiButton, used in the
+// three NFT buy modals — see NftBuyModal.tsx/NftBuyModalSui.tsx/
+// NftBuyModalMagicEden.tsx), but the CSS only styles that button's DOM and
+// is now imported directly in those three files instead, alongside their
+// existing dynamic() import of WalletMultiButton — same lazy chunk, no
+// global cost.
 
 // Deliberately NO explicit PhantomWalletAdapter/SolflareWalletAdapter here
 // (removed 2026-07-21) — those connect via the legacy `window.solana`

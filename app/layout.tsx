@@ -148,6 +148,11 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <head>
+        {/* Lighthouse-flagged preconnect (2026-08-18 perf pass, /swap):
+            SuiWalletProvider.tsx's slushWallet config fetches this on
+            mount for every visitor, not just ones who connect a wallet —
+            a real, always-happening request, not a maybe. */}
+        <link rel="preconnect" href="https://api.slush.app" />
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
         {/* Site-wide Organization+WebSite JSON-LD — every other page's own
             JSON-LD (breadcrumbs, FAQPage, BlogPosting) cross-links to these
@@ -171,12 +176,21 @@ export default function RootLayout({
         <SpeedInsights />
         {/* GA4 — added 2026-08-17 alongside Vercel Analytics/Speed Insights
             for traffic reporting outside the Vercel dashboard (Search
-            Console linkage, audience/acquisition breakdowns). */}
+            Console linkage, audience/acquisition breakdowns).
+            strategy="lazyOnload" (2026-08-18 perf pass, was
+            afterInteractive) — Lighthouse's TBT breakdown on /swap showed
+            this script's own execution (241ms) landing inside the
+            measured interactivity window even under afterInteractive,
+            competing with hydration for the main thread. A pageview a few
+            hundred ms later than the tightest possible timing is a real,
+            acceptable trade for not contending with the page becoming
+            interactive — GA4 has never needed to fire within the first
+            second for this app's reporting needs. */}
         <Script
           src="https://www.googletagmanager.com/gtag/js?id=G-9NV769VBEJ"
-          strategy="afterInteractive"
+          strategy="lazyOnload"
         />
-        <Script id="ga4-init" strategy="afterInteractive">
+        <Script id="ga4-init" strategy="lazyOnload">
           {`
             window.dataLayer = window.dataLayer || [];
             function gtag(){dataLayer.push(arguments);}
