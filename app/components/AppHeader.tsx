@@ -366,7 +366,7 @@ export function AppHeader() {
               Blockchains<span className="text-accent">.Click</span>
             </span>
             <span className="hidden whitespace-nowrap text-[11px] font-medium leading-tight text-ink-faint lg:block">
-              0.25% per leg, zero manual bridging
+              Swap any token to any blockchain
             </span>
           </span>
           <span className="whitespace-nowrap text-[15px] font-semibold tracking-tight text-ink sm:hidden">
