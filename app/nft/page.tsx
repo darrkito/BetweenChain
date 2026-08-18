@@ -9,6 +9,10 @@ import { NftSearchBar } from "@/app/components/NftSearchBar";
 import { nftChainFamilyLabel } from "@/lib/nft/labels";
 import { NFT_VENDOR_CLIENTS, VENDOR_FOR_FAMILY } from "@/lib/nft/vendorClients";
 import type { NftChainFamily, NftCollection } from "@/lib/nft/types";
+import { JsonLd, faqPageSchema, breadcrumbListSchema } from "@/lib/seo/jsonld";
+import { NFT_FAQ_ITEMS } from "@/lib/content/nftFaq";
+
+const SITE_URL = "https://blockchains.click";
 
 type NftBrowseSearchParams = { family?: string; chain?: string; q?: string };
 
@@ -89,8 +93,16 @@ export default async function NftBrowsePage({
           real scale. A real h1 fixes both the flagged hierarchy issue and a
           genuine wayfinding gap (no page ever said what page you were on). */}
       <h1 className="font-display px-1 text-2xl font-normal text-ink sm:text-3xl">NFT Marketplace</h1>
+      {/* Strengthened 2026-08-18 (SEO Tier 2) — was a single generic
+          sentence with no direct-answer opening (see the SEO playbook's
+          §2). Real gap: this page's genuine differentiator — pay for an
+          NFT with a token from a different chain than the NFT itself — was
+          never actually stated on the page a crawler/AI system would
+          extract from; it only ever lived in marketing copy elsewhere
+          (homepage, llms.txt). */}
       <p className="px-1 text-sm text-ink-muted">
-        Solana, Ethereum, and Sui collections in one place — pay from any supported chain. New to buying across chains? See{" "}
+        Buy an NFT on Solana, Ethereum, or Sui and pay with a token from a different chain than the NFT itself — no manual
+        bridging first. Real, live listings from Magic Eden, OpenSea, and Tradeport. New to buying across chains? See{" "}
         <Link href="/blog/solana-vs-ethereum-nfts" className="text-accent hover:underline">
           what actually differs between Solana and Ethereum NFTs
         </Link>
@@ -147,6 +159,29 @@ export default async function NftBrowsePage({
       )}
 
       {collections.length > 0 && <NftCollectionsGrid collections={collections} />}
+
+      {/* Added 2026-08-18 (SEO Tier 2) — this page had no FAQ/structured
+          content at all before this, unlike every other high-traffic page
+          on the site (homepage, /faq, every /swap/[pair] page). Distinct
+          questions from lib/content/faq.ts's site-wide FAQ_ITEMS on
+          purpose — see nftFaq.ts's own doc on why (avoids the SEO
+          playbook's §5 sibling-page content-overlap concern). */}
+      <section className="mt-4 flex flex-col gap-3">
+        <h2 className="px-1 text-lg font-semibold text-ink">Frequently asked questions</h2>
+        <div className="flex flex-col divide-y divide-hairline rounded-2xl border border-hairline bg-surface shadow-sm">
+          {NFT_FAQ_ITEMS.map((item) => (
+            <div key={item.question} className="flex flex-col gap-2 p-5">
+              <h3 className="text-base font-semibold text-ink">{item.question}</h3>
+              <p className="max-w-[65ch] text-sm text-ink-muted">{item.answer}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <JsonLd data={faqPageSchema(NFT_FAQ_ITEMS)} />
+      <JsonLd
+        data={breadcrumbListSchema([{ label: "NFTs", href: "/nft" }, { label: nftChainFamilyLabel(family) }], `${SITE_URL}/nft`)}
+      />
     </main>
   );
 }

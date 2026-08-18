@@ -32,14 +32,18 @@ faq:
 
 Getting Bitcoin into a Solana or Ethereum position usually means a centralized exchange, a wrapped-token bridge, or both. Blockchains.Click routes it as one guided flow instead — no wrapped BTC token to manage, no separate manual bridge step.
 
-<QuickFacts items='["Swap native BTC directly into SOL, ETH, or other supported destination tokens", "No wrapped BTC (WBTC) involved — you send real BTC, the destination asset arrives directly", "No account signup or KYC form", "Execution runs through ChangeNOW, a real non-custodial exchange engine, not a Blockchains.Click-held wallet"]' />
+<QuickFacts items='["Swap native BTC directly into SOL, ETH, or other supported destination tokens", "No wrapped BTC (WBTC) involved — you send real BTC, the destination asset arrives directly", "No account signup or KYC form", "Execution runs through ChangeNOW, a real exchange — your BTC deposit is briefly custodial to ChangeNOW, never to a Blockchains.Click-held wallet"]' />
 
 ## Why BTC works differently from a Solana/EVM swap
 
-Every other swap on this app is wallet-to-wallet: connect a wallet, sign a transaction, done. Bitcoin doesn't have the same smart-contract signing model Solana and EVM chains do, so a BTC-sourced swap works the way real, non-custodial BTC exchanges always have — you get a deposit address specific to your swap request, send BTC to it from your own wallet, and the destination asset is delivered once that deposit is confirmed on-chain. It's slower than a same-ecosystem swap (Bitcoin's own confirmation times apply), but it's still non-custodial: nothing sits in a Blockchains.Click-controlled wallet at any point.
+Every other swap on this app is wallet-to-wallet: connect a wallet, sign a transaction, done. Bitcoin doesn't have the same smart-contract signing model Solana and EVM chains do, so a BTC-sourced swap works the way real BTC exchanges always have — you get a deposit address specific to your swap request, send BTC to it from your own wallet, and the destination asset is delivered once that deposit is confirmed on-chain. It's slower than a same-ecosystem swap (Bitcoin's own confirmation times apply), and it's genuinely custodial for the brief window in between: your BTC sits with ChangeNOW, not in a smart contract, until it delivers the destination asset. Nothing ever sits in a Blockchains.Click-controlled wallet — but that's a narrower guarantee than "non-custodial," worth being precise about rather than implying more than is true.
 
 ## What executes it
 
 BTC swaps run through ChangeNOW, a real, established exchange engine — not the Jupiter/Relay pipeline the rest of this app uses for Solana/EVM swaps. Same principle as every engine choice on this app: BTC doesn't have a comparable on-chain aggregator the way Solana and EVM do, so a real, live-quoted third-party exchange is the honest way to support it rather than fabricating a bridge that doesn't exist.
 
-[Try a BTC swap](/swap) — pick Bitcoin as your source token and see a real, live quote before sending anything.
+Try a real, live-priced quote before sending anything — no wallet connection required to preview:
+
+<BlogSwapPreview sellChain="bitcoin" buyChain="solana" />
+
+The same engine also delivers [SOL or ETH directly into Sui](/blog/how-to-swap-sol-eth-to-sui), including [Bitcoin into Sui](/swap/bitcoin-to-sui) directly — same deposit-address flow, same custodial disclosure above applies.

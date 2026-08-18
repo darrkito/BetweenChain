@@ -1,0 +1,74 @@
+---
+title: "How to Swap SOL or ETH Directly Into SUI"
+description: "No wrapped SUI, no manual bridge step — swap Solana or Ethereum (including several L2s) directly into native SUI in one guided flow, no KYC signup required."
+date: "2026-08-18"
+category: "Guides"
+chains:
+  - "solana"
+  - "ethereum"
+howTo:
+  summary: "Swap native SOL or ETH into native SUI in a few steps."
+  totalTime: "PT4M"
+  tools:
+    - "A Solana or EVM wallet you can send from"
+    - "A destination Sui wallet, or just an address to receive at"
+  steps:
+    - name: "Pick SUI as Your Destination"
+      text: "On the swap page, choose SOL or ETH as the token you're selling and Sui as what you want to receive — no Sui wallet connection required just to see a quote."
+    - name: "Review the Real Rate"
+      text: "The quote shows the real, live-priced SUI amount you'll receive and the exact deposit address for this specific swap — bound to your request, not a generic address."
+    - name: "Send Your Deposit and Wait for Confirmation"
+      text: "Send the exact quoted amount from your own wallet. Once the deposit confirms on Solana or Ethereum, native SUI is delivered to your destination address automatically."
+faq:
+  - question: "Do I need a Sui wallet to try this?"
+    answer: "No — you can preview a live quote and get a deposit address without connecting a Sui wallet at all. You only need a Sui address to receive at, which can be your own wallet or any address you specify."
+  - question: "Is this wrapped SUI?"
+    answer: "No — you're receiving real, native SUI. The execution engine (ChangeNOW) delivers it directly; there's no synthetic or bridged token to unwrap on the other end."
+  - question: "What does it cost?"
+    answer: "No separate Blockchains.Click platform fee on this pair — you pay ChangeNOW's own live exchange rate, shown in the quote before you send anything, plus the origin network's own transaction fee."
+  - question: "Can I swap from an EVM chain other than Ethereum mainnet?"
+    answer: "Yes, for Sui specifically — Arbitrum, Base, Optimism, zkSync Era, Linea, and Manta Pacific all work as the ETH source too, not just Ethereum mainnet. Pick your chain in the token selector; the quote and deposit network match automatically."
+  - question: "Is this custodial?"
+    answer: "Yes, for this specific pair — you send SOL or ETH to a deposit address ChangeNOW controls, and ChangeNOW sends back SUI afterward. The destination address is still locked in at quote time and can't be changed, closing the door on address-swap attacks; that protection works the same as every other pair on this site. Nothing ever sits in a Blockchains.Click-controlled wallet."
+mentions:
+  - "Sui"
+  - "ChangeNOW"
+---
+
+Getting SOL or ETH into a Sui position usually means a centralized exchange, a wrapped-token bridge, or both. Blockchains.Click routes it as one guided flow instead — no wrapped SUI to manage, no separate manual bridge step, and (for ETH specifically) it works from several chains, not just mainnet.
+
+<QuickFacts items='["Swap native SOL or ETH directly into native SUI", "ETH source works from Arbitrum, Base, Optimism, zkSync Era, Linea, and Manta Pacific too, not just Ethereum mainnet", "No separate Blockchains.Click platform fee on this pair", "No account signup or KYC form"]' />
+
+## Why a SUI destination works differently from a Solana/EVM swap
+
+Every SOL-to-ETH swap on this app is wallet-to-wallet: connect a wallet, sign a transaction, done. Sui isn't reachable through that same Jupiter/Relay pipeline yet, so a SUI-destination swap works the way real BTC/SUI exchanges do — you get a deposit address specific to your swap request, send SOL or ETH to it from your own wallet, and native SUI is delivered once that deposit confirms on-chain. It's genuinely custodial for the brief window in between (your deposit sits with ChangeNOW, not a smart contract, until it delivers), the same trade-off [swapping into Bitcoin](/blog/how-to-swap-bitcoin-cross-chain) already makes on this app — worth being upfront about rather than implied otherwise.
+
+## What executes it
+
+SOL/ETH-to-SUI swaps run through ChangeNOW, the same real, established exchange engine that handles this app's Bitcoin swaps — not the Jupiter/Relay pipeline used for Solana/EVM pairs. Sui doesn't have a comparable on-chain bridge aggregator the way Solana and EVM do, so a real, live-quoted third-party exchange is the honest way to support it.
+
+## Pick Your Tokens and Preview the Route
+
+Choose SOL or ETH as the token you're selling and Sui as what you want. The preview below is live and doesn't require connecting anything to try:
+
+<BlogSwapPreview sellChain="solana" buyChain="sui" />
+
+<BlogTip>
+Selling ETH? You're not limited to Ethereum mainnet — Arbitrum, Base, Optimism, zkSync Era, Linea, and Manta Pacific all work as the source chain for a Sui destination. Pick the chain your ETH is actually on in the token selector; the deposit network matches it automatically.
+</BlogTip>
+
+## Review and Confirm the Swap
+
+Once you're happy with the quote, continue to the full swap page, paste (or connect) your Sui destination address, then send the exact quoted amount from your own wallet. Delivery happens automatically once your deposit confirms — usually a few minutes.
+
+<Callout href="/swap?sell=solana&buy=sui" cta="Swap SOL to SUI now">
+Ready to go? This link opens the swap page with SOL and Sui already selected.
+</Callout>
+
+Also swappable the same way: [Bitcoin directly into Sui](/swap/bitcoin-to-sui), and [SUI back into Bitcoin or Solana](/swap/sui-to-solana) — same ChangeNOW-backed flow, same custodial disclosure above applies.
+
+Referring a friend earns you 20% of their trading volume as points, ongoing — not a one-time bonus. They get a 10% bonus themselves.
+
+<Callout href="/dashboard" cta="Get your referral link">
+Check your points balance and invite code on the dashboard.
+</Callout>
