@@ -4,7 +4,7 @@ import { useCallback, useMemo, useState } from "react";
 import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { PublicKey, Transaction, VersionedTransaction } from "@solana/web3.js";
 import { createCloseAccountInstruction, TOKEN_PROGRAM_ID } from "@solana/spl-token";
-import { useCurrentAccount } from "@mysten/dapp-kit";
+import { useSuiWallet } from "@/lib/client/SuiWalletProvider";
 import { useEvmWallet } from "@/lib/client/EvmWalletProvider";
 import { useConnectWalletModal } from "@/lib/client/ConnectWalletModalProvider";
 import { AppHeader } from "@/app/components/AppHeader";
@@ -53,7 +53,7 @@ export function DustSweeperClient() {
   const { publicKey, signTransaction } = useWallet();
   const { connection } = useConnection();
   const evmWallet = useEvmWallet();
-  const suiAccount = useCurrentAccount();
+  const sui = useSuiWallet();
   const connectWalletModal = useConnectWalletModal();
 
   const [scanning, setScanning] = useState(false);
@@ -71,7 +71,7 @@ export function DustSweeperClient() {
   const [rentReclaimed, setRentReclaimed] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
-  const anyWalletConnected = Boolean(publicKey || evmWallet.address || suiAccount);
+  const anyWalletConnected = Boolean(publicKey || evmWallet.address || sui.address);
 
   const scan = useCallback(async () => {
     setScanning(true);
@@ -154,8 +154,8 @@ export function DustSweeperClient() {
         nextDust.push(...evmResults.flat());
       }
 
-      if (suiAccount) {
-        const res = await fetch(`/api/tokens/sui-balance?owner=${suiAccount.address}`)
+      if (sui.address) {
+        const res = await fetch(`/api/tokens/sui-balance?owner=${sui.address}`)
           .then((r) => (r.ok ? r.json() : null))
           .catch(() => null);
         if (res && Number(res.balance) > 0) setSuiNative(res);
@@ -171,7 +171,7 @@ export function DustSweeperClient() {
     } finally {
       setScanning(false);
     }
-  }, [publicKey, connection, evmWallet.address, suiAccount]);
+  }, [publicKey, connection, evmWallet.address, sui.address]);
 
   const sweepableDust = useMemo(() => {
     const targetOpt = TARGET_OPTIONS.find((t) => t.key === target)!;

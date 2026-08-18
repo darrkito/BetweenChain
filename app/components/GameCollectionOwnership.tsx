@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useWallet } from "@solana/wallet-adapter-react";
-import { useCurrentAccount } from "@mysten/dapp-kit";
+import { useSuiWallet } from "@/lib/client/SuiWalletProvider";
 import { NftImage } from "@/app/components/NftImage";
 import type { OwnedNft } from "@/lib/nft/types";
 
@@ -34,9 +34,9 @@ async function fetchHoldings(collection: GameCollectionInfo, owner: string): Pro
 // connection is required just to see the section.
 export function GameCollectionOwnership({ collections }: { collections: GameCollectionInfo[] }) {
   const { publicKey } = useWallet();
-  const suiAccount = useCurrentAccount();
+  const sui = useSuiWallet();
   const solanaAddress = publicKey?.toBase58() ?? null;
-  const suiAddress = suiAccount?.address ?? null;
+  const suiAddress = sui.address;
 
   const [holdings, setHoldings] = useState<Record<string, OwnedNft[] | undefined>>({});
   const [loading, setLoading] = useState<Record<string, boolean>>({});

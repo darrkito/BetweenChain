@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useWallet } from "@solana/wallet-adapter-react";
 import type { WalletName } from "@solana/wallet-adapter-base";
-import { useCurrentAccount, useDisconnectWallet } from "@mysten/dapp-kit";
+import { useSuiWallet } from "@/lib/client/SuiWalletProvider";
 import { useEvmWallet } from "@/lib/client/EvmWalletProvider";
 import { useBtcWallet } from "@/lib/client/BtcWalletProvider";
 import { useAuth } from "@/lib/client/AuthProvider";
@@ -70,8 +70,7 @@ export function ConnectWalletMenu() {
   const solana = useWallet();
   const evm = useEvmWallet();
   const auth = useAuth();
-  const suiAccount = useCurrentAccount();
-  const { mutate: disconnectSui } = useDisconnectWallet();
+  const sui = useSuiWallet();
   const btc = useBtcWallet();
 
   useEffect(() => {
@@ -133,7 +132,7 @@ export function ConnectWalletMenu() {
 
   const solanaPubkeyStr = solana.publicKey?.toBase58() ?? null;
   const isSignedIn = auth.checked && solanaPubkeyStr !== null && auth.sessionPubkey === solanaPubkeyStr;
-  const anyConnected = Boolean(solana.publicKey) || Boolean(evm.address) || Boolean(suiAccount) || Boolean(btc.address);
+  const anyConnected = Boolean(solana.publicKey) || Boolean(evm.address) || Boolean(sui.address) || Boolean(btc.address);
 
   const modal = open ? (
     <div
@@ -230,8 +229,8 @@ export function ConnectWalletMenu() {
         </ChainSection>
 
         <ChainSection title="Sui">
-          {suiAccount ? (
-            <ConnectedRow label={shorten(suiAccount.address)} onDisconnect={() => disconnectSui()} />
+          {sui.address ? (
+            <ConnectedRow label={shorten(sui.address)} onDisconnect={sui.disconnect} />
           ) : (
             <SuiConnectPicker />
           )}

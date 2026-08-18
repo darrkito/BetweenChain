@@ -5,7 +5,7 @@ import Link from "next/link";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "motion/react";
 import { useWallet } from "@solana/wallet-adapter-react";
-import { useCurrentAccount } from "@mysten/dapp-kit";
+import { useSuiWallet } from "@/lib/client/SuiWalletProvider";
 import { useEvmWallet } from "@/lib/client/EvmWalletProvider";
 import { usePrefersReducedMotion } from "@/lib/client/usePrefersReducedMotion";
 import { TokenIcon } from "@/app/components/TokenIcon";
@@ -66,7 +66,7 @@ function sectionSubtotal(section: Section): number {
 export function PortfolioDrawer() {
   const { publicKey } = useWallet();
   const evmWallet = useEvmWallet();
-  const suiAccount = useCurrentAccount();
+  const sui = useSuiWallet();
   const reducedMotion = usePrefersReducedMotion();
 
   const [open, setOpen] = useState(false);
@@ -80,7 +80,7 @@ export function PortfolioDrawer() {
 
   const solanaAddress = publicKey?.toBase58() ?? null;
   const evmAddress = evmWallet.address;
-  const suiAddress = suiAccount?.address ?? null;
+  const suiAddress = sui.address;
   const anyWalletConnected = Boolean(solanaAddress || evmAddress || suiAddress);
 
   useEffect(() => {

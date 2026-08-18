@@ -3,7 +3,7 @@
 import { useState } from "react";
 import dynamic from "next/dynamic";
 import { useConnection, useWallet } from "@solana/wallet-adapter-react";
-import { useCurrentAccount, useSignAndExecuteTransaction } from "@mysten/dapp-kit";
+import { useSuiWallet } from "@/lib/client/SuiWalletProvider";
 import { Transaction } from "@mysten/sui/transactions";
 import { useEvmWallet } from "@/lib/client/EvmWalletProvider";
 import { useBtcWallet } from "@/lib/client/BtcWalletProvider";
@@ -60,8 +60,7 @@ function sleep(ms: number) {
 const ETH_ORIGIN_CHAIN_ID = 1;
 
 export function NftBuyModalSui({ listing, onClose }: { listing: NftListing; onClose: () => void }) {
-  const suiAccount = useCurrentAccount();
-  const { mutateAsync: signAndExecuteSuiTransaction } = useSignAndExecuteTransaction();
+  const sui = useSuiWallet();
   const evmWallet = useEvmWallet();
   const btcWallet = useBtcWallet();
   const { publicKey, signTransaction } = useWallet();
@@ -95,12 +94,12 @@ export function NftBuyModalSui({ listing, onClose }: { listing: NftListing; onCl
   // signed-in check the way eth/sol (which ARE the account identity) do.
   const walletsReady =
     payWith === "eth"
-      ? Boolean(evmWallet.address && suiAccount)
+      ? Boolean(evmWallet.address && sui.address)
       : payWith === "sol"
-        ? Boolean(publicKey && suiAccount)
+        ? Boolean(publicKey && sui.address)
         : payWith === "btc"
-          ? Boolean(btcWallet.address && suiAccount)
-          : Boolean(suiAccount);
+          ? Boolean(btcWallet.address && sui.address)
+          : Boolean(sui.address);
   const signedIn =
     payWith === "eth"
       ? Boolean(evmWallet.address && auth.evmVerifiedAddress === evmWallet.address)
@@ -110,7 +109,7 @@ export function NftBuyModalSui({ listing, onClose }: { listing: NftListing; onCl
   const readyToQuote = walletsReady && signedIn;
 
   async function getQuote() {
-    if (!readyToQuote || !suiAccount) return;
+    if (!readyToQuote || !sui.address) return;
     setStep("quoting");
     setMessage(null);
     try {
@@ -126,7 +125,7 @@ export function NftBuyModalSui({ listing, onClose }: { listing: NftListing; onCl
           payWith,
           originChainId: payWith === "eth" ? ETH_ORIGIN_CHAIN_ID : undefined,
           sourceAddress: payWith === "eth" ? evmWallet.address : undefined,
-          destAddress: suiAccount.address,
+          destAddress: sui.address,
         }),
       });
       const body = await res.json();
@@ -326,7 +325,7 @@ export function NftBuyModalSui({ listing, onClose }: { listing: NftListing; onCl
   async function signAndBuy(id: string, serializedTx: string) {
     try {
       const tx = Transaction.from(serializedTx);
-      const result = await signAndExecuteSuiTransaction({ transaction: tx });
+      const result = await sui.signAndExecuteTransaction({ transaction: tx });
 
       setStep("confirming_buy");
       setMessage("Confirming your purchase on-chain…");
@@ -411,7 +410,7 @@ export function NftBuyModalSui({ listing, onClose }: { listing: NftListing; onCl
             <p className="text-xs text-ink-muted">Paying directly in SUI on Sui — connect a Sui wallet and sign in to this app.</p>
             <div className="flex flex-col gap-1">
               <span className="text-xs text-ink-faint">Sui (pays &amp; receives)</span>
-              {suiAccount ? <SuiWalletButton address={suiAccount.address} /> : <SuiConnectPicker />}
+              {sui.address ? <SuiWalletButton address={sui.address} /> : <SuiConnectPicker />}
             </div>
             {!hasAnySession && (
               <p className="text-[11px] text-ink-faint">
@@ -448,7 +447,7 @@ export function NftBuyModalSui({ listing, onClose }: { listing: NftListing; onCl
             </div>
             <div className="flex flex-col gap-1">
               <span className="text-xs text-ink-faint">Sui (receives &amp; buys)</span>
-              {suiAccount ? <SuiWalletButton address={suiAccount.address} /> : <SuiConnectPicker />}
+              {sui.address ? <SuiWalletButton address={sui.address} /> : <SuiConnectPicker />}
             </div>
           </div>
         )}
@@ -482,7 +481,7 @@ export function NftBuyModalSui({ listing, onClose }: { listing: NftListing; onCl
             </div>
             <div className="flex flex-col gap-1">
               <span className="text-xs text-ink-faint">Sui (receives &amp; buys)</span>
-              {suiAccount ? <SuiWalletButton address={suiAccount.address} /> : <SuiConnectPicker />}
+              {sui.address ? <SuiWalletButton address={sui.address} /> : <SuiConnectPicker />}
             </div>
           </div>
         )}
@@ -502,7 +501,7 @@ export function NftBuyModalSui({ listing, onClose }: { listing: NftListing; onCl
             </div>
             <div className="flex flex-col gap-1">
               <span className="text-xs text-ink-faint">Sui (receives &amp; buys)</span>
-              {suiAccount ? <SuiWalletButton address={suiAccount.address} /> : <SuiConnectPicker />}
+              {sui.address ? <SuiWalletButton address={sui.address} /> : <SuiConnectPicker />}
             </div>
             {!hasAnySession && (
               <p className="text-[11px] text-ink-faint">

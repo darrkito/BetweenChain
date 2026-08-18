@@ -1,6 +1,6 @@
 "use client";
 
-import { useDisconnectWallet } from "@mysten/dapp-kit";
+import { useSuiWallet } from "@/lib/client/SuiWalletProvider";
 
 function shorten(address: string): string {
   return `${address.slice(0, 6)}…${address.slice(-4)}`;
@@ -8,10 +8,10 @@ function shorten(address: string): string {
 
 /** Mirrors EvmWalletButton.tsx's shape/style, Sui side. */
 export function SuiWalletButton({ address }: { address: string }) {
-  const { mutate: disconnect } = useDisconnectWallet();
+  const { disconnect } = useSuiWallet();
   return (
     <button
-      onClick={() => disconnect()}
+      onClick={disconnect}
       className="num rounded-full border border-hairline bg-surface px-3 py-1.5 text-xs font-medium text-accent shadow-sm transition-colors hover:border-accent/40"
       title="Click to disconnect"
     >

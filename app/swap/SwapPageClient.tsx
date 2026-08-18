@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { PublicKey, SystemProgram, Transaction, VersionedTransaction } from "@solana/web3.js";
-import { useCurrentAccount, useSignAndExecuteTransaction } from "@mysten/dapp-kit";
+import { useSuiWallet } from "@/lib/client/SuiWalletProvider";
 import { buildSuiTransferTransaction } from "@/lib/client/suiTransfer";
 import { SOLANA_CHAIN_ID_CLIENT, normalizeSolanaSourceMint } from "@/lib/client/constants";
 import { toAtomicAmount } from "@/lib/client/amount";
@@ -119,13 +119,11 @@ export function SwapPageClient() {
 
   const evmWallet = useEvmWallet();
   const btcWallet = useBtcWallet();
-  // Sui wallet (2026-08-18) — dapp-kit's own hooks, same pattern
-  // NftBuyModalSui.tsx already uses for signing a Sui transaction.
-  // lib/client/SuiWalletProvider.tsx (wrapped around this page in
-  // app/providers.tsx) is only the SuiClientProvider/dapp-kit setup, not a
-  // custom hook — every consumer reads dapp-kit's hooks directly.
-  const suiAccount = useCurrentAccount();
-  const { mutateAsync: signAndExecuteSuiTransaction } = useSignAndExecuteTransaction();
+  // Sui wallet (2026-08-18, rewritten 2026-08-18c perf pass) —
+  // lib/client/SuiWalletProvider.tsx is now a hand-built provider on
+  // @mysten/wallet-standard directly (was @mysten/dapp-kit — see that
+  // file's own doc for why), same shape as useEvmWallet()/useBtcWallet().
+  const sui = useSuiWallet();
 
   // Meaningful in both directions now that Sell isn't Solana-only — see
   // STATE.md 2026-07-18i.
@@ -175,7 +173,7 @@ export function SwapPageClient() {
     ? buyToken.chainId === BTC_CHAIN_ID
       ? (btcWallet.address ?? null)
       : buyToken.chainId === SUI_CHAIN_ID
-      ? (suiAccount?.address ?? null)
+      ? sui.address
       : buyToken.chainId === SOLANA_CHAIN_ID_CLIENT
       ? (publicKey?.toBase58() ?? null)
       : (evmWallet.address ?? null)
@@ -244,9 +242,9 @@ export function SwapPageClient() {
   // empty result.
   const sellIsBtc = sellToken?.chainId === BTC_CHAIN_ID;
   // Sui (2026-08-18): same "no balance fetcher" treatment as BTC above —
-  // no dedicated Sui balance endpoint exists yet (dapp-kit's own client
-  // could fetch one, but that's a separate feature; the ChangeNOW swap
-  // flow itself doesn't need it, same as BTC never has).
+  // this endpoint doesn't feed the Sell-side balance/Max UI (a separate
+  // feature); the ChangeNOW swap flow itself doesn't need it, same as
+  // BTC never has.
   const sellIsSui = sellToken?.chainId === SUI_CHAIN_ID;
   const { balance: evmSellBalance, loading: evmSellBalanceLoading } = useEvmTokenBalance(
     !sellIsSolana && !sellIsBtc && !sellIsSui && sellToken ? sellToken.chainId : null,
@@ -409,7 +407,7 @@ export function SwapPageClient() {
     : sellIsBtc
       ? Boolean(btcWallet.address)
       : sellIsSui
-        ? Boolean(suiAccount?.address)
+        ? Boolean(sui.address)
         : Boolean(evmWallet.address);
   const canOpenReview =
     Boolean(sellWalletReady && sellToken && buyToken && hasValidInput) &&
@@ -452,7 +450,7 @@ export function SwapPageClient() {
       destCurrency === "btc"
         ? btcWallet.address
         : destCurrency === "sui"
-          ? suiAccount?.address
+          ? sui.address
           : destCurrency === "sol"
             ? publicKey?.toBase58()
             : evmWallet.address;
@@ -460,7 +458,7 @@ export function SwapPageClient() {
       setMessage("Connect a Bitcoin wallet to sell BTC.");
       return;
     }
-    if (sourceCurrency === "sui" && !suiAccount?.address) {
+    if (sourceCurrency === "sui" && !sui.address) {
       setMessage("Connect a Sui wallet to sell SUI.");
       return;
     }
@@ -520,7 +518,7 @@ export function SwapPageClient() {
         // SOL/ETH just below.
         const mist = BigInt(Math.round(Number(execBody.depositAmount) * 1e9));
         const tx = buildSuiTransferTransaction({ toAddress: execBody.depositAddress, mist });
-        await signAndExecuteSuiTransaction({ transaction: tx });
+        await sui.signAndExecuteTransaction({ transaction: tx });
       } else if (execBody.depositCurrency === "sol") {
         const lamports = Math.round(Number(execBody.depositAmount) * 1e9);
         const { blockhash } = await connection.getLatestBlockhash();
