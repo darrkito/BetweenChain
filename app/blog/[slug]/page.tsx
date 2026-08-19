@@ -87,6 +87,15 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
           <header className="flex flex-col gap-2">
             <div className="flex flex-wrap items-center gap-2 text-xs font-medium text-ink-faint">
               <span className="rounded-full bg-accent-soft px-2 py-0.5 text-accent">{post.category}</span>
+              {/* Added 2026-08-19 (SEO checklist audit) -- real gap, no
+                  visible author attribution anywhere on a post before this,
+                  even though articleSchema below already correctly
+                  attributes authorship to the real Organization entity
+                  (not a fabricated person -- see that schema's own
+                  #organization reference). This just makes the same real
+                  attribution visible to a human reader too. */}
+              <span>By Blockchains.Click Team</span>
+              <span aria-hidden="true">·</span>
               <time dateTime={post.date}>{formatDate(post.date)}</time>
               {hasRealUpdate && (
                 <>

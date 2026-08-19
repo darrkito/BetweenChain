@@ -67,6 +67,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${SITE_URL}/evac`, changeFrequency: "monthly", priority: 0.6 },
     { url: `${SITE_URL}/sentinel-shield`, changeFrequency: "monthly", priority: 0.6 },
     { url: `${SITE_URL}/burner-shield`, changeFrequency: "monthly", priority: 0.6 },
+    // Added 2026-08-19 (SEO checklist audit) -- real gap, this app had no
+    // Privacy Policy or Terms page at all before this.
+    { url: `${SITE_URL}/privacy`, lastModified: "2026-08-19", changeFrequency: "yearly", priority: 0.3 },
+    { url: `${SITE_URL}/terms`, lastModified: "2026-08-19", changeFrequency: "yearly", priority: 0.3 },
   ];
   const blogEntries: MetadataRoute.Sitemap = getAllBlogPosts().map((post) => ({
     url: `${SITE_URL}/blog/${post.slug}`,

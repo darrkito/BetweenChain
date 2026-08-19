@@ -25,6 +25,14 @@ export default function robots(): MetadataRoute.Robots {
       { userAgent: "Anthropic-AI", allow: "/" },
       { userAgent: "ClaudeBot", allow: "/" },
       { userAgent: "PerplexityBot", allow: "/" },
+      // Added 2026-08-19 (SEO playbook §17 checklist import) — three more
+      // real AI/agent crawlers the original 2026-08-05 list missed:
+      // Firecrawl's own crawler (used by many AI agent/RAG pipelines to
+      // ingest a site), Andi's answer-engine crawler, and Exa's search-API
+      // crawler (also used as retrieval backing for several AI products).
+      { userAgent: "FirecrawlAgent", allow: "/" },
+      { userAgent: "AndiBot", allow: "/" },
+      { userAgent: "ExaBot", allow: "/" },
     ],
     sitemap: `${SITE_URL}/sitemap.xml`,
   };

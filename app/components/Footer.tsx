@@ -62,6 +62,14 @@ export function Footer() {
           </div>
 
           <div className="flex items-center gap-3">
+            {/* Added 2026-08-19 (SEO checklist audit) -- real gap, no
+                Privacy/Terms links anywhere on the site before this. */}
+            <Link href="/privacy" className="text-xs text-ink-faint transition-colors hover:text-accent">
+              Privacy
+            </Link>
+            <Link href="/terms" className="text-xs text-ink-faint transition-colors hover:text-accent">
+              Terms
+            </Link>
             <SocialXLink className="text-ink-faint transition-colors hover:text-accent" />
             <p className="text-xs text-ink-faint">© {new Date().getFullYear()} Blockchains.Click</p>
           </div>
