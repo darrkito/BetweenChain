@@ -4389,3 +4389,147 @@ Could not visually verify in a browser (no browser automation tool available thi
 session) — verified structurally only: `tsc`/`lint`/`test`/`build` all clean, same
 `sm:` breakpoint convention already established for the wordmark/wallet-button
 shrink behavior right next to it. Worth a live look once deployed.
+
+## 2026-08-18 — Real bugs found live-testing Sui/BTC swaps, fixed one by one
+
+User tested the just-shipped Sui wallet-provider rewrite (see 2026-08-18's Sui-specific
+entry above/below in the git log if present) with a real Sui wallet on a preview deploy
+and reported a cascade of real, distinct bugs, each root-caused and fixed in turn:
+
+- **`runBtcSwap()` ignored the typed `destAddress` field**, always requiring a connected
+  destination wallet even when the user had already pasted a receiving address — forced
+  an unnecessary Solana wallet connect for a Sui-origin swap. Fixed: prefer the typed
+  (validated) address, fall back to the connected wallet only when none was entered.
+- **Silent blank preview below ChangeNOW's minimum amount** — `/api/quote/btc/preview`
+  swallowed `ChangeNowAmountOutOfRangeError` into a bare null result with no message.
+  Fixed: surface the real min/max in both the API response and `SwapPanel.tsx`.
+- **"Invalid request" on any leading-dot decimal amount** (`.5` instead of `0.5` — what
+  many mobile decimal keypads produce with no auto-inserted "0") — both the preview and
+  quote routes' amount regex required a digit before the decimal point. Fixed client-side
+  (prepend "0") and loosened both backend regexes as defense-in-depth.
+- **Comma decimal separator silently dropped**, not converted (`0,5` -> `05`, wrong
+  value) — `handleSellAmountChange` now normalizes `,` -> `.` before it reaches state.
+- **Native SOL Sell-side USD always showed $0.00** — native SOL from the token picker
+  carries Relay's System Program sentinel address, not the real wrapped-SOL mint
+  Jupiter's price API expects; the one call site in the app that queried mint-prices
+  with the raw address instead of running it through the existing
+  `normalizeSolanaSourceMint` helper. Fixed, and added the equivalent for EVM sell
+  tokens too (new `/api/tokens/evm-price` route + `getEvmNativeUsdPrice`) — EVM
+  Sell-side USD had never been built at all.
+- **Arbitrum (and other ETH L2s) to Sui**: user asked directly whether ChangeNOW
+  supports this — confirmed live via their API it does (network=arbitrum, real
+  liquidity), but this app silently treated every non-mainnet EVM chain as plain
+  Ethereum mainnet, and the Sell-token picker had ZERO chain restriction for a
+  ChangeNOW pair at all (any of the 40+ EVM chains, including non-ETH natives like
+  BNB/MATIC, could be picked and would've been silently mis-quoted as ETH). Fixed:
+  new `lib/chains/changenowEvmNetworks.ts` (chain-id -> ChangeNOW network map, shared
+  client+server), `fromNetwork`/`fromChainId` threaded through quote -> execute -> the
+  actual deposit tx's chainId (previously hardcoded to 1) so quote-network and
+  signing-chain can never diverge, and a new `isSellTokenAllowedForBtcPair` picker
+  filter (symmetric to the existing `isBuyTokenAllowed`). Scoped to Sui destinations
+  only per instruction — BTC destination keeps its original mainnet-ETH-only scope.
+
+All of the above verified live against production (`blockchains.click`) with real
+`curl` checks after each fix, plus one full real Sui swap completed end-to-end by the
+user (logs confirmed: quote -> execute -> ~2.5min of confirm polling -> done, zero
+errors) — the Sui rewrite and destAddress fix are validated with real funds, not just
+`tsc`/`build`.
+
+Real infra finding along the way: pushing to `main` auto-deploys straight to
+**production** via Vercel's Git integration (`blockchains.click` is aliased directly
+to the latest production build) — the earlier Sui-provider-rewrite session's "preview
+only, no `--prod`" discipline was silently bypassed by this the whole time. Flagged to
+the user explicitly; they chose to leave the already-live changes in place and test
+forward rather than roll back.
+
+## 2026-08-18/19 — SEO audit (real GSC/Bing data), 3 tiers shipped, homegrown crawler
+
+User asked for a plan to improve the site's SEO/AI-search visibility, grounded in real
+data pulled from this project's own GSC service-account credentials (not guessed):
+28-day query data showed 13 total queries, 0 clicks, sitewide — `/swap` itself had 1
+impression in 28 days. Findings and fixes, roughly in the order shipped:
+
+**Tier 1 (accuracy fixes):**
+- `public/llms.txt` was actively telling AI crawlers (robots.txt explicitly allows
+  GPTBot/ClaudeBot/PerplexityBot/etc.) that Bitcoin and Sui swaps weren't supported and
+  that Sui was NFT-purchase-only — both false as of the 2026-08-08/08-18 ChangeNOW
+  work. Rewritten to describe real current capability.
+- `/faq`'s `<title>` was the literal word "FAQ" — retargeted.
+- Homepage title flipped from brand-first to keyword-first, then (after real competitor
+  research, see Tier 3) split further: NFT positioning moved out of the title into the
+  description, since no real top-ranking cross-chain-swap competitor (deBridge,
+  Symbiosis, 1inch, ChangeNOW) also tries to rank as an "NFT Marketplace" in the same
+  title tag.
+
+**Tier 2 (content gaps):** 10 new BTC/Sui swap-pair landing pages at
+`/swap/{chain}-to-{chain}` (solana/ethereum <-> bitcoin/sui, plus bitcoin<->sui direct)
+— the ChangeNOW capability had zero dedicated content despite being live since
+2026-08-08. Required wiring the BTC/Sui-aware preview/picker logic already built into
+`SwapPanel.tsx` into `QuotePreviewWidget.tsx`/`BlogSwapPreview.tsx` too, since these
+pages embed a live quote widget. New blog post (`how-to-swap-sol-eth-to-sui.mdx`)
+mirroring the existing BTC post's format. `/nft` (worst-ranking indexed page, position
+51.5) got a real direct-answer intro + a new NFT-specific FAQ section with schema — it
+had neither before. Found and fixed a real accuracy bug while writing the new post: the
+existing BTC post called ChangeNOW "non-custodial" — directly contradicts
+`lib/chains/changenow.ts`'s own custodial-risk disclosure; corrected both posts.
+
+**Tier 3 (structural):** real `lastModified` sitemap dates (only where honestly known —
+never blanket-stamped, Google's own guidance warns against that). GSC sitemap
+resubmitted + real indexing requests pushed via the existing Playwright automation.
+**New: Bing/IndexNow automation** — got a real Bing Webmaster API key from the user,
+verified it live (`GetFeeds`/`SubmitFeed`/`SubmitUrlbatch` all confirmed working),
+discovered the real per-site daily quota (98/day, not the documented 10,000 ceiling) by
+reading the actual error message rather than guessing, and wrote
+`~/.gsc-indexer/submit-urls-bing.mjs` to parse and retry against it dynamically. Also
+found and closed a real gap: an IndexNow key file had been hosted on the site for a
+while but nothing ever actually called the IndexNow API — new
+`submit-urls-indexnow.mjs` (all 191 URLs in one call, no quota fight unlike the legacy
+Bing API). Both wired into the existing daily cron alongside the GSC batch script,
+`~/.gsc-indexer/run-daily.sh`.
+
+**External checklist import + homegrown crawl audit (2026-08-19):** imported a
+user-provided SEO checklist (now `~/seo-ai-search-playbook.md` §17/§18) and worked
+through the items applicable to a non-local-business dApp. Added 3 missing AI crawlers
+to `robots.txt` (FirecrawlAgent/AndiBot/ExaBot), a real `/privacy` and `/terms` page
+(grounded in the actual Supabase schema/fee model/ChangeNOW disclosure — deliberately
+states no legal entity name/jurisdiction, since none was ever established anywhere in
+this codebase and inventing one would be fabrication; NOT a substitute for real legal
+review), and a visible blog byline ("By Blockchains.Click Team" — matches the existing
+Organization-level `articleSchema` attribution, deliberately not a fabricated named
+individual).
+
+Built and ran a homegrown site crawler (`~/.gsc-indexer/scripts/site_crawl_blockchains.py`,
+the playbook's own free Screaming-Frog substitute) against the full live sitemap.
+Caught one crawler false-positive before reporting it (script's own `root=f"{SITE}/"`
+trailing-slash mismatch made it claim all 192 pages were "unreachable from homepage" —
+recomputed locally with the bug fixed before trusting the result). Found and fixed 3
+real bugs:
+1. `app/nft/[vendor]/[slug]/page.tsx`'s `generateMetadata` swallowed any upstream fetch
+   failure and reacted with `robots: { index: false }` — confirmed live that 16
+   collection pages got caught mid-flake during one crawl pass and would-be de-indexed,
+   while the exact same URLs returned correct data seconds later. Added one retry
+   (the fetch is already Redis-cached, so this is cheap).
+2. `relatedPairs()` in `lib/content/swapPairs.ts` always returned the same first-N
+   matches in fixed array order — confirmed via the crawl's own link graph that
+   `/swap/solana-to-avalanche` had zero real inbound internal links anywhere on the
+   site, since Avalanche/Robinhood (late in `EVM_CHAINS`) never made the "first 3" cut
+   for anyone. Fixed to always lead with the reverse-direction pair, then rotate the
+   remaining matches by the calling pair's own array position.
+3. `/nft`'s default view only links to its Solana-family collections — 83 of 192
+   sitemap URLs (every OpenSea/Tradeport collection) were only reachable via the
+   `?family=evm`/`?family=move` tab links, neither of which was itself in the sitemap
+   *or* had its own canonical (both self-canonicalized back to bare `/nft`, which would
+   have told Google to defer to the Solana-only page instead of indexing them
+   separately). Fixed both: added the two family URLs to the sitemap, made the
+   canonical family-aware.
+
+**Deliberately not done**: PageSpeed's new gallery/catalog-page LCP pattern (relevant
+to `/nft`'s image grid) — no PSI API key exists for this project, and getting one needs
+the user's own Google Cloud Console access; flagged, not solved. Formal image sitemap
+skipped — most images here are external NFT-marketplace CDN content, not owned assets
+worth claiming in one.
+
+All of the above verified via `tsc`/`lint`/`test`/`build` (+ a local `next start`
+smoke-test for the swap-pair/blog pages before shipping) after every change, and
+re-verified live against production (`blockchains.click`) via direct `curl`/GSC-API/
+Bing-API checks after each deploy — not just "the build succeeded."
