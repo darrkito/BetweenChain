@@ -22,7 +22,17 @@ export async function generateMetadata({ searchParams }: { searchParams: Promise
   const label = nftChainFamilyLabel(family);
   const title = params.q ? `"${params.q}" — ${label} NFTs` : `${label} NFT Collections`;
   const description = `Browse and buy ${label} NFT collections across Solana, Ethereum, and Sui — cross-chain, pay from any wallet.`;
-  return { title, description, alternates: { canonical: "/nft" } };
+  // Real bug found live 2026-08-19 (homegrown crawl audit, alongside the
+  // sitemap fix above it): this always canonicalized to bare "/nft"
+  // regardless of family, which is right for a `?q=` search (transient,
+  // genuinely should defer to the base view) but wrong for `?family=evm`/
+  // `?family=move` -- those are stable, meaningfully different content
+  // (different real collections), not a duplicate of the Solana-only
+  // default. Self-canonicalizing them away would have undermined adding
+  // them to the sitemap: Google generally won't index a page separately
+  // when its own canonical tag says the "real" version is elsewhere.
+  const canonical = family === "solana" ? "/nft" : `/nft?family=${family}`;
+  return { title, description, alternates: { canonical } };
 }
 
 /**

@@ -62,7 +62,23 @@ export async function generateMetadata({ params }: { params: Promise<{ vendor: s
   const vendor = rawVendor as NftVendor;
   const slug = decodeURIComponent(rawSlug);
   const client = NFT_VENDOR_CLIENTS[vendor];
-  const rawCollection = client ? await client.getCollection(slug).catch(() => undefined) : undefined;
+  // Real bug found live 2026-08-19 (homegrown crawl audit): a single failed
+  // upstream call here — a transient vendor-API blip, not a permanently
+  // broken collection — fell through to `robots: { index: false }`,
+  // actively telling Google not to index a real, working page. Confirmed
+  // live: 16 collection pages got caught mid-flake during one crawl pass
+  // and served the generic "Collection" title + noindex; re-fetching the
+  // exact same URLs seconds later returned the real title every time.
+  // getCollection is already Redis-cached (see this function's own doc
+  // below), so a retry after a short delay is cheap and, in practice,
+  // very likely to hit either the now-warm cache or a since-recovered
+  // upstream — closes the "Googlebot's one crawl attempt landed on the
+  // unlucky millisecond" risk almost entirely for one extra round-trip.
+  let rawCollection = await client?.getCollection(slug).catch(() => undefined);
+  if (!rawCollection) {
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    rawCollection = await client?.getCollection(slug).catch(() => undefined);
+  }
   const collection = rawCollection ? applyNftImageOverride(vendor, slug, rawCollection) : undefined;
   if (!collection) return { title: "Collection", robots: { index: false } };
   const title = collection.name;

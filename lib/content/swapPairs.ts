@@ -81,11 +81,32 @@ export function pairForSlug(slug: string): SwapPair | undefined {
 }
 
 /** Other pairs sharing a chain with `pair`, for related-page internal links. */
+/**
+ * Real gap found live 2026-08-19 (homegrown crawl audit) — this used to
+ * always `.slice(0, limit)` off the SAME fixed SWAP_PAIRS array order,
+ * meaning any chain appearing later in EVM_CHAINS (Avalanche, Robinhood,
+ * and to a lesser extent Optimism) was never among the "first 3" matches
+ * for any earlier pair's related-links section, and got picked up almost
+ * nowhere else either — confirmed via the crawl's own internal-link graph:
+ * zero pages linked to /swap/solana-to-avalanche at all. Two real fixes:
+ * (1) the reverse-direction pair (same two chains, opposite way) is always
+ * the single most relevant related link and is now always first, which
+ * also makes every pair's link graph symmetric by construction; (2) the
+ * remaining slots rotate through the match list using an offset derived
+ * from the pair's own position in SWAP_PAIRS, instead of always starting
+ * from index 0 — different callers now surface different subsets of the
+ * same match pool, spreading inbound links across the whole set instead of
+ * concentrating them on whichever chains happen to sort first.
+ */
 export function relatedPairs(pair: SwapPair, limit = 3): SwapPair[] {
-  return SWAP_PAIRS.filter((p) => p.slug !== pair.slug && (p.from.slug === pair.from.slug || p.to.slug === pair.to.slug)).slice(
-    0,
-    limit,
+  const reverse = SWAP_PAIRS.find((p) => p.from.slug === pair.to.slug && p.to.slug === pair.from.slug);
+  const others = SWAP_PAIRS.filter(
+    (p) => p.slug !== pair.slug && p.slug !== reverse?.slug && (p.from.slug === pair.from.slug || p.to.slug === pair.to.slug),
   );
+  const remaining = Math.max(0, limit - (reverse ? 1 : 0));
+  const offset = others.length > 0 ? SWAP_PAIRS.findIndex((p) => p.slug === pair.slug) % others.length : 0;
+  const rotated = others.length > 0 ? [...others.slice(offset), ...others.slice(0, offset)] : others;
+  return [...(reverse ? [reverse] : []), ...rotated.slice(0, remaining)];
 }
 
 export interface SwapPairCopy {

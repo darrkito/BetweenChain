@@ -57,6 +57,17 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: SITE_URL, lastModified: RECENT_STATIC_EDIT, changeFrequency: "daily", priority: 1 },
     { url: `${SITE_URL}/swap`, changeFrequency: "weekly", priority: 0.9 },
     { url: `${SITE_URL}/nft`, lastModified: RECENT_STATIC_EDIT, changeFrequency: "hourly", priority: 0.8 },
+    // Added 2026-08-19 (homegrown crawl audit) — real gap: /nft's default
+    // view only ever links to its Solana-family collections (the default
+    // tab); EVM and Sui collections (83 of 192 sitemap URLs) were only
+    // reachable by following the NftChainTabs link to these two query
+    // variants first — real `<Link>`s (a JS-capable crawler follows them
+    // fine), but neither variant was itself in the sitemap, so a crawler
+    // that discovers pages sitemap-first had no direct path to ~40% of
+    // the site's NFT collection pages. Confirmed via a full site crawl's
+    // own internal-link graph before adding these.
+    { url: `${SITE_URL}/nft?family=evm`, lastModified: RECENT_STATIC_EDIT, changeFrequency: "hourly", priority: 0.7 },
+    { url: `${SITE_URL}/nft?family=move`, lastModified: RECENT_STATIC_EDIT, changeFrequency: "hourly", priority: 0.7 },
     { url: `${SITE_URL}/faq`, lastModified: RECENT_STATIC_EDIT, changeFrequency: "monthly", priority: 0.6 },
     { url: `${SITE_URL}/blog`, changeFrequency: "weekly", priority: 0.7 },
     { url: `${SITE_URL}/games`, changeFrequency: "weekly", priority: 0.7 },

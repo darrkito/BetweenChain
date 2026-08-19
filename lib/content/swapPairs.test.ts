@@ -62,16 +62,32 @@ describe("pairForSlug", () => {
 });
 
 describe("relatedPairs", () => {
-  it("excludes the pair itself and only returns pairs sharing a chain", () => {
+  it("excludes the pair itself, always leads with the reverse direction, and otherwise only returns pairs sharing a chain", () => {
     const pair = pairForSlug("solana-to-ethereum")!;
     const related = relatedPairs(pair);
     expect(related.every((p) => p.slug !== pair.slug)).toBe(true);
-    expect(related.every((p) => p.from.slug === "solana" || p.to.slug === "ethereum")).toBe(true);
+    expect(related[0].slug).toBe("ethereum-to-solana");
+    expect(
+      related.slice(1).every((p) => p.slug !== "ethereum-to-solana" && (p.from.slug === "solana" || p.to.slug === "ethereum")),
+    ).toBe(true);
   });
 
   it("respects the limit", () => {
     const pair = pairForSlug("solana-to-ethereum")!;
     expect(relatedPairs(pair, 2)).toHaveLength(2);
+  });
+
+  // Real bug found live 2026-08-19 (homegrown crawl audit): every pair
+  // used to always return the same first-N matches in fixed array order,
+  // so a chain appearing later in EVM_CHAINS (Avalanche, Robinhood) was
+  // never selected by anyone's related-pairs section and ended up with
+  // zero real inbound internal links — confirmed via a full site crawl's
+  // own link graph. Assert the fix directly: at least one other pair in
+  // the whole set actually links to solana-to-avalanche now.
+  it("gives every pair at least one real inbound related-link, including chains late in EVM_CHAINS", () => {
+    const target = pairForSlug("solana-to-avalanche")!;
+    const linkedFromSomewhere = SWAP_PAIRS.some((p) => p.slug !== target.slug && relatedPairs(p).some((r) => r.slug === target.slug));
+    expect(linkedFromSomewhere).toBe(true);
   });
 });
 
