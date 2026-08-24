@@ -2,7 +2,15 @@
 title: "How Cross-Chain Token Swaps Actually Work"
 description: "A plain-English look at what happens when you swap a token on one chain for a token on another — no bridging, no manual steps."
 date: "2026-07-15"
+updatedDate: "2026-08-24"
 category: "Guides"
+faq:
+  - question: "Do I need a wallet on both chains?"
+    answer: "Only if the swap actually spans two chains — you need a Solana wallet for any swap starting from Solana, and an EVM wallet as the destination if you're swapping into an EVM chain (or as the source, for an EVM-origin swap)."
+  - question: "How long does a cross-chain swap take?"
+    answer: "A same-chain swap confirms as fast as the one chain it touches. A cross-chain swap depends on both legs' confirmation times — typically well under a minute, since Relay's solver network delivers from its own inventory rather than waiting on a slow canonical bridge."
+  - question: "What happens if the destination chain leg fails after the first leg succeeds?"
+    answer: "This is exactly the scenario the on-chain re-verification step exists to catch — a swap is never marked complete based on a client-reported transaction hash alone."
 ---
 
 If you've ever tried to move value between blockchains the "old" way, you know the drill: wrap a token, bridge it, wait for confirmations on two different networks, then swap again on the other side. It's slow, it's error-prone, and it's easy to send the wrong asset to the wrong address.
@@ -26,17 +34,13 @@ Both legs are quoted together, so the price you see before confirming is the pri
 
 There's a flat 0.25% platform fee applied on each leg of the swap — no separate "hidden" fee beyond that, plus whatever network/gas fee the underlying chain itself charges (which varies by network congestion, not something Blockchains.Click controls or marks up). Same-chain swaps only ever pay one leg's worth of fee, since there's no bridging leg to fee separately. See [how that flat rate compares to Jumper and deBridge's fee models](/blog/blockchains-click-vs-jumper-vs-debridge) if you're weighing this against another platform.
 
+## How long does a cross-chain swap take?
+
+A same-chain swap confirms as fast as the one chain it touches. A cross-chain swap depends on both legs' confirmation times — typically well under a minute, since Relay's solver network delivers from its own inventory rather than waiting on a slow canonical bridge.
+
 ## Why the destination address can't change mid-swap
 
 One deliberate design choice: the address you're sending funds to is locked in the moment you get a quote, and it cannot be altered afterward — not from the frontend, not from the backend. Every completed swap is also independently re-verified against the real on-chain result before it's ever marked complete. That closes the door on a whole class of address-substitution attacks that plague less careful bridging setups — see [Swap Security 101](/blog/swap-security-101) for the full threat model this protects against.
-
-## Common questions
-
-**Do I need a wallet on both chains?** Only if the swap actually spans two chains — you need a Solana wallet for any swap starting from Solana, and an EVM wallet as the destination if you're swapping into an EVM chain (or as the source, for an EVM-origin swap).
-
-**How long does it take?** A same-chain swap confirms as fast as the one chain it touches. A cross-chain swap depends on both legs' confirmation times — typically well under a minute, since Relay's solver network delivers from its own inventory rather than waiting on a slow canonical bridge.
-
-**What happens if the destination chain leg fails after the first leg succeeds?** This is exactly the scenario the on-chain re-verification step (above) exists to catch — a swap is never marked complete based on a client-reported transaction hash alone.
 
 ## Try it
 

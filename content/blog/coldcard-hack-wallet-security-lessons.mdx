@@ -2,14 +2,22 @@
 title: "The $116M Coldcard Hack — And the Wallet Habits That Actually Matter"
 description: "A firmware bug from 2021 quietly weakened seed randomness on some Coldcard hardware wallets. In August 2026, attackers started draining them. Here's what actually happened, and what to take from it."
 date: "2026-08-06"
+updatedDate: "2026-08-24"
 category: "Security"
+faq:
+  - question: "What caused the Coldcard hack?"
+    answer: "A code change shipped in Coldcard's firmware back in March 2021 caused some devices to silently fall back to a software-based random number generator instead of the dedicated hardware one, for seed phrase generation specifically. Affected wallets generated seeds with as little as 40 bits of real randomness instead of the full 128 bits a Bitcoin seed is supposed to have."
+  - question: "How much was stolen in the Coldcard hack?"
+    answer: "By early August 2026, roughly 1,816 BTC (about $116M) had been stolen from over 5,200 addresses, in four waves starting July 30, 2026."
+  - question: "Am I affected by the Coldcard hack?"
+    answer: "Anyone who generated a seed on a Coldcard between March 2021 and the patch should treat it as compromised. If none of your funds ever touched a Coldcard, this specific incident doesn't touch you directly — but the underlying randomness-quality lesson applies to every wallet, on every chain."
 ---
 
 <QuickFacts items='["Root cause: a March 2021 firmware bug in Coldcard (made by Coinkite) weakened seed-phrase randomness on affected devices — in the worst cases, key strength dropped from 128 bits down to as little as 40", "Attackers began draining affected wallets on July 30, 2026, in four waves", "By early August: ~1,816 BTC (~$116M) stolen from over 5,200 addresses", "Part of a brutal year — $1.2B+ lost across 276 separate crypto hacks in 2026 alone", "Anyone who generated a seed on a Coldcard between March 2021 and the patch should treat it as compromised"]' />
 
 On July 30, 2026, attackers started systematically draining Bitcoin from Coldcard hardware wallets — devices whose entire selling point is that they're *offline*, air-gapped, supposedly immune to exactly this kind of theft. Within days it was one of the largest hardware-wallet exploits ever recorded.
 
-## What actually went wrong
+## What caused the Coldcard hack?
 
 This wasn't a hack in the "someone broke the encryption" sense. It was worse, in a quieter way: a code change shipped in Coldcard's firmware back in **March 2021** caused some devices to silently fall back to a software-based random number generator instead of the dedicated hardware one — for seed phrase generation specifically, the single most security-critical operation a hardware wallet performs.
 

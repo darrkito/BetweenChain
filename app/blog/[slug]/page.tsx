@@ -12,6 +12,7 @@ import { BlogTip } from "@/app/components/BlogTip";
 import { Callout, StatBar, QuickFacts } from "@/app/components/BlogComponents";
 import { BlogTokenStats } from "@/app/components/BlogTokenStats";
 import { BlogCollectionCard } from "@/app/components/BlogCollectionCard";
+import { FaqSection } from "@/app/components/FaqSection";
 import { JsonLd, articleSchema, breadcrumbListSchema, howToSchema, faqPageSchema } from "@/lib/seo/jsonld";
 import { getAllBlogSlugs, getBlogPost } from "@/lib/content/blog";
 import { extractHeadings, rehypeHeadingIds, slugifyHeading } from "@/lib/content/headingSlug";
@@ -131,6 +132,8 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
 
         <TableOfContents headings={headings} />
       </div>
+
+      {post.faq && <FaqSection items={post.faq} />}
 
       <JsonLd
         data={articleSchema({

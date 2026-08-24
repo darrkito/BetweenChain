@@ -9,7 +9,12 @@ describe("blog frontmatter — optional field backward compatibility", () => {
   it("existing posts that predate the new optional fields parse with them undefined, not throwing", () => {
     const posts = getAllBlogPosts();
     expect(posts.length).toBeGreaterThan(0);
-    const preExisting = posts.find((p) => p.slug === "how-cross-chain-swaps-work");
+    // 2026-08-24: how-cross-chain-swaps-work (the previous example here) was
+    // given real updatedDate/faq frontmatter as part of a genuine SEO/GEO
+    // content fix — swapped to swap-security-101, still a real post with
+    // none of the optional fields, so this test keeps verifying its actual
+    // intent (backward-compat parsing) rather than a specific post's shape.
+    const preExisting = posts.find((p) => p.slug === "swap-security-101");
     expect(preExisting).toBeTruthy();
     expect(preExisting?.updatedDate).toBeUndefined();
     expect(preExisting?.chains).toBeUndefined();
