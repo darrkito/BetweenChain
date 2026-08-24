@@ -1,0 +1,57 @@
+{
+  "linkset": [
+    {
+      "anchor": "https://blockchains.click/api/tokens",
+      "service-doc": [
+        { "href": "https://blockchains.click/llms.txt", "type": "text/plain" }
+      ],
+      "item": [
+        { "href": "https://blockchains.click/api/tokens/chains", "type": "application/json" },
+        { "href": "https://blockchains.click/api/tokens/list", "type": "application/json" },
+        { "href": "https://blockchains.click/api/tokens/price", "type": "application/json" },
+        { "href": "https://blockchains.click/api/tokens/evm-price", "type": "application/json" },
+        { "href": "https://blockchains.click/api/tokens/stats", "type": "application/json" },
+        { "href": "https://blockchains.click/api/tokens/trending", "type": "application/json" },
+        { "href": "https://blockchains.click/api/tokens/mint-prices", "type": "application/json" },
+        { "href": "https://blockchains.click/api/tokens/safety", "type": "application/json" }
+      ]
+    },
+    {
+      "anchor": "https://blockchains.click/api/quote",
+      "service-doc": [
+        { "href": "https://blockchains.click/llms.txt", "type": "text/plain" }
+      ],
+      "item": [
+        { "href": "https://blockchains.click/api/quote/preview", "type": "application/json" },
+        { "href": "https://blockchains.click/api/quote/btc/preview", "type": "application/json" }
+      ]
+    },
+    {
+      "anchor": "https://blockchains.click/api/nft",
+      "service-doc": [
+        { "href": "https://blockchains.click/llms.txt", "type": "text/plain" }
+      ],
+      "item": [
+        { "href": "https://blockchains.click/api/nft/collection", "type": "application/json" },
+        { "href": "https://blockchains.click/api/nft/collections", "type": "application/json" },
+        { "href": "https://blockchains.click/api/nft/listings", "type": "application/json" },
+        { "href": "https://blockchains.click/api/nft/listed-count", "type": "application/json" },
+        { "href": "https://blockchains.click/api/nft/total-supply", "type": "application/json" }
+      ]
+    },
+    {
+      "anchor": "https://blockchains.click/api",
+      "service-doc": [
+        { "href": "https://blockchains.click/sentinel-shield", "type": "text/html" },
+        { "href": "https://blockchains.click/burner-shield", "type": "text/html" }
+      ],
+      "status": [
+        { "href": "https://blockchains.click/api/sentinel-shield/health", "type": "application/json" }
+      ],
+      "item": [
+        { "href": "https://blockchains.click/api/sentinel-shield/health", "type": "application/json" },
+        { "href": "https://blockchains.click/api/burner-shield/check", "type": "application/json" }
+      ]
+    }
+  ]
+}

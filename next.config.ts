@@ -154,6 +154,22 @@ const nextConfig: NextConfig = {
           // This app never needs camera/microphone/geolocation — deny them
           // outright rather than leaving the default (which allows same-origin).
           { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
+          // Agent-discoverability pass (2026-08-24) — RFC 8288 Link header
+          // pointing agents at the real RFC 9727 API catalog below. Only
+          // makes sense bundled with that file existing.
+          { key: "Link", value: '</.well-known/api-catalog>; rel="api-catalog"' },
+        ],
+      },
+      {
+        // RFC 9727 requires this exact Content-Type; a static file with no
+        // extension under public/ would otherwise be served with whatever
+        // generic type Vercel's static handler defaults to. CORS allowed
+        // since the whole point is letting a third-party agent fetch this
+        // cross-origin without a preflight failure.
+        source: "/.well-known/api-catalog",
+        headers: [
+          { key: "Content-Type", value: 'application/linkset+json; profile="https://www.rfc-editor.org/info/rfc9727"' },
+          { key: "Access-Control-Allow-Origin", value: "*" },
         ],
       },
     ];

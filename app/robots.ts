@@ -14,7 +14,24 @@ const SITE_URL = "https://blockchains.click";
 export default function robots(): MetadataRoute.Robots {
   return {
     rules: [
-      { userAgent: "*", allow: "/", disallow: "/api/" },
+      {
+        userAgent: "*",
+        allow: "/",
+        disallow: "/api/",
+        // Content Signals (2026-08-24, agent-discoverability pass) — a real,
+        // emerging directive (contentsignals.org, Cloudflare-backed) distinct
+        // from the AI-crawler allowlisting below: those control WHETHER a bot
+        // may fetch pages at all, this declares stated PREFERENCES for what
+        // fetched content may be used for. search=yes/ai-input=yes because
+        // AI-citation visibility is the explicit goal of this site's whole
+        // SEO/GEO effort; ai-train=no is a deliberate, reversible default
+        // (declines model-training consent specifically, doesn't affect
+        // search/answer-engine use) — revisit if the business stance on
+        // training-data consent changes. Next.js's `other` field passes
+        // per-rule directives through verbatim (see RobotsRuleBase's own
+        // doc comment) — this isn't a first-class allow/disallow field.
+        other: { "Content-Signal": "ai-train=no, search=yes, ai-input=yes" },
+      },
       { userAgent: "GPTBot", allow: "/" },
       // OAI-SearchBot (2026-08-06 GEO pass) — a distinct OpenAI crawler from
       // GPTBot: search-time retrieval for ChatGPT's live web search feature,
