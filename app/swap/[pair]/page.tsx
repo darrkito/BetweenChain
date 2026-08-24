@@ -10,9 +10,11 @@ import { SWAP_PAIRS, pairForSlug, relatedPairs, swapPairCopy } from "@/lib/conte
 
 const SITE_URL = "https://blockchains.click";
 
-// Bounded, real set (12 Solana<->EVM pairs — see PLAN.md for why not the
-// full chain matrix and not token-level pairs) — every page here is
-// statically generated at build time, same as app/blog/[slug]/page.tsx.
+// Bounded, real set (24 pairs: 14 Solana<->EVM relay pairs + 10 BTC/Sui
+// ChangeNOW pairs — see PLAN.md for why not the full chain matrix and not
+// token-level pairs; count intentionally not hardcoded elsewhere, see
+// swapPairs.ts's own comment on why) — every page here is statically
+// generated at build time, same as app/blog/[slug]/page.tsx.
 export function generateStaticParams() {
   return SWAP_PAIRS.map((p) => ({ pair: p.slug }));
 }

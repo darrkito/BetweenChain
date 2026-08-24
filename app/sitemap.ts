@@ -55,7 +55,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const RECENT_STATIC_EDIT = "2026-08-18";
   const staticEntries: MetadataRoute.Sitemap = [
     { url: SITE_URL, lastModified: RECENT_STATIC_EDIT, changeFrequency: "daily", priority: 1 },
-    { url: `${SITE_URL}/swap`, changeFrequency: "weekly", priority: 0.9 },
+    { url: `${SITE_URL}/swap`, lastModified: "2026-08-11", changeFrequency: "weekly", priority: 0.9 },
     { url: `${SITE_URL}/nft`, lastModified: RECENT_STATIC_EDIT, changeFrequency: "hourly", priority: 0.8 },
     // Added 2026-08-19 (homegrown crawl audit) — real gap: /nft's default
     // view only ever links to its Solana-family collections (the default
@@ -70,11 +70,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${SITE_URL}/nft?family=move`, lastModified: RECENT_STATIC_EDIT, changeFrequency: "hourly", priority: 0.7 },
     { url: `${SITE_URL}/faq`, lastModified: RECENT_STATIC_EDIT, changeFrequency: "monthly", priority: 0.6 },
     { url: `${SITE_URL}/blog`, changeFrequency: "weekly", priority: 0.7 },
-    { url: `${SITE_URL}/games`, changeFrequency: "weekly", priority: 0.7 },
-    { url: `${SITE_URL}/dust-sweeper`, changeFrequency: "weekly", priority: 0.7 },
-    { url: `${SITE_URL}/basket`, changeFrequency: "weekly", priority: 0.7 },
+    { url: `${SITE_URL}/games`, lastModified: "2026-08-07", changeFrequency: "weekly", priority: 0.7 },
+    { url: `${SITE_URL}/dust-sweeper`, lastModified: "2026-08-24", changeFrequency: "weekly", priority: 0.7 },
+    { url: `${SITE_URL}/basket`, lastModified: "2026-08-24", changeFrequency: "weekly", priority: 0.7 },
+    // Real gap found 2026-08-24 (SEO/GEO foundation audit): /radar existed as
+    // a real, linked, indexable page but was never added to the sitemap.
+    { url: `${SITE_URL}/radar`, lastModified: "2026-08-24", changeFrequency: "weekly", priority: 0.7 },
     { url: `${SITE_URL}/pay/create`, changeFrequency: "monthly", priority: 0.6 },
-    { url: `${SITE_URL}/orders`, changeFrequency: "monthly", priority: 0.7 },
+    { url: `${SITE_URL}/orders`, lastModified: "2026-08-08", changeFrequency: "monthly", priority: 0.7 },
     { url: `${SITE_URL}/evac`, changeFrequency: "monthly", priority: 0.6 },
     { url: `${SITE_URL}/sentinel-shield`, changeFrequency: "monthly", priority: 0.6 },
     { url: `${SITE_URL}/burner-shield`, changeFrequency: "monthly", priority: 0.6 },

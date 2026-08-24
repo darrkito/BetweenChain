@@ -5,7 +5,7 @@ import { TokenIcon } from "@/app/components/TokenIcon";
 import { getAllBaskets } from "@/lib/content/baskets";
 
 export const metadata: Metadata = {
-  title: "Portfolio Baskets",
+  title: "Portfolio Baskets — Split One Token Into Many, Cross-Chain",
   description: "Split one token into a curated basket of destination tokens across chains, in one guided flow.",
   alternates: { canonical: "/basket" },
 };

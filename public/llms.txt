@@ -9,7 +9,7 @@
 - **Cross-Chain NFT Marketplace**: Browse and buy NFTs on Solana, EVM chains, and Sui, paying with a token from a different source chain than the NFT's own chain.
 - **Fee Structure**: Solana/EVM swaps (Jupiter/Relay) carry a 0.25% platform fee per leg (a same-chain swap has one leg; a cross-chain swap can have two), plus the underlying chain's own network/gas fee. BTC/Sui swaps (ChangeNOW) carry no separate Blockchains.Click platform fee — only ChangeNOW's own embedded exchange rate.
 - **No-Wallet Quote Preview**: Get a live swap-rate preview without connecting a wallet, for any of the above pairs.
-- **Dedicated Swap-Pair Pages**: Live rate, fee breakdown, and FAQ for each of the 12 supported Solana <-> EVM chain pairs, at `/swap/{chain}-to-{chain}` (e.g. `/swap/solana-to-ethereum`, `/swap/ethereum-to-solana`). BTC/Sui pairs are swappable via the main `/swap` picker; dedicated landing pages for those pairs don't exist yet.
+- **Dedicated Swap-Pair Pages**: Live rate, fee breakdown, and FAQ for each of 24 supported pairs, at `/swap/{chain}-to-{chain}`: 14 Solana <-> EVM pairs (e.g. `/swap/solana-to-ethereum`, `/swap/ethereum-to-solana`) plus 10 BTC/Sui pairs (e.g. `/swap/solana-to-bitcoin`, `/swap/bitcoin-to-sui`, `/swap/ethereum-to-sui`).
 - **Points & Referrals**: 1 point per $1 of real trading volume. Referring a friend earns 20% of their volume as points (ongoing, not one-time); the referred user gets a 10% bonus.
 
 ## Target User Scenarios
