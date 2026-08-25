@@ -17,6 +17,15 @@
  * specific size doesn't make sense.
  */
 export function proxiedImageUrl(src: string, width?: number): string {
+  // Real bug found live 2026-08-25 (user-reported: NFT images not appearing
+  // at all on the /nft?family=move browse grid) — some Tradeport
+  // collections return a `data:` URI (an inline generated placeholder,
+  // e.g. a default SVG) as their imageUrl. Wrapping that through
+  // /api/img?url= always 400ed: the proxy's own protocol allowlist
+  // (app/api/img/route.ts) correctly rejects anything that isn't http(s),
+  // and a data: URI never needed proxying anyway — it's already inline,
+  // same-origin by definition, no unbounded-host/CORS concern exists.
+  if (src.startsWith("data:")) return src;
   const params = new URLSearchParams({ url: src });
   if (width) params.set("w", String(width));
   return `/api/img?${params}`;
