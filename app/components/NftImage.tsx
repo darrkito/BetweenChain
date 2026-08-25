@@ -19,7 +19,24 @@ import { proxiedImageUrl } from "@/lib/client/imageProxy";
 // resilience win for any OTHER IPFS image that's only failing on one
 // specific gateway, which is a common transient IPFS gateway reliability
 // pattern, not a Solana/Sui-specific one).
-const IPFS_GATEWAYS = ["https://ipfs.io/ipfs/", "https://nftstorage.link/ipfs/", "https://w3s.link/ipfs/", "https://dweb.link/ipfs/"];
+//
+// gateway.pinata.cloud added 2026-08-25 after a live investigation
+// (user-reported broken images on both Sui and Solana collections):
+// confirmed w3s.link AND nftstorage.link were both redirecting to
+// dweb.link, which was itself hanging (TLS connects, then never returns
+// data) — meaning two of our four "different" gateways were secretly the
+// same failing backend, so the retry chain wasn't actually diversifying
+// away from the outage. Verified pinata's gateway independently reachable
+// and NOT redirecting through dweb.link before adding. (cloudflare-ipfs.com
+// was also tried as a candidate — its DNS no longer resolves at all,
+// deliberately not added.)
+const IPFS_GATEWAYS = [
+  "https://ipfs.io/ipfs/",
+  "https://gateway.pinata.cloud/ipfs/",
+  "https://nftstorage.link/ipfs/",
+  "https://w3s.link/ipfs/",
+  "https://dweb.link/ipfs/",
+];
 
 // Matches both URL shapes vendors actually return: subdomain form
 // (`{cid}.ipfs.{gateway}/path`, e.g. Magic Eden's stats API) and path form
