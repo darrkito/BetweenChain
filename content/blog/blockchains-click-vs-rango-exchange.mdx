@@ -1,0 +1,46 @@
+---
+title: "Blockchains.Click vs. Rango Exchange: Fee Structure and Chain Coverage Compared"
+description: "Rango covers 74+ chains with zero platform fee. Blockchains.Click covers fewer chains with a flat, published fee. Here's what that tradeoff actually means."
+date: "2026-08-25"
+category: "Guides"
+mentions:
+  - "Rango Exchange"
+faq:
+  - question: "Does Rango Exchange charge a platform fee?"
+    answer: "Rango's own published positioning is a zero-platform-fee model — you pay the underlying bridge/DEX fees the selected route uses, but Rango itself doesn't add a separate percentage on top, per its own documentation as of August 2026."
+  - question: "How many chains does Rango support vs. Blockchains.Click?"
+    answer: "Rango connects 74+ blockchains and aggregates 150+ DEXs and bridges. Blockchains.Click covers a smaller, curated set — Solana, 40+ EVM chains via Relay, plus native Bitcoin and Sui via ChangeNOW — routed through two specific engines (Jupiter and Relay) rather than a broad aggregator layer."
+  - question: "If Rango has no platform fee, why would anyone pay Blockchains.Click's 0.25%?"
+    answer: "Zero platform fee doesn't mean zero cost — Rango's total is whatever the underlying route's bridge/DEX fees add up to, which varies by route and isn't fixed in advance. Blockchains.Click's 0.25% per leg is a known number before you sign, which some users trade a possibly-lower-but-variable Rango total for."
+---
+
+<QuickFacts items='["Rango: 74+ chains, 150+ DEXs/bridges aggregated, zero platform fee (route fees still apply)", "Blockchains.Click: Solana + 40+ EVM chains + native Bitcoin/Sui, flat 0.25% per leg", "Rango total cost varies by which underlying route gets selected; Blockchains.Click does not", "Bitcoin and Sui on Blockchains.Click route through ChangeNOW directly — no wrapped-token step"]' />
+
+Rango Exchange and Blockchains.Click solve the same basic problem — getting a token from one chain to a different token on another chain — with genuinely different tradeoffs, not just different branding.
+
+## Chain coverage: breadth vs. curation
+
+Rango's own positioning is broad by design: **74+ blockchains**, aggregating **150+ DEXs and bridges** into one interface, picking a route across whichever combination gets you there. That's a real advantage if you're moving between two less-common chains that a narrower tool simply doesn't reach.
+
+Blockchains.Click covers a smaller, deliberately curated set: **Solana and 40+ EVM chains** (via [Relay](https://relay.link)), plus **native Bitcoin and Sui** as direct swap origins or destinations (via ChangeNOW, no wrapped-token intermediate step). Within that set, routing is handled by exactly two engines — Jupiter for the Solana leg, Relay for cross-chain delivery — rather than a wide aggregator layer choosing among dozens of possible paths.
+
+## Fee model: zero-fee-but-variable vs. flat-but-narrower
+
+Rango's model is **zero platform fee** — per its own documentation, it doesn't add its own percentage on top of a route. What you pay is whatever the underlying bridge and DEX combination for that specific route charges, which moves with market conditions and which route gets selected. "Zero platform fee" is a true statement; "the total cost is fixed" is not — those are different claims.
+
+Blockchains.Click charges a flat **0.25% per leg**: a same-chain swap or a swap starting from native SOL is one leg; converting an SPL token to SOL first adds a second leg (0.5% total). That rate doesn't change based on which underlying route gets picked, because there isn't a route-selection layer to vary — it's shown before you sign and stays what it says.
+
+<StatBar title="At a glance" data='[{"label": "Rango chain coverage", "value": 74, "display": "74+ chains"}, {"label": "Rango DEXs/bridges aggregated", "value": 150, "display": "150+"}, {"label": "Blockchains.Click fee", "value": 0.25, "display": "0.25%/leg"}]' />
+
+## Which one actually fits
+
+If the swap you need touches a chain outside Solana/major-EVM/Bitcoin/Sui, Rango's broader reach is the more useful tool — that's not a close call. If you're swapping within that narrower set and want to know the exact cost before you commit, without needing to trust that a "zero fee" route selection is actually landing on the cheapest real total, the flat published rate is the more predictable choice. Neither claim ("more chains" vs. "fixed price") makes the other one wrong — they're optimizing for different things.
+
+<Callout href="/faq" cta="See the full fee breakdown">
+  Full detail on exactly how the 0.25%-per-leg model works, and how BTC/Sui swaps differ, is in the FAQ.
+</Callout>
+
+## Sources
+
+- [Rango Docs — Rango vs. Competitors](https://docs.rango.exchange/rango-vs.-competitors)
+- [CoinCodeCap — Rango Exchange Review](https://coincodecap.com/rango-exchange-review)

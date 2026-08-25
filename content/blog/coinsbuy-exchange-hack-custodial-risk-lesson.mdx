@@ -1,0 +1,46 @@
+---
+title: "The $8M Coinsbuy Hack: What a Custodial Exchange Drain Actually Teaches"
+description: "In August 2026, attackers drained over $8M from crypto exchange Coinsbuy across Tron and Ethereum in minutes. Here's what happened, and why the custodial-vs-non-custodial distinction is the real lesson."
+date: "2026-08-25"
+category: "Security"
+faq:
+  - question: "What happened in the Coinsbuy hack?"
+    answer: "An attacker drained more than $8 million from crypto platform Coinsbuy across the Tron and Ethereum networks. The attack began on Tron with a small 5 USDT test transaction, and within minutes over 6 million USDT was drained from eight Coinsbuy wallets. On Ethereum, a separate 1.89 million USDT and 77 ETH were taken from three wallets."
+  - question: "Why did a 5 USDT test transaction matter?"
+    answer: "It's a classic attacker pattern: send a tiny amount first to confirm a compromised key or exploited access path actually works and isn't being monitored/blocked, before draining the real balances. If Coinsbuy's monitoring had flagged that test transaction, the much larger drain minutes later might have been preventable."
+  - question: "Could this happen to a non-custodial swap platform?"
+    answer: "Not in the same way. Coinsbuy's wallets held pooled customer funds the exchange itself controlled — that's what made a single compromised access path able to drain multiple wallets across two chains in minutes. A non-custodial swap (where a transaction is signed directly from the user's own wallet, and funds never sit in a platform-controlled pool) has no equivalent single point of failure to drain."
+---
+
+<QuickFacts items='["Attacker drained over $8M from Coinsbuy across Tron and Ethereum", "Attack opened with a 5 USDT test transaction on Tron before the real drain", "Over 6M USDT taken from 8 Coinsbuy wallets on Tron within minutes", "A separate 1.89M USDT and 77 ETH taken from 3 wallets on Ethereum", "Part of $840M+ lost to DeFi/exchange hacks in the first five months of 2026 alone"]' />
+
+On a Sunday in August 2026, an attacker drained more than **$8 million** from crypto exchange Coinsbuy — across two separate blockchains, in a matter of minutes. It's a smaller incident than some of 2026's headline hacks, but the mechanics are worth understanding precisely because they're so common: this is the shape most exchange drains take.
+
+## What actually happened
+
+The attack began on **Tron** with a **5 USDT test transaction** — a tiny, deliberate probe. Minutes later, over **6 million USDT** was drained from eight separate Coinsbuy wallets on that same chain. A parallel drain on **Ethereum** took **1.89 million USDT and 77 ETH** from three more wallets.
+
+<StatBar title="Coinsbuy hack, by the numbers" data='[{"label": "Total drained", "value": 8, "display": "$8M+"}, {"label": "Tron wallets hit", "value": 8, "display": "8 wallets"}, {"label": "Tron USDT drained", "value": 6, "display": "6M+ USDT"}, {"label": "Ethereum wallets hit", "value": 3, "display": "3 wallets"}]' />
+
+The test-transaction pattern is worth noting on its own. Sending a small amount first, then waiting to see if it moves or triggers any response, is a standard way attackers confirm a compromised credential or exploited access path is real and unmonitored — before committing to the much larger, much more visible drain. It's a five-minute window where the right monitoring could, in theory, have caught it.
+
+## The part that actually matters: why it could happen at all
+
+The deeper question isn't "how did the attacker get in" — exchange compromises happen through everything from leaked keys to social engineering to infrastructure bugs, and the specific vector here wasn't fully public at the time of writing. The question worth asking is structural: **why was a single compromised access path able to drain eight separate wallets across two different blockchains?**
+
+The answer is custodial architecture. Coinsbuy's wallets held pooled customer funds that the exchange itself controlled the keys to. That's not a criticism unique to Coinsbuy — it's how every custodial exchange works, by definition. It's also exactly what creates the failure mode: one compromised access path reaches everything the platform controls, because the platform, not the individual user, holds the keys.
+
+## Why this distinction is the real takeaway
+
+A non-custodial swap works differently in a way that's structurally relevant here, not just a marketing point. When a swap is signed directly from your own wallet — the way Solana/EVM swaps on this platform are executed via Jupiter and Relay — there's no pooled platform-controlled wallet sitting between "your funds" and "an attacker who compromised the platform's infrastructure." A compromised backend has nothing to drain, because the backend was never holding the money.
+
+That distinction isn't absolute across every product on the market, including this one. This platform's Bitcoin and Sui swaps route through **ChangeNOW**, a custodial exchange — the funds briefly sit at a ChangeNOW-controlled deposit address during that leg, disclosed [in the FAQ](/faq) rather than implied otherwise. The lesson from Coinsbuy isn't "custodial is always wrong" — plenty of custodial services operate safely for years. It's that **custodial pooling is a real, structural risk factor**, worth knowing which parts of any given swap flow are custodial and which aren't, rather than assuming "it's a website with a swap button" tells you enough on its own.
+
+<Callout href="/blog/swap-security-101" cta="Read Swap Security 101">
+  Curious exactly which parts of a swap here are non-custodial, and how the custodial BTC/Sui leg is handled? The full breakdown is in Swap Security 101.
+</Callout>
+
+## Sources
+
+- [Yahoo Finance — Hackers Drain $8 Million From Crypto Exchange Across Two Blockchains](https://finance.yahoo.com/markets/crypto/articles/hackers-drain-8-million-crypto-155630618.html)
+- [Shattered.io — Coinsbuy Hack Drains $8M as July Losses Hit $247M](https://shattered.io/coinsbuy-exchange-hack-2026/)

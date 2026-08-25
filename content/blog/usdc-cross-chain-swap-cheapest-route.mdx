@@ -1,0 +1,52 @@
+---
+title: "Moving USDC Across Chains: What Actually Costs the Least in 2026"
+description: "Circle's own CCTP burns and re-mints USDC for near-zero cost — but only chain-to-chain. Here's when that's the right tool, and when you actually need a swap instead."
+date: "2026-08-25"
+category: "Guides"
+chains: ["solana", "ethereum"]
+faq:
+  - question: "What's the cheapest way to move USDC across chains?"
+    answer: "For a pure USDC-to-USDC transfer under $5,000, Circle's own Cross-Chain Transfer Protocol (CCTP) is typically cheapest — it burns USDC on the source chain and mints fresh USDC on the destination with no protocol fee, only gas on both chains ($0.05–$0.50 total at typical 2026 gas prices). For larger amounts or when you need a different token on the other end, a routed swap is the right tool instead."
+  - question: "Why would I use a swap instead of CCTP for USDC?"
+    answer: "CCTP only moves USDC to USDC — same asset, different chain. If you're holding USDC and actually need SOL, ETH, or another token on the destination chain, CCTP alone doesn't get you there; you'd need a swap on the destination chain afterward anyway. A routed swap does the move-and-convert in one step."
+  - question: "What does Blockchains.Click charge to swap USDC cross-chain?"
+    answer: "A flat 0.25% per leg — a same-chain swap or a direct swap from native SOL is one leg; converting an SPL token like USDC to SOL first, then out cross-chain, is two legs (0.5% total). The exact fee is shown before you sign."
+---
+
+<QuickFacts items='["Pure USDC-to-USDC under $5,000: Circle CCTP is typically cheapest — near-zero fee, only gas", "Across: ~0.04% relayer fee, well-suited to $1,000-$10,000 EVM L2-to-L2 transfers", "Stargate: ~0.06% per cross-chain swap, unified liquidity across major EVM chains", "Blockchains.Click: flat 0.25% per leg — the right tool when you need USDC converted into a different token, not just moved", "Figures reflect published rates as of August 2026 — confirm current terms directly before relying on them"]' />
+
+\"Cheapest way to move USDC across chains\" doesn't have one answer, because \"moving USDC\" and \"swapping into something else on another chain\" are two different jobs — and the cheapest tool for one is usually the wrong tool for the other.
+
+## If you just need USDC on a different chain: CCTP wins
+
+**Circle's Cross-Chain Transfer Protocol (CCTP)** is Circle's own native mechanism: it burns USDC on the source chain and mints freshly-issued USDC on the destination chain. No wrapped token, no liquidity pool, no protocol fee — the only cost is gas on both ends, typically **$0.05 to $0.50 total** at 2026 gas prices. For a pure USDC-to-USDC move under roughly $5,000, this is usually the cheapest path that exists, because there's no fee layered on top of gas at all.
+
+The catch: CCTP moves USDC to USDC. It doesn't convert to anything else. If your actual goal is "I have USDC on Ethereum and I need SOL on Solana," CCTP gets you USDC on Solana — you'd still need a second, separate swap once it lands.
+
+## Mid-size routed transfers: Across and Stargate
+
+For **$1,000–$10,000** transfers, especially between EVM L2s, **Across** charges roughly a **0.04% relayer fee** plus a small base fee, with settlement typically completing in under 30 seconds — the percentage cost stays small in absolute terms at this size. **Stargate** uses unified liquidity pools across Ethereum, Arbitrum, Optimism, Base, Polygon, and more, charging around **0.06%** per cross-chain swap. Both are purpose-built stablecoin/EVM routing tools, and both are typically cheaper than a general-purpose swap aggregator for a same-asset move at this size.
+
+<StatBar title="Published rates by route (as of Aug 2026)" data='[{"label": "CCTP (pure USDC-USDC)", "value": 0, "display": "gas only"}, {"label": "Across (~$1K-$10K)", "value": 0.04, "display": "~0.04%"}, {"label": "Stargate", "value": 0.06, "display": "~0.06%"}, {"label": "Blockchains.Click (swap)", "value": 0.25, "display": "0.25%/leg"}]' unit="%" />
+
+## When you actually need a swap, not just a move
+
+None of the above convert USDC into a different asset. If the real goal is **USDC on Ethereum → SOL on Solana**, or **USDC → BTC**, or any case where the destination token isn't USDC itself, a routed swap is the correct tool — and that's a different job than a same-asset bridge, so it's priced differently too.
+
+On this platform, that's a flat **0.25% per leg** via Jupiter (Solana-side) and Relay (cross-chain delivery) — a same-chain swap, or a cross-chain swap starting from native SOL, is one leg; converting an SPL token like USDC into SOL first is a second leg (0.5% total). The rate doesn't move with route selection, unlike some aggregators — see [how the fee structure compares to Jumper and deBridge](/blog/blockchains-click-vs-jumper-vs-debridge) for the full breakdown against other swap-specific options.
+
+## Picking the right tool
+
+Ready to swap into a different asset rather than just move USDC? Get a live quote for [Solana → Ethereum](/swap/solana-to-ethereum) or [Ethereum → Solana](/swap/ethereum-to-solana).
+
+The honest framing: if you just need the *same* USDC on a different chain and the amount is modest, CCTP (or a CCTP-based wallet feature) will usually beat any swap aggregator on pure cost, because it isn't doing a conversion at all. A swap platform — this one included — earns its fee by doing something CCTP structurally can't: turning USDC into a genuinely different asset, cross-chain, in one signed transaction.
+
+<Callout href="/swap" cta="Get a live quote">
+  See the real fee for your specific USDC swap before you sign — no wallet connection required for a preview.
+</Callout>
+
+## Sources
+
+- [Mt Pelerin — Bridge USDC across multiple chains for 0.1%](https://www.mtpelerin.com/blog/usdc-cross-chain-swaps)
+- [eco.com — Cheapest Stablecoin Transfer Services 2026: Onchain Routes Ranked by Fee](https://eco.com/support/en/articles/15261550-cheapest-stablecoin-transfer-services-2026-onchain-routes-ranked-by-fee)
+- [eco.com — Best Cross-Chain Stablecoin Routing Platforms 2026](https://eco.com/support/en/articles/15232573-best-cross-chain-stablecoin-routing-platforms-2026-usdc-and-usdt-across-chains)
