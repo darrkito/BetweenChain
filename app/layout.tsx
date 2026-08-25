@@ -222,6 +222,19 @@ export default function RootLayout({
             gtag('config', 'G-9NV769VBEJ');
           `}
         </Script>
+        {/* Microsoft Clarity — session recording/heatmaps. Same strategy="lazyOnload"
+            rationale as GA4 above: Clarity's own snippet dynamically injects a
+            second script tag, so there's no benefit to loading it any earlier
+            than the page becoming interactive. */}
+        <Script id="clarity-init" strategy="lazyOnload">
+          {`
+            (function(c,l,a,r,i,t,y){
+                c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+                t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+                y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+            })(window, document, "clarity", "script", "y7tcafgriq");
+          `}
+        </Script>
       </body>
     </html>
   );
