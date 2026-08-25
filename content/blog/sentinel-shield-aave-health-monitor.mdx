@@ -14,6 +14,8 @@ faq:
     answer: "Below 1.0 means Aave can liquidate the position. This page flags anything under 1.05 as Critical and under 1.3 as At risk, giving you a heads-up before it's actually at the liquidation line."
   - question: "Which protocols does this cover?"
     answer: "Aave v3 on Ethereum, Arbitrum, and Base for now. Kamino (Solana) and Navi (Sui) each need their own separate integration — not built yet."
+  - question: "What is liquidation risk monitoring?"
+    answer: "It's tracking how close a leveraged lending position is to the point where a protocol like Aave can forcibly close it (liquidate) to protect its lenders. Sentinel Shield does this by reading your real Aave health factor live, across every chain you're borrowing on, and flagging it Critical or At risk before you actually hit the liquidation line — instead of you checking Aave's own dashboard on each chain separately."
 ---
 
 Checking a leveraged position's health factor usually means opening Aave's own dashboard, or several, if you're borrowing on more than one chain. Sentinel Shield puts it in one place.

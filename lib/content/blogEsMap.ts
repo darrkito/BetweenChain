@@ -13,6 +13,7 @@ export const ES_TO_EN_BLOG_SLUG: Record<string, string> = {
   "que-es-un-swap-cross-chain": "how-cross-chain-swaps-work",
   "blockchains-click-vs-uniswap": "blockchains-click-vs-uniswap",
   "mejor-wallet-swap-cross-chain-phantom-metamask": "best-wallet-cross-chain-swap-phantom-metamask",
+  "revocar-aprobaciones-tokens-seguridad-crypto": "revoke-token-approvals-crypto-security",
 };
 
 export const EN_TO_ES_BLOG_SLUG: Record<string, string> = Object.fromEntries(

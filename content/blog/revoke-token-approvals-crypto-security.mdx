@@ -1,0 +1,42 @@
+---
+title: "Revoke Token Approvals: The Cleanup Step Most Wallets Never Prompt You For"
+description: "Every token approval you've ever granted stays active until you cancel it — including ones from contracts you forgot existed. Here's what that risk actually is and how to check."
+date: "2026-08-25"
+category: "Guides"
+mentions: ["Burner Shield"]
+faq:
+  - question: "What does revoking a token approval actually do?"
+    answer: "It cancels the permission you previously granted a contract to spend a specific token from your wallet — usually an \"unlimited\" allowance by default, not just the amount you used at the time. The contract can no longer move that token from your wallet after you revoke it, even if the contract itself later turns out to be compromised."
+  - question: "Why would an old, unused approval be dangerous?"
+    answer: "If the contract you approved is later exploited or was malicious from the start, an active approval lets it drain that token from every wallet that ever approved it — including yours, even if you haven't touched that app in months. The approval doesn't expire on its own."
+  - question: "How do I check what approvals my wallet has active?"
+    answer: "EVM chains have public approval-checking tools (Etherscan's Token Approval Checker, or wallet-native approval managers in MetaMask and others) that list every contract with an active allowance on your address, and let you revoke each one directly on-chain."
+  - question: "Does Blockchains.Click revoke approvals for me?"
+    answer: "Not directly — that's a wallet/chain-level action you take with your own signer, not something a swap platform executes on your behalf. What this platform does offer is Burner Shield, which checks a contract's real risk before you approve it in the first place, so you're granting fewer risky approvals to begin with."
+---
+
+Most crypto users check their token balances regularly. Almost nobody checks their **approvals** — the list of contracts they've given permission to spend specific tokens on their behalf. That list only grows, and nothing prompts you to clean it up.
+
+## What a token approval actually is
+
+On EVM chains, before a contract (a DEX, a staking protocol, an NFT marketplace) can move a token out of your wallet, you have to explicitly approve it first — a separate signed transaction from the swap or stake itself. Most interfaces default to requesting an **unlimited** approval, not just the amount for that one transaction, because it saves you from re-approving every time you use that app again.
+
+That convenience is also the risk: the approval doesn't expire when the transaction finishes. It sits there, active, indefinitely, until you manually revoke it.
+
+## Why an old approval you forgot about is a real risk
+
+Say you tried a new DeFi protocol a year ago, swapped once, and never went back. If that protocol's contract is exploited later — or turns out to have been a slow-rug from the start — your still-active approval means the attacker's contract can pull that token straight out of your wallet, with no new signature required from you. You don't have to be using the app when the exploit happens. You just have to have an approval sitting there from when you last did.
+
+This is a genuinely common attack pattern: it's not phishing you directly, it's exploiting permission you already granted and forgot about.
+
+## How to actually check and clean this up
+
+- **Etherscan's Token Approval Checker** (and the equivalent block explorers for other EVM chains) lists every active approval tied to your address, which contract holds it, and lets you revoke each one with a signed transaction — no cost beyond gas.
+- **Wallet-native approval managers** — MetaMask and several other wallets now surface this directly in their settings, without needing a third-party site.
+- **A practical habit**: review this every few months, not just after a hack headline. Revoke anything tied to an app you no longer use, especially unlimited approvals on tokens you hold meaningful value in.
+
+## Where prevention fits in
+
+Revoking cleans up permissions you've already granted. The complementary move is granting fewer risky ones in the first place — [Burner Shield](/burner-shield) checks a contract's real risk profile (honeypot behavior, malicious-address flags, mint/tax risk) before you approve anything, using GoPlus Security's public data. Prevention and cleanup are two different steps; neither replaces the other.
+
+[Check a contract before you approve it](/burner-shield) — and if it's been a while, go check what's still approved on your wallet too.

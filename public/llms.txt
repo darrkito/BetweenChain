@@ -43,6 +43,7 @@
 - [Never Get Stranded With No Gas: Automatic Destination Gas Top-Up](https://blockchains.click/blog/gas-top-up-cross-chain-swaps)
 - [No More Guessing: Real Bridge Status Instead of a Generic Spinner](https://blockchains.click/blog/stall-transparency-real-bridge-status)
 - [That $0.40 of BONK You Forgot About Adds Up — Here's How to Get It Back](https://blockchains.click/blog/unlock-crypto-dust-across-chains)
+- [Revoke Token Approvals: The Cleanup Step Most Wallets Never Prompt You For](https://blockchains.click/blog/revoke-token-approvals-crypto-security)
 
 ## Blog: Product Feature Deep-Dives
 
@@ -82,6 +83,7 @@ A Spanish-language subset of the blog is available at `/es/blog/{slug}`, real tr
 - [¿Qué es un Swap Cross-Chain y Cómo Funciona Realmente?](https://blockchains.click/es/blog/que-es-un-swap-cross-chain)
 - [Blockchains.Click vs. Uniswap: Comparando Comisiones y Modelo de Swap Cross-Chain](https://blockchains.click/es/blog/blockchains-click-vs-uniswap)
 - [Phantom vs. MetaMask para Swaps Cross-Chain: Qué Wallet(s) Necesitas Realmente](https://blockchains.click/es/blog/mejor-wallet-swap-cross-chain-phantom-metamask)
+- [Revocar Aprobaciones de Tokens: El Paso de Limpieza Que Casi Ninguna Wallet Te Recuerda](https://blockchains.click/es/blog/revocar-aprobaciones-tokens-seguridad-crypto)
 
 ## Not Supported
 

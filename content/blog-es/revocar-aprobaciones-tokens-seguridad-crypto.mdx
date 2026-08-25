@@ -1,0 +1,42 @@
+---
+title: "Revocar Aprobaciones de Tokens: El Paso de Limpieza Que Casi Ninguna Wallet Te Recuerda"
+description: "Cada aprobación de token que has otorgado sigue activa hasta que la canceles — incluyendo las de contratos que ya olvidaste que existían. Esto es lo que ese riesgo realmente significa y cómo revisarlo."
+date: "2026-08-25"
+category: "Guías"
+mentions: ["Burner Shield"]
+faq:
+  - question: "¿Qué hace exactamente revocar una aprobación de token?"
+    answer: "Cancela el permiso que le diste antes a un contrato para gastar un token específico de tu wallet — normalmente una autorización \"ilimitada\" por default, no solo la cantidad que usaste en ese momento. El contrato ya no puede mover ese token de tu wallet después de que la revoques, incluso si el contrato mismo resulta comprometido más adelante."
+  - question: "¿Por qué sería peligrosa una aprobación vieja que ya no uso?"
+    answer: "Si el contrato que aprobaste es explotado después, o resultó malicioso desde el principio, una aprobación activa le permite drenar ese token de cualquier wallet que alguna vez lo haya aprobado — incluyendo la tuya, aunque no hayas tocado esa app en meses. La aprobación no expira sola."
+  - question: "¿Cómo reviso qué aprobaciones tiene activas mi wallet?"
+    answer: "Las cadenas EVM tienen herramientas públicas de revisión de aprobaciones (el Token Approval Checker de Etherscan, o gestores de aprobaciones nativos en MetaMask y otras wallets) que listan cada contrato con una autorización activa en tu dirección, y te dejan revocar cada una directamente on-chain."
+  - question: "¿Blockchains.Click revoca aprobaciones por mí?"
+    answer: "No directamente — eso es una acción a nivel de wallet/cadena que haces con tu propio firmante, no algo que una plataforma de swap ejecute en tu nombre. Lo que sí ofrece esta plataforma es Burner Shield, que revisa el riesgo real de un contrato antes de que lo apruebes, para que otorgues menos aprobaciones riesgosas desde el inicio."
+---
+
+La mayoría de los usuarios de cripto revisan sus saldos de tokens con regularidad. Casi nadie revisa sus **aprobaciones** — la lista de contratos a los que les dieron permiso de gastar tokens específicos en su nombre. Esa lista solo crece, y nada te recuerda limpiarla.
+
+## Qué es realmente una aprobación de token
+
+En cadenas EVM, antes de que un contrato (un DEX, un protocolo de staking, un marketplace de NFT) pueda mover un token fuera de tu wallet, tienes que aprobarlo explícitamente primero — una transacción firmada separada del swap o stake mismo. La mayoría de las interfaces piden por default una aprobación **ilimitada**, no solo la cantidad de esa transacción, porque te ahorra tener que volver a aprobar cada vez que uses esa app de nuevo.
+
+Esa comodidad también es el riesgo: la aprobación no expira cuando termina la transacción. Se queda ahí, activa, indefinidamente, hasta que la revocas manualmente.
+
+## Por qué una aprobación vieja que olvidaste es un riesgo real
+
+Digamos que probaste un protocolo DeFi nuevo hace un año, hiciste swap una vez, y nunca volviste. Si ese contrato del protocolo es explotado después —o resulta que era un rug lento desde el principio— tu aprobación todavía activa significa que el contrato del atacante puede sacar ese token directamente de tu wallet, sin necesidad de una nueva firma de tu parte. No tienes que estar usando la app cuando ocurre el exploit. Solo tienes que tener una aprobación ahí desde la última vez que la usaste.
+
+Este es un patrón de ataque genuinamente común: no te está haciendo phishing directamente, está explotando un permiso que ya le diste y olvidaste.
+
+## Cómo revisar y limpiar esto realmente
+
+- **El Token Approval Checker de Etherscan** (y los exploradores de bloque equivalentes de otras cadenas EVM) lista cada aprobación activa ligada a tu dirección, qué contrato la tiene, y te deja revocar cada una con una transacción firmada — sin costo más allá del gas.
+- **Gestores de aprobaciones nativos de la wallet** — MetaMask y varias otras wallets ahora muestran esto directamente en su configuración, sin necesitar un sitio de terceros.
+- **Un hábito práctico**: revisa esto cada pocos meses, no solo después de una noticia de hackeo. Revoca todo lo ligado a una app que ya no usas, especialmente aprobaciones ilimitadas en tokens donde tienes valor real.
+
+## Dónde entra la prevención
+
+Revocar limpia permisos que ya otorgaste. El movimiento complementario es otorgar menos permisos riesgosos desde el principio — [Burner Shield](/burner-shield) revisa el perfil de riesgo real de un contrato (comportamiento de honeypot, direcciones maliciosas marcadas, riesgo de mint/impuesto) antes de que apruebes nada, usando datos públicos de GoPlus Security. Prevención y limpieza son dos pasos distintos; ninguno reemplaza al otro.
+
+[Revisa un contrato antes de aprobarlo](/burner-shield) — y si ha pasado tiempo, ve a revisar qué sigue aprobado en tu wallet también.

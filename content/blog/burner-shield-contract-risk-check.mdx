@@ -14,6 +14,10 @@ faq:
     answer: "Not in v1 — a full isolated-execution engine needs real account-abstraction infrastructure and a decision about who pays gas for interactions with contracts nobody has vetted, a materially bigger commitment than a pre-sign check. This ships the check, which catches most of the real value without that risk."
   - question: "What chains does this cover?"
     answer: "EVM chains only — GoPlus's address/token security data is EVM-scoped, no Solana or Sui coverage."
+  - question: "What is honeypot detection?"
+    answer: "It's identifying a token contract engineered so you can buy it but can't sell it — a common scam pattern. Burner Shield flags this via GoPlus Security's real detection data before you ever approve or swap into the token, not after you're already stuck holding it."
+  - question: "What is rugcheck safety data?"
+    answer: "It's a risk report covering the real red flags for a token or contract — honeypot behavior, malicious-address flags, mint authority that could inflate supply, and hidden sell taxes. Burner Shield pulls this from GoPlus Security's public API and shows it before you sign anything."
 ---
 
 The moment before you sign is the only moment that matters — Burner Shield gives you a real answer right then, not after.

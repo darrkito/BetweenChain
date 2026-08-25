@@ -11,6 +11,8 @@ faq:
     answer: "A same-chain swap confirms as fast as the one chain it touches. A cross-chain swap depends on both legs' confirmation times — typically well under a minute, since Relay's solver network delivers from its own inventory rather than waiting on a slow canonical bridge."
   - question: "What happens if the destination chain leg fails after the first leg succeeds?"
     answer: "This is exactly the scenario the on-chain re-verification step exists to catch — a swap is never marked complete based on a client-reported transaction hash alone."
+  - question: "Can I swap between two EVM chains, not just Solana and an EVM chain?"
+    answer: "Yes. An EVM chain swap here — for example Ethereum to Base, or Base to Arbitrum — skips the Solana leg entirely and routes directly through Relay's cross-chain leg, since both sides are already EVM. Same quote-then-sign flow, same flat 0.25% fee, one less leg than a Solana-origin swap."
 ---
 
 If you've ever tried to move value between blockchains the "old" way, you know the drill: wrap a token, bridge it, wait for confirmations on two different networks, then swap again on the other side. It's slow, it's error-prone, and it's easy to send the wrong asset to the wrong address.

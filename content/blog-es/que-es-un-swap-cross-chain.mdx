@@ -10,6 +10,8 @@ faq:
     answer: "Un swap dentro de la misma cadena confirma tan rápido como esa única cadena. Un swap cross-chain depende del tiempo de confirmación de ambos tramos — normalmente muy por debajo de un minuto, ya que la red de solvers de Relay entrega desde su propio inventario en vez de esperar un bridge canónico lento."
   - question: "¿Qué pasa si el tramo de la cadena destino falla después de que el primer tramo tuvo éxito?"
     answer: "Este es exactamente el escenario para el que existe el paso de re-verificación on-chain — un swap nunca se marca como completo basándose únicamente en un hash de transacción reportado por el cliente."
+  - question: "¿Puedo hacer swap entre dos cadenas EVM, no solo entre Solana y una cadena EVM?"
+    answer: "Sí. Un swap entre cadenas EVM aquí —por ejemplo Ethereum a Base, o Base a Arbitrum— se salta por completo el tramo de Solana y se rutea directamente por el tramo cross-chain de Relay, ya que ambos lados ya son EVM. El mismo flujo de cotizar y firmar, la misma comisión plana de 0.25%, un tramo menos que un swap que empieza en Solana."
 ---
 
 Si alguna vez intentaste mover valor entre blockchains a la "manera antigua," ya conoces el proceso: envuelves un token, lo pasas por un bridge, esperas confirmaciones en dos redes distintas, y luego vuelves a hacer swap del otro lado. Es lento, propenso a errores, y es fácil enviar el activo equivocado a la dirección equivocada.
