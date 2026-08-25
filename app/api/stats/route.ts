@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabase/server";
-import { cached } from "@/lib/cache";
+import { getPlatformStats } from "@/lib/stats";
 import { rateLimit, clientKey } from "@/lib/rate-limit";
 import { safeErrorResponse } from "@/lib/apiError";
 
@@ -19,28 +18,16 @@ export const maxDuration = 20;
 // not per-user data) — cached 5min via the shared Redis cache since this
 // hits two full-table aggregates and traffic doesn't need second-by-second
 // freshness for a trust-signal counter.
-async function getRealStats() {
-  const db = supabaseAdmin();
-  const [swaps, nfts] = await Promise.all([
-    db.from("swap_transactions").select("usd_volume", { count: "exact" }).eq("status", "complete"),
-    db.from("nft_purchases").select("usd_volume", { count: "exact" }).eq("status", "complete"),
-  ]);
-
-  const swapVolume = (swaps.data ?? []).reduce((sum, r) => sum + (r.usd_volume ?? 0), 0);
-  const nftVolume = (nfts.data ?? []).reduce((sum, r) => sum + (r.usd_volume ?? 0), 0);
-
-  return {
-    totalTransactions: (swaps.count ?? 0) + (nfts.count ?? 0),
-    totalUsdVolume: Math.round(swapVolume + nftVolume),
-  };
-}
-
+//
+// The actual aggregate lives in lib/stats.ts (extracted 2026-08-25) so
+// app/api/mcp/route.ts's get_platform_stats tool can call the identical
+// real query instead of duplicating it or round-tripping through this route.
 export async function GET(req: Request) {
   const rl = await rateLimit(clientKey(req, "stats"), 30, 60_000);
   if (!rl.ok) return NextResponse.json({ error: "Too many requests" }, { status: 429 });
 
   try {
-    const stats = await cached("stats:platform", 5 * 60_000, getRealStats);
+    const stats = await getPlatformStats();
     return NextResponse.json(stats);
   } catch (e) {
     return safeErrorResponse("stats", e, 502);

@@ -40,6 +40,15 @@
       ]
     },
     {
+      "anchor": "https://blockchains.click/api/mcp",
+      "service-desc": [
+        { "href": "https://blockchains.click/.well-known/mcp/server-card.json", "type": "application/json" }
+      ],
+      "service-doc": [
+        { "href": "https://modelcontextprotocol.io/specification", "type": "text/html" }
+      ]
+    },
+    {
       "anchor": "https://blockchains.click/api",
       "service-doc": [
         { "href": "https://blockchains.click/sentinel-shield", "type": "text/html" },

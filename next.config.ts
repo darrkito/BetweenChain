@@ -172,6 +172,21 @@ const nextConfig: NextConfig = {
           { key: "Access-Control-Allow-Origin", value: "*" },
         ],
       },
+      // Real MCP server + agent-auth docs (2026-08-25), same "let a
+      // third-party agent call this cross-origin without a preflight
+      // failure" reasoning as api-catalog above, extended to every
+      // agent-facing surface this pass adds: the MCP endpoint itself, its
+      // SEP-1649 server card, the agent-skills index/SKILL.md files, and
+      // auth.md. Modeled on lemusweddings.com's own stated
+      // Access-Control-Allow-Origin: * on each of these exact surfaces
+      // (confirmed live via curl before building this). Four separate
+      // `source` entries rather than one regex alternation — Next's
+      // path-to-regexp matcher doesn't reliably support `(a|b|c)`
+      // alternation the way a raw regex engine would.
+      { source: "/api/mcp", headers: [{ key: "Access-Control-Allow-Origin", value: "*" }] },
+      { source: "/.well-known/mcp/server-card.json", headers: [{ key: "Access-Control-Allow-Origin", value: "*" }] },
+      { source: "/.well-known/agent-skills/:path*", headers: [{ key: "Access-Control-Allow-Origin", value: "*" }] },
+      { source: "/auth.md", headers: [{ key: "Access-Control-Allow-Origin", value: "*" }] },
     ];
   },
 };

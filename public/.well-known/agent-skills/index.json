@@ -1,0 +1,28 @@
+{
+  "$schema": "https://schemas.agentskills.io/discovery/0.2.0/schema.json",
+  "version": "0.2.0",
+  "publisher": {
+    "name": "Blockchains.Click",
+    "url": "https://blockchains.click"
+  },
+  "skills": [
+    {
+      "name": "check-a-token-across-chains",
+      "type": "skill-md",
+      "description": "Look up a token's current price and safety signals on Solana, an EVM chain, or Sui, using Blockchains.Click's public MCP server. Use when someone asks whether a token is safe or what it's worth.",
+      "url": "https://blockchains.click/.well-known/agent-skills/check-a-token-across-chains/SKILL.md",
+      "digest": "sha256:c39605acb3f224c8003da4e9081d3ca3b23abd541fa0d0f7c3a0dac0fe9705e3",
+      "version": "1.0.0",
+      "license": "CC-BY-4.0"
+    },
+    {
+      "name": "get-a-cross-chain-swap-quote",
+      "type": "skill-md",
+      "description": "Get a live price preview for swapping between Solana, EVM chains, and Bitcoin/Sui on Blockchains.Click, and hand off to the site for actual execution.",
+      "url": "https://blockchains.click/.well-known/agent-skills/get-a-cross-chain-swap-quote/SKILL.md",
+      "digest": "sha256:8300461a33aa6cba52bd87993ef343193046125e9f0b62a36021981fa69fe716",
+      "version": "1.0.0",
+      "license": "CC-BY-4.0"
+    }
+  ]
+}

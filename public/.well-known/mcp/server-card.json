@@ -1,0 +1,97 @@
+{
+  "$schema": "https://modelcontextprotocol.io/schemas/draft/server-card.json",
+  "schemaVersion": "2025-11-25",
+  "serverInfo": {
+    "name": "blockchains-click",
+    "title": "Blockchains.Click",
+    "version": "1.0.0",
+    "description": "Cross-chain crypto swap and multichain NFT marketplace aggregator. Chain lists, token prices and safety data, cross-chain swap price previews (Solana, EVM, Bitcoin), and NFT collection data across Solana, EVM, and Sui/Aptos/Movement.",
+    "websiteUrl": "https://blockchains.click"
+  },
+  "protocolVersion": "2025-06-18",
+  "transport": {
+    "type": "streamable-http",
+    "endpoint": "https://blockchains.click/api/mcp"
+  },
+  "transports": [
+    {
+      "type": "streamable-http",
+      "endpoint": "https://blockchains.click/api/mcp"
+    }
+  ],
+  "endpoint": "https://blockchains.click/api/mcp",
+  "url": "https://blockchains.click/api/mcp",
+  "authentication": {
+    "type": "none",
+    "description": "Public, read-only market data. No credentials required and no user data is accepted. Swap execution and NFT purchases require a connected wallet signature on the website and are not exposed through this server — see /auth.md."
+  },
+  "capabilities": {
+    "tools": {
+      "listChanged": false
+    },
+    "resources": {
+      "listChanged": false,
+      "subscribe": false
+    },
+    "prompts": {
+      "listChanged": false
+    }
+  },
+  "tools": [
+    {
+      "name": "get_chains",
+      "description": "List the blockchains this app supports for cross-chain swaps."
+    },
+    {
+      "name": "get_tokens",
+      "description": "List or search tokens on a given chain, or get that chain's trending tokens."
+    },
+    {
+      "name": "get_token_price",
+      "description": "Get the current USD price for native SOL, native SUI, or an EVM native/ERC-20 token."
+    },
+    {
+      "name": "get_token_safety",
+      "description": "Get RugCheck safety data and Jupiter market stats for a Solana token mint."
+    },
+    {
+      "name": "get_swap_quote_preview",
+      "description": "Preview a Solana/EVM swap (Jupiter/Relay routing). Price preview only — cannot execute a trade."
+    },
+    {
+      "name": "get_btc_sui_quote_preview",
+      "description": "Preview a swap involving Bitcoin or a non-Solana-to-Sui pair (ChangeNOW routing). Price preview only."
+    },
+    {
+      "name": "get_nft_collection",
+      "description": "Get detail for a single NFT collection by vendor and slug."
+    },
+    {
+      "name": "browse_nft_collections",
+      "description": "Browse NFT collections on a chain family (Solana, EVM, or a Move chain via Tradeport)."
+    },
+    {
+      "name": "get_platform_stats",
+      "description": "Get real, aggregate platform stats: total completed transactions and total USD volume."
+    }
+  ],
+  "prompts": [],
+  "resources": [
+    {
+      "uri": "https://blockchains.click/llms.txt",
+      "name": "Site guide for language models",
+      "mimeType": "text/markdown"
+    },
+    {
+      "uri": "https://blockchains.click/.well-known/api-catalog",
+      "name": "RFC 9727 API catalog",
+      "mimeType": "application/linkset+json"
+    }
+  ],
+  "documentation": "https://blockchains.click/llms.txt",
+  "privacyPolicy": "https://blockchains.click/privacy",
+  "contact": {
+    "name": "Blockchains.Click",
+    "url": "https://x.com/blocksdotclick"
+  }
+}

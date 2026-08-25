@@ -16,7 +16,12 @@ export default function robots(): MetadataRoute.Robots {
     rules: [
       {
         userAgent: "*",
-        allow: "/",
+        // /api/mcp carved out of the blanket /api/ disallow below (2026-08-25,
+        // agent-discoverability pass) — longest-match wins per the robots.txt
+        // spec, so this allow rule (9 chars) beats the disallow (4 chars)
+        // for that one path without touching the crawl-budget reasoning for
+        // the rest of /api/. Real, working MCP server — see app/api/mcp/route.ts.
+        allow: ["/", "/api/mcp"],
         disallow: "/api/",
         // Content Signals (2026-08-24, agent-discoverability pass) — a real,
         // emerging directive (contentsignals.org, Cloudflare-backed) distinct
