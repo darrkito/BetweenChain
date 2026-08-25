@@ -38,6 +38,8 @@
 - [How to Swap SOL or ETH Directly Into SUI](https://blockchains.click/blog/how-to-swap-sol-eth-to-sui)
 - [How to Swap SOL to ETH on Blockchains.Click](https://blockchains.click/blog/how-to-swap-sol-to-eth)
 - [Blockchains.Click vs. Jumper vs. deBridge: Comparing Cross-Chain Swap Fees](https://blockchains.click/blog/blockchains-click-vs-jumper-vs-debridge)
+- [Blockchains.Click vs. Uniswap: Comparing Cross-Chain Swap Fees and Model](https://blockchains.click/blog/blockchains-click-vs-uniswap)
+- [Phantom vs. MetaMask for Cross-Chain Swaps: Which Wallet(s) Do You Actually Need](https://blockchains.click/blog/best-wallet-cross-chain-swap-phantom-metamask)
 - [Never Get Stranded With No Gas: Automatic Destination Gas Top-Up](https://blockchains.click/blog/gas-top-up-cross-chain-swaps)
 - [No More Guessing: Real Bridge Status Instead of a Generic Spinner](https://blockchains.click/blog/stall-transparency-real-bridge-status)
 - [That $0.40 of BONK You Forgot About Adds Up — Here's How to Get It Back](https://blockchains.click/blog/unlock-crypto-dust-across-chains)
@@ -68,6 +70,18 @@
 
 - [Crash Dummy: The Claynosaurz Fan Game Built by the Community](https://blockchains.click/blog/crash-dummy-claynosaurz-fan-game)
 - [Doggy Racing Chart: Ride $DOGGY's Real Price Chart on a Dirt Bike](https://blockchains.click/blog/doggy-racing-chart-doggy-token)
+
+## Español
+
+A Spanish-language subset of the blog is available at `/es/blog/{slug}`, real translated content (not machine-translated on the fly), each page hreflang-paired with its English source. The app UI itself (swap, wallet connect, NFT buy flow) is English-only — only this blog content is bilingual so far.
+
+- [Esos $0.40 en BONK que olvidaste suman más de lo que crees — así los recuperas](https://blockchains.click/es/blog/limpiar-tokens-basura-wallet-solana)
+- [Trigger Orders: Órdenes Límite y DCA en Solana Que se Ejecutan Aunque Estés Desconectado](https://blockchains.click/es/blog/ordenes-automaticas-trigger-orders-crypto)
+- [Puntos y Referidos, Explicado: Cómo Ganar Dinero con Referidos en Crypto](https://blockchains.click/es/blog/ganar-dinero-referidos-crypto)
+- [NFTs Cross-Chain: Compra en Cualquier Cadena con la Wallet que Ya Tengas](https://blockchains.click/es/blog/comprar-nfts-cross-chain-cualquier-token)
+- [¿Qué es un Swap Cross-Chain y Cómo Funciona Realmente?](https://blockchains.click/es/blog/que-es-un-swap-cross-chain)
+- [Blockchains.Click vs. Uniswap: Comparando Comisiones y Modelo de Swap Cross-Chain](https://blockchains.click/es/blog/blockchains-click-vs-uniswap)
+- [Phantom vs. MetaMask para Swaps Cross-Chain: Qué Wallet(s) Necesitas Realmente](https://blockchains.click/es/blog/mejor-wallet-swap-cross-chain-phantom-metamask)
 
 ## Not Supported
 

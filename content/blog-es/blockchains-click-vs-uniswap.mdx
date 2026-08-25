@@ -1,0 +1,43 @@
+---
+title: "Blockchains.Click vs. Uniswap: Comparando Comisiones y Modelo de Swap Cross-Chain"
+description: "Las comisiones de pool de Uniswap más el ruteo cross-chain por subasta de UniswapX, comparadas contra la comisión plana de 0.25% por tramo de Blockchains.Click, mostrada antes de firmar."
+date: "2026-08-25"
+category: "Guías"
+faq:
+  - question: "¿Uniswap cobra una comisión de plataforma?"
+    answer: "Uniswap eliminó su comisión de interfaz de 0.15% en 2026. Lo que sigues pagando es la comisión propia del nivel del pool de liquidez (típicamente entre 0.01% y 1%, elegida por el pool mismo, no por Uniswap como empresa) más el gas."
+  - question: "¿Uniswap puede hacer swaps cross-chain?"
+    answer: "Sí, a través de UniswapX — en lugar de una operación directa en un AMM, firmas una orden off-chain y una red de \"fillers\" en competencia la ejecuta mediante una subasta holandesa, que puede cruzar cadenas. El costo de esa subasta queda incluido en la cantidad de destino que se te cotiza, no se muestra como una línea de comisión separada."
+  - question: "¿Qué cobra Blockchains.Click?"
+    answer: "Una comisión plana de 0.25% por tramo, mostrada antes de firmar. Un swap dentro de la misma cadena o un swap directo de SOL a la cadena destino es un tramo (0.25% total); un swap que empieza en un token SPL que primero necesita convertirse a SOL son dos tramos (0.5% total). La tasa nunca depende de qué ruta o filler se elija."
+mentions:
+  - "Uniswap"
+  - "UniswapX"
+---
+
+Uniswap y Blockchains.Click resuelven un objetivo final similar — llevarte del token A al token B — a través de mecanismos genuinamente distintos, y ahí es exactamente donde la comparación de comisiones se vuelve confusa si solo miras un porcentaje de portada.
+
+## Cómo cotiza Uniswap un swap
+
+Un trade de Uniswap dentro de la misma cadena pasa por un pool de liquidez AMM, y la comisión que pagas es el propio nivel de comisión del pool — comúnmente entre 0.01% y 1%, definido por pool (un par de stablecoins podría usar el nivel más bajo, un par volátil uno más alto). Uniswap como empresa solía agregar su propia comisión de interfaz de 0.15% encima de eso; **esa comisión se eliminó en 2026**, así que hoy lo que pagas a nivel de pool está cerca de la comisión propia del pool más el gas — sin margen adicional de plataforma.
+
+## Cómo maneja Uniswap el cross-chain
+
+Los trades cross-chain en Uniswap corren a través de **UniswapX**: en lugar de ejecutarse directamente contra un pool, firmas una orden off-chain, y una red de "fillers" en competencia hace ofertas para ejecutarla mediante una subasta holandesa — incluyendo entre cadenas distintas. Esto tiene ventajas reales (ejecución sin gas para quien hace el swap en algunas rutas, protección contra MEV), pero el costo de ganar esa subasta queda incluido en la cantidad de destino que se te cotiza, no se desglosa como un porcentaje de comisión visible. Ves el número final, no un desglose de comisión de pool vs. spread del filler vs. costo de bridge.
+
+## Cómo cotiza Blockchains.Click un swap
+
+Una comisión plana de **0.25% por tramo**, mostrada antes de firmar, siempre. Un swap dentro de la misma cadena o un swap directo de SOL a la cadena destino es un tramo (0.25% total). Un swap que empieza en un token SPL que primero necesita convertirse a SOL son dos tramos (0.5% total). La tasa no cambia según qué ruta, filler o pool se elija por debajo — es fija y se muestra desde el inicio.
+
+| | Uniswap | Blockchains.Click |
+|---|---|---|
+| Comisión misma cadena | Nivel propio del pool (~0.01%-1%) + gas, sin comisión de plataforma separada desde 2026 | 0.25% plano + gas |
+| Mecanismo cross-chain | Fillers de subasta holandesa de UniswapX | Jupiter (tramo Solana) + red de solvers de Relay |
+| Visibilidad del costo cross-chain | Incluido en la cantidad de destino cotizada, sin desglose | 0.25% plano por tramo, mostrado antes de firmar |
+| Predictibilidad de la comisión | Varía según el nivel del pool y el resultado de la subasta | Fija, la misma tasa en cada swap |
+
+## ¿Cuál modelo es "mejor"?
+
+Ninguno es estrictamente más barato en todos los casos — un pool de Uniswap muy líquido en su nivel de comisión más bajo puede ganarle a 0.25%, y la competencia de fillers de UniswapX a veces puede lograr un mejor precio neto que una cotización de tasa fija. Lo que Blockchains.Click optimiza específicamente es la **predictibilidad**: el mismo número de 0.25% por tramo, mostrado antes de firmar, sin importar qué pools o fillers estén involucrados por debajo.
+
+[Prueba una cotización](/swap) y mira la comisión exacta antes de comprometerte a nada.

@@ -39,7 +39,16 @@ export function middleware(request: NextRequest) {
 
   const url = request.nextUrl.clone();
   const blogSlugMatch = /^\/blog\/([^/]+)$/.exec(url.pathname);
-  url.pathname = blogSlugMatch ? `/blog/${blogSlugMatch[1]}/markdown` : "/markdown";
+  // 2026-08-25 (ES content expansion) — same markdown-negotiation pattern
+  // extended to the new /es/blog/:slug routes.
+  const blogSlugMatchEs = /^\/es\/blog\/([^/]+)$/.exec(url.pathname);
+  if (blogSlugMatch) {
+    url.pathname = `/blog/${blogSlugMatch[1]}/markdown`;
+  } else if (blogSlugMatchEs) {
+    url.pathname = `/es/blog/${blogSlugMatchEs[1]}/markdown`;
+  } else {
+    url.pathname = "/markdown";
+  }
   return NextResponse.rewrite(url);
 }
 

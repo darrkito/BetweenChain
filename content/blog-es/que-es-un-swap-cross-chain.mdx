@@ -1,0 +1,46 @@
+---
+title: "¿Qué es un Swap Cross-Chain y Cómo Funciona Realmente?"
+description: "Una explicación en español sencillo de qué pasa cuando intercambias un token en una cadena por un token en otra — sin bridge, sin pasos manuales."
+date: "2026-08-25"
+category: "Guías"
+faq:
+  - question: "¿Necesito una wallet en ambas cadenas?"
+    answer: "Solo si el swap realmente cruza dos cadenas — necesitas una wallet de Solana para cualquier swap que empiece en Solana, y una wallet EVM como destino si estás intercambiando hacia una cadena EVM (o como origen, para un swap que empiece en una cadena EVM)."
+  - question: "¿Cuánto tarda un swap cross-chain?"
+    answer: "Un swap dentro de la misma cadena confirma tan rápido como esa única cadena. Un swap cross-chain depende del tiempo de confirmación de ambos tramos — normalmente muy por debajo de un minuto, ya que la red de solvers de Relay entrega desde su propio inventario en vez de esperar un bridge canónico lento."
+  - question: "¿Qué pasa si el tramo de la cadena destino falla después de que el primer tramo tuvo éxito?"
+    answer: "Este es exactamente el escenario para el que existe el paso de re-verificación on-chain — un swap nunca se marca como completo basándose únicamente en un hash de transacción reportado por el cliente."
+---
+
+Si alguna vez intentaste mover valor entre blockchains a la "manera antigua," ya conoces el proceso: envuelves un token, lo pasas por un bridge, esperas confirmaciones en dos redes distintas, y luego vuelves a hacer swap del otro lado. Es lento, propenso a errores, y es fácil enviar el activo equivocado a la dirección equivocada.
+
+Blockchains.Click reduce todo eso a una sola transacción desde tu perspectiva: empiezas con un token en una cadena (digamos, SOL en Solana) y terminas con un token en otra cadena (digamos, un ERC-20 en Ethereum o Base) — un swap, un solo flujo de confirmación. El mismo flujo también funciona dentro de la misma cadena (un token EVM a otro token EVM en la misma red, sin necesidad de ningún tramo de bridge).
+
+## Por qué esto no es lo mismo que "un bridge"
+
+Un bridge de tokens clásico (lock-and-mint, o un bridge de pool de liquidez) mueve la *misma* representación de un activo de una cadena a otra — igual terminas necesitando un swap por separado después si en realidad querías un token distinto. Un **swap** cross-chain es una garantía más fuerte: especificas exactamente el token de destino que quieres, y todo el proceso de múltiples pasos (ruteo, bridge, conversión final) se cotiza y se ejecuta como una sola unidad. Nunca terminas sosteniendo un activo envuelto intermedio que no pediste.
+
+## Qué está pasando realmente por debajo
+
+Hay dos tramos independientes en un swap cross-chain:
+
+- **El tramo de Solana** (vía Jupiter) convierte tu token de origen a SOL nativo — el activo listo para el bridge — usando liquidez profunda y agregada de los DEX de Solana para conseguirte el mejor precio. Si tu token de origen ya está en una cadena EVM, este tramo simplemente no se ejecuta; el camino que empieza en EVM va directo al tramo cross-chain.
+- **El tramo cross-chain** (vía la red de solvers de Relay) mueve ese valor a la cadena destino y completa el swap hacia el token de destino que elegiste. Los solvers de Relay entregan el resultado desde su propio inventario en la cadena destino — no esperas un bridge lento y secuencial seguido de un swap; ambos tramos se cotizan juntos desde el inicio.
+
+Ambos tramos se cotizan juntos, así que el precio que ves antes de confirmar es el precio que realmente obtienes — no un estimado que se ajusta mientras se ejecuta la transacción.
+
+## Cuánto cuesta
+
+Hay una comisión plana de 0.25% de la plataforma aplicada en cada tramo del swap — sin ninguna comisión "oculta" adicional, más lo que la propia cadena cobre de comisión de red/gas (que varía según la congestión de la red, algo que Blockchains.Click no controla ni incrementa). Los swaps dentro de la misma cadena solo pagan la comisión de un tramo, ya que no hay ningún tramo de bridge que cobrar por separado.
+
+## ¿Cuánto tarda un swap cross-chain?
+
+Un swap dentro de la misma cadena confirma tan rápido como esa única cadena. Un swap cross-chain depende del tiempo de confirmación de ambos tramos — normalmente muy por debajo de un minuto, ya que la red de solvers de Relay entrega desde su propio inventario en vez de esperar un bridge canónico lento.
+
+## Por qué la dirección de destino no puede cambiar a mitad del swap
+
+Una decisión de diseño deliberada: la dirección a la que estás enviando fondos queda fija en el momento en que obtienes una cotización, y no se puede alterar después — ni desde el frontend, ni desde el backend. Cada swap completado también se re-verifica de forma independiente contra el resultado real on-chain antes de marcarse como completo. Eso cierra la puerta a toda una clase de ataques de sustitución de dirección que afectan configuraciones de bridge menos cuidadosas.
+
+## Pruébalo
+
+No necesitas conectar una wallet para ver cuánto te costaría un swap — la [vista previa de cotización en nuestra página principal](/) funciona sin conectar nada. Cuando estés listo para hacer el swap de verdad, ve a [la página de swap](/swap) y conecta una wallet de Solana (más una wallet EVM, si estás intercambiando hacia una cadena EVM).

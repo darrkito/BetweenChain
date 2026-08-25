@@ -1,0 +1,47 @@
+---
+title: "Phantom vs. MetaMask for Cross-Chain Swaps: Which Wallet(s) Do You Actually Need"
+description: "A cross-chain swap touches two ecosystems — Solana and EVM. Here's which wallet actually covers which leg, and why Phantom alone can cover more ground than MetaMask alone."
+date: "2026-08-25"
+category: "Guides"
+faq:
+  - question: "Can I use only MetaMask for a cross-chain swap here?"
+    answer: "Only for the EVM side. MetaMask has no Solana support at all, so any swap that starts from or ends on Solana still needs a separate Solana wallet connected alongside it."
+  - question: "Can Phantom alone cover both legs of a cross-chain swap?"
+    answer: "Phantom now ships its own EVM support in addition to its original Solana wallet, so it can act as both your Solana wallet and your EVM wallet in the same browser session — MetaMask can't do the reverse, since it has no Solana capability at all."
+  - question: "Do I need two separate wallets connected at once?"
+    answer: "For a swap that spans Solana and an EVM chain, yes — one Solana-capable wallet and one EVM-capable wallet, connected at the same time. If Phantom is covering both roles, that's still two connections from your perspective (Solana + EVM), just from a single extension."
+mentions:
+  - "Phantom"
+  - "MetaMask"
+---
+
+A cross-chain swap between Solana and an EVM chain (Ethereum, Base, and others) genuinely spans two separate ecosystems, each with its own wallet standard. Which wallet you should use depends on which side of that swap you're actually touching — and one popular choice covers more of it than the other.
+
+## What each wallet actually supports
+
+**MetaMask** is EVM-only. It has no Solana support in any form — it can sign transactions on Ethereum, Base, Polygon, and other EVM chains, but it cannot hold, send, or sign anything on Solana.
+
+**Phantom** started as a Solana-only wallet, but now ships its own EVM provider alongside it — meaning a single Phantom install can act as both a Solana wallet and an EVM wallet in the same browser. It's genuinely two wallet implementations under one extension, not a Solana wallet with a thin EVM wrapper.
+
+## What that means for a cross-chain swap here
+
+Every cross-chain swap on this platform has a Solana leg, an EVM leg, or both, depending on the direction:
+
+| Swap direction | Wallets needed |
+|---|---|
+| Solana → EVM chain | A Solana wallet (source) + an EVM wallet (destination) |
+| EVM chain → Solana | An EVM wallet (source) + a Solana wallet (destination) |
+| EVM chain → EVM chain (same or different) | An EVM wallet only |
+| Solana → Solana (same-chain) | A Solana wallet only |
+
+If you're using MetaMask alone, the first two rows aren't fully covered — you'll need a second, Solana-capable wallet connected alongside it for any swap that touches Solana on either end. If you're using Phantom, its EVM support means one wallet can realistically cover every row in that table, since it's announcing itself as both a Solana provider and an EVM provider.
+
+## A practical note on wallet discovery
+
+Because Phantom now announces itself as an EVM provider too, a browser with both Phantom and MetaMask installed can have both compete to be "the" EVM wallet when you click connect — this app uses EIP-6963 multi-provider discovery specifically so you can pick the exact wallet you meant by name, rather than whichever extension happens to grab the connection first.
+
+## Bottom line
+
+If you only want to install one wallet and still be able to swap in every direction this platform supports, Phantom covers more ground on its own. If you're already a committed MetaMask user, that's completely fine for the EVM side — just plan on connecting a Solana wallet too the first time you swap into or out of Solana.
+
+[Try a quote](/swap) — connect whichever wallet(s) you already have to see it in practice.

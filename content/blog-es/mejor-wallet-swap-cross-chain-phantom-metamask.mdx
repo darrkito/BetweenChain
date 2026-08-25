@@ -1,0 +1,47 @@
+---
+title: "Phantom vs. MetaMask para Swaps Cross-Chain: Qué Wallet(s) Necesitas Realmente"
+description: "Un swap cross-chain toca dos ecosistemas — Solana y EVM. Esto es qué wallet cubre cada tramo, y por qué Phantom solo puede cubrir más terreno que MetaMask solo."
+date: "2026-08-25"
+category: "Guías"
+faq:
+  - question: "¿Puedo usar solo MetaMask para un swap cross-chain aquí?"
+    answer: "Solo para el lado EVM. MetaMask no tiene ningún soporte para Solana, así que cualquier swap que empiece o termine en Solana igual necesita una wallet de Solana separada conectada junto a ella."
+  - question: "¿Phantom solo puede cubrir ambos tramos de un swap cross-chain?"
+    answer: "Phantom ahora incluye su propio soporte EVM además de su wallet original de Solana, así que puede actuar como tu wallet de Solana y tu wallet EVM en la misma sesión de navegador — MetaMask no puede hacer lo contrario, ya que no tiene ninguna capacidad de Solana."
+  - question: "¿Necesito dos wallets separadas conectadas al mismo tiempo?"
+    answer: "Para un swap que cruza entre Solana y una cadena EVM, sí — una wallet capaz de Solana y una capaz de EVM, conectadas al mismo tiempo. Si Phantom está cubriendo ambos roles, sigue siendo dos conexiones desde tu perspectiva (Solana + EVM), solo que desde una sola extensión."
+mentions:
+  - "Phantom"
+  - "MetaMask"
+---
+
+Un swap cross-chain entre Solana y una cadena EVM (Ethereum, Base y otras) realmente cruza dos ecosistemas separados, cada uno con su propio estándar de wallet. Qué wallet deberías usar depende de qué lado de ese swap estás tocando realmente — y una opción popular cubre más terreno que la otra.
+
+## Qué soporta realmente cada wallet
+
+**MetaMask** es solo EVM. No tiene ningún soporte de Solana en ninguna forma — puede firmar transacciones en Ethereum, Base, Polygon y otras cadenas EVM, pero no puede sostener, enviar ni firmar nada en Solana.
+
+**Phantom** empezó como una wallet exclusiva de Solana, pero ahora incluye su propio proveedor EVM junto con ella — lo que significa que una sola instalación de Phantom puede actuar como wallet de Solana y wallet EVM en el mismo navegador. Son genuinamente dos implementaciones de wallet bajo una sola extensión, no una wallet de Solana con un envoltorio EVM superficial.
+
+## Qué significa esto para un swap cross-chain aquí
+
+Cada swap cross-chain en esta plataforma tiene un tramo de Solana, un tramo EVM, o ambos, dependiendo de la dirección:
+
+| Dirección del swap | Wallets necesarias |
+|---|---|
+| Solana → cadena EVM | Una wallet de Solana (origen) + una wallet EVM (destino) |
+| Cadena EVM → Solana | Una wallet EVM (origen) + una wallet de Solana (destino) |
+| Cadena EVM → cadena EVM (misma u otra) | Solo una wallet EVM |
+| Solana → Solana (misma cadena) | Solo una wallet de Solana |
+
+Si usas solo MetaMask, las primeras dos filas no quedan cubiertas por completo — necesitarás una segunda wallet, capaz de Solana, conectada junto a ella para cualquier swap que toque Solana en cualquiera de los dos extremos. Si usas Phantom, su soporte EVM significa que una sola wallet puede cubrir realmente cada fila de esa tabla, ya que se anuncia tanto como proveedor de Solana como proveedor EVM.
+
+## Una nota práctica sobre descubrimiento de wallets
+
+Como Phantom ahora también se anuncia como proveedor EVM, un navegador con Phantom y MetaMask instalados puede tener a ambas compitiendo por ser "la" wallet EVM cuando le das clic a conectar — esta app usa el descubrimiento multi-proveedor EIP-6963 específicamente para que puedas elegir la wallet exacta que querías por nombre, en lugar de la que sea que gane la conexión primero.
+
+## En resumen
+
+Si solo quieres instalar una wallet y aun así poder hacer swap en cada dirección que soporta esta plataforma, Phantom cubre más terreno por sí sola. Si ya eres un usuario comprometido de MetaMask, eso está perfectamente bien para el lado EVM — solo planea conectar también una wallet de Solana la primera vez que hagas swap hacia o desde Solana.
+
+[Prueba una cotización](/swap) — conecta la wallet o wallets que ya tengas para verlo en la práctica.

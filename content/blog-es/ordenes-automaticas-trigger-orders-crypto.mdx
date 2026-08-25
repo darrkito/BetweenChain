@@ -1,0 +1,41 @@
+---
+title: "Trigger Orders: Órdenes Límite y DCA en Solana Que se Ejecutan Aunque Estés Desconectado"
+description: "Define un precio objetivo o un calendario de compras recurrentes y olvídate — el propio programa on-chain de Jupiter y su red de keepers ejecutan la orden, sin custodia, incluso si nunca vuelves a conectarte."
+date: "2026-08-25"
+category: "Guías"
+chains:
+  - "solana"
+mentions: ["Trigger Orders", "Jupiter"]
+faq:
+  - question: "¿Quién ejecuta la orden — necesito dejar esta pestaña abierta?"
+    answer: "No. El propio programa on-chain de Jupiter y su red de keepers vigilan el mercado y ejecutan la orden en cuanto se cumple tu condición — completamente independiente de si estás conectado o no, igual que dejar una orden límite en un exchange centralizado."
+  - question: "¿Esto es custodial — Blockchains.Click o Jupiter tienen mis fondos?"
+    answer: "No. Tus tokens quedan en una cuenta de depósito (una PDA) propiedad del programa de Jupiter desde el momento en que firmas hasta que la orden se ejecuta o la cancelas — ni esta app ni el equipo de Jupiter pueden moverlos de forma arbitraria."
+  - question: "¿Cuál es el mínimo para una orden DCA?"
+    answer: "Cada ciclo individual debe valer al menos $50 — un mínimo real impuesto por la propia API de Jupiter, no un límite de Blockchains.Click."
+  - question: "¿Esto puede entregar a una wallet en otra cadena de forma automática?"
+    answer: "Todavía no de forma totalmente automática. Las Trigger Orders se ejecutan hacia un token de Solana; si defines un destino cross-chain, Blockchains.Click muestra un paso de \"Entregar ahora\" de un solo clic una vez que la orden se ejecuta — real y sin custodia, solo un clic extra en lugar de ser completamente desatendido, ya que un bridging automático sin nadie presente para firmar requeriría que esta app guardara una llave de firma delegada."
+  - question: "¿Puedo cancelar una orden antes de que se ejecute?"
+    answer: "Sí, en cualquier momento — cancelar también solo necesita una firma de wallet, sin comisión más allá del gas de la red."
+---
+
+Vigilar una gráfica de precio para agarrar un objetivo, o comprar manualmente la misma cantidad cada semana, no escala. Las Trigger Orders te dejan definir la condición una vez y olvidarte — la orden se ejecuta estés o no presente para verla.
+
+- Dos tipos de orden: órdenes de precio/límite y calendarios DCA recurrentes.
+- Construido sobre las propias APIs reales de Trigger y Recurring de Jupiter — sin custodia, ejecutadas por la propia red de keepers de Jupiter.
+- Esta app no corre ningún bot ni servidor vigilando precios en tu nombre — el programa on-chain de Jupiter hace eso por completo.
+- El mínimo de DCA es $50 por ciclo individual, un piso real impuesto por la propia API de Jupiter.
+
+## Por qué esto puede ser completamente desatendido
+
+La parte más difícil de cualquier orden de "configúralo y olvídalo" es quién vigila el mercado y jala el gatillo cuando no estás presente. Las Trigger Orders no necesitan que Blockchains.Click corra esa infraestructura: crear una orden deposita tus tokens en una cuenta de depósito real, on-chain, propiedad del propio programa de órdenes límite/DCA de Jupiter, y la propia red de keepers de Jupiter es la que realmente ejecuta la orden en cuanto se cumple tu condición de precio o calendario. Tus fondos nunca están en una wallet que esta app o el equipo de Jupiter controle directamente — se quedan en esa cuenta del programa desde el momento en que firmas hasta que se ejecuta o la cancelas.
+
+## Órdenes límite vs. DCA
+
+Una **orden límite** vende una cantidad fija de un token por al menos una cantidad objetivo de otro — el equivalente real, on-chain, de una orden límite en un exchange centralizado, que se ejecuta en cuanto el mercado llega a tu precio. Una **orden DCA** divide un presupuesto total en compras iguales espaciadas en el tiempo (por ejemplo, $500 divididos en 10 compras, una cada 24 horas) — útil para promediar tu entrada a una posición sin tratar de acertar el momento exacto del mercado en cada compra individual. Jupiter impone un mínimo real de $50 por ciclo en las órdenes DCA.
+
+## Entregar en otra cadena
+
+Las Trigger Orders se ejecutan hacia un token nativo de Solana — ahí es donde vive el programa de Jupiter. Si quieres el resultado en otro lugar (digamos, ETH en Base), define un destino de entrega al crear la orden: una vez que se ejecuta, `/orders` muestra una tarjeta de "Entregar ahora" de un solo clic que corre el flujo normal de swap cross-chain contra tu saldo real y actual después de la ejecución. No es totalmente automático — completar ese último paso con cero clics requeriría que esta app guardara una llave de firma en tu nombre mientras no estás presente, algo que deliberadamente no hace.
+
+[Configura tu primera orden](/orders) — conecta una wallet de Solana y elige un precio objetivo o un calendario recurrente.

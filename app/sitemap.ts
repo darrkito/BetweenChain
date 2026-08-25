@@ -1,10 +1,11 @@
 import type { MetadataRoute } from "next";
 import { NFT_VENDOR_CLIENTS, VENDOR_FOR_FAMILY } from "@/lib/nft/vendorClients";
 import type { NftChainFamily } from "@/lib/nft/types";
-import { getAllBlogPosts } from "@/lib/content/blog";
+import { getAllBlogPosts, getAllBlogPostsEs } from "@/lib/content/blog";
 import { SWAP_PAIRS, SWAP_PAIRS_UPDATED } from "@/lib/content/swapPairs";
 import { getAllGames } from "@/lib/content/games";
 import { getAllBaskets } from "@/lib/content/baskets";
+import { EN_TO_ES_BLOG_SLUG, ES_TO_EN_BLOG_SLUG } from "@/lib/content/blogEsMap";
 
 const SITE_URL = "https://blockchains.click";
 
@@ -86,17 +87,35 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${SITE_URL}/privacy`, lastModified: "2026-08-19", changeFrequency: "yearly", priority: 0.3 },
     { url: `${SITE_URL}/terms`, lastModified: "2026-08-19", changeFrequency: "yearly", priority: 0.3 },
   ];
-  const blogEntries: MetadataRoute.Sitemap = getAllBlogPosts().map((post) => ({
-    url: `${SITE_URL}/blog/${post.slug}`,
-    // Real gap found 2026-08-18 (SEO Tier 3 audit): this always used the
-    // original publish date, even for a post with a real updatedDate set
-    // (BlogPostMeta's own field, already rendered visibly on the post
-    // page when it differs from date — see app/blog/[slug]/page.tsx's
-    // hasRealUpdate) — the sitemap was silently understating freshness
-    // for exactly the posts that had genuinely been revised.
+  const blogEntries: MetadataRoute.Sitemap = getAllBlogPosts().map((post) => {
+    const esSlug = EN_TO_ES_BLOG_SLUG[post.slug];
+    return {
+      url: `${SITE_URL}/blog/${post.slug}`,
+      // Real gap found 2026-08-18 (SEO Tier 3 audit): this always used the
+      // original publish date, even for a post with a real updatedDate set
+      // (BlogPostMeta's own field, already rendered visibly on the post
+      // page when it differs from date — see app/blog/[slug]/page.tsx's
+      // hasRealUpdate) — the sitemap was silently understating freshness
+      // for exactly the posts that had genuinely been revised.
+      lastModified: post.updatedDate ?? post.date,
+      changeFrequency: "monthly",
+      priority: 0.6,
+      ...(esSlug ? { alternates: { languages: { "en-US": `${SITE_URL}/blog/${post.slug}`, "es-419": `${SITE_URL}/es/blog/${esSlug}` } } } : {}),
+    };
+  });
+  // 2026-08-25 (ES content expansion) — Spanish blog entries, hreflang
+  // paired back to their English source via the same map.
+  const blogEsEntries: MetadataRoute.Sitemap = getAllBlogPostsEs().map((post) => ({
+    url: `${SITE_URL}/es/blog/${post.slug}`,
     lastModified: post.updatedDate ?? post.date,
     changeFrequency: "monthly",
     priority: 0.6,
+    alternates: {
+      languages: {
+        "en-US": `${SITE_URL}/blog/${ES_TO_EN_BLOG_SLUG[post.slug]}`,
+        "es-419": `${SITE_URL}/es/blog/${post.slug}`,
+      },
+    },
   }));
   const gameEntries: MetadataRoute.Sitemap = getAllGames().map((g) => ({
     url: `${SITE_URL}/games/${g.slug}`,
@@ -117,5 +136,5 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.6,
   }));
   const collectionEntries = await nftCollectionEntries().catch(() => []);
-  return [...staticEntries, ...blogEntries, ...gameEntries, ...swapPairEntries, ...basketEntries, ...collectionEntries];
+  return [...staticEntries, ...blogEntries, ...blogEsEntries, ...gameEntries, ...swapPairEntries, ...basketEntries, ...collectionEntries];
 }

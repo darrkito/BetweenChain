@@ -1,0 +1,43 @@
+---
+title: "Blockchains.Click vs. Uniswap: Comparing Cross-Chain Swap Fees and Model"
+description: "Uniswap's AMM pool fees plus UniswapX's auction-based cross-chain routing, compared to Blockchains.Click's flat 0.25%-per-leg fee shown before you sign."
+date: "2026-08-25"
+category: "Guides"
+faq:
+  - question: "Does Uniswap charge a platform fee?"
+    answer: "Uniswap removed its 0.15% interface fee in 2026. What you still pay is the liquidity pool's own fee tier (typically 0.01%-1%, chosen per pool by the pool itself, not by Uniswap as a company) plus gas."
+  - question: "Can Uniswap do cross-chain swaps?"
+    answer: "Yes, via UniswapX — instead of a direct AMM trade, you sign an off-chain order and a network of competing fillers executes it via a Dutch auction, which can span chains. The cost of that auction is embedded in the destination amount you're quoted, not shown as a separate fee line."
+  - question: "What does Blockchains.Click charge?"
+    answer: "A flat 0.25% per leg, shown before you sign. A same-chain swap or a direct SOL-to-destination-chain swap is one leg (0.25% total); a swap starting from an SPL token that first needs converting to SOL is two legs (0.5% total). The rate never depends on which route or filler gets picked."
+mentions:
+  - "Uniswap"
+  - "UniswapX"
+---
+
+Uniswap and Blockchains.Click solve a similar end goal — get you from token A to token B — through genuinely different mechanisms, and that difference is exactly where the fee comparison gets confusing if you only look at a headline percentage.
+
+## How Uniswap prices a swap
+
+A same-chain Uniswap trade goes through an AMM liquidity pool, and the fee you pay is the pool's own fee tier — commonly somewhere in the 0.01%-1% range, set per pool (a stablecoin pair might use the lowest tier, a volatile pair a higher one). Uniswap the company used to add its own 0.15% interface fee on top of that; **that fee was removed in 2026**, so today what you pay at the pool level is close to the pool's own fee plus gas — no separate platform markup.
+
+## How Uniswap handles cross-chain
+
+Cross-chain trades on Uniswap run through **UniswapX**: instead of executing directly against a pool, you sign an off-chain order, and a network of competing "fillers" bids to execute it via a Dutch auction — including across chains. This has real upsides (gasless execution for the swapper on some routes, MEV protection), but the cost of winning that auction is baked into the destination amount you're quoted, not broken out as a visible fee percentage. You see the final number, not a line-item breakdown of pool fee vs. filler spread vs. bridging cost.
+
+## How Blockchains.Click prices a swap
+
+A flat **0.25% per leg**, shown before you sign, every time. A same-chain swap or a direct SOL-to-destination-chain swap is one leg (0.25% total). A swap starting from an SPL token that first needs converting to SOL is two legs (0.5% total). The rate doesn't move based on which route, filler, or pool gets selected under the hood — it's fixed and disclosed upfront.
+
+| | Uniswap | Blockchains.Click |
+|---|---|---|
+| Same-chain fee | Pool's own tier (~0.01%-1%) + gas, no separate platform fee since 2026 | Flat 0.25% + gas |
+| Cross-chain mechanism | UniswapX Dutch-auction fillers | Jupiter (Solana leg) + Relay solver network |
+| Cross-chain cost visibility | Embedded in quoted destination amount, not itemized | Flat 0.25% per leg, shown before signing |
+| Fee predictability | Varies by pool tier and auction result | Fixed, same rate on every swap |
+
+## Which model is "better"?
+
+Neither is strictly cheaper in every case — a very liquid same-chain Uniswap pool at its lowest fee tier can beat 0.25%, and UniswapX's filler competition can sometimes land a better net price than a fixed-rate quote. What Blockchains.Click optimizes for specifically is **predictability**: the same 0.25%-per-leg number, disclosed before you sign, regardless of which pools or fillers are involved behind the scenes — see [how that same flat rate compares to Jumper and deBridge](/blog/blockchains-click-vs-jumper-vs-debridge) for a similar breakdown against two other cross-chain platforms.
+
+[Try a quote](/swap) and see the exact fee before you commit to anything.

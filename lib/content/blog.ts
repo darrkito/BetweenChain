@@ -11,6 +11,14 @@ import matter from "gray-matter";
 // module only handles frontmatter + listing, kept dependency-light so
 // generateStaticParams/the listing page don't need to compile MDX at all.
 const BLOG_DIR = path.join(process.cwd(), "content", "blog");
+// 2026-08-25 (ES content expansion) — Spanish translations live in a
+// sibling directory, same file shape, own slug namespace (real translated
+// words, e.g. "que-es-un-swap-cross-chain", not an /es prefix on the
+// English slug — see lib/content/blogEsMap.ts's own doc comment for why).
+// createBlogReader() below is the same read logic parameterized by
+// directory so both languages share one implementation, not two forks
+// that can drift.
+const BLOG_ES_DIR = path.join(process.cwd(), "content", "blog-es");
 
 export interface HowToStepData {
   name: string;
@@ -71,8 +79,8 @@ function estimateReadingTimeMinutes(content: string): number {
   return Math.max(1, Math.round(words / WORDS_PER_MINUTE));
 }
 
-function readPostFile(slug: string): { meta: BlogPostMeta; content: string } {
-  const raw = fs.readFileSync(path.join(BLOG_DIR, `${slug}.mdx`), "utf8");
+function readPostFile(dir: string, slug: string): { meta: BlogPostMeta; content: string } {
+  const raw = fs.readFileSync(path.join(dir, `${slug}.mdx`), "utf8");
   const { data, content } = matter(raw);
   return {
     meta: {
@@ -93,25 +101,47 @@ function readPostFile(slug: string): { meta: BlogPostMeta; content: string } {
   };
 }
 
-/** All post slugs, derived from filenames — feeds generateStaticParams and the sitemap. */
-export function getAllBlogSlugs(): string[] {
-  if (!fs.existsSync(BLOG_DIR)) return [];
+function allSlugsIn(dir: string): string[] {
+  if (!fs.existsSync(dir)) return [];
   return fs
-    .readdirSync(BLOG_DIR)
+    .readdirSync(dir)
     .filter((f) => f.endsWith(".mdx"))
     .map((f) => f.replace(/\.mdx$/, ""));
+}
+
+/** All post slugs, derived from filenames — feeds generateStaticParams and the sitemap. */
+export function getAllBlogSlugs(): string[] {
+  return allSlugsIn(BLOG_DIR);
 }
 
 /** Metadata for every post, newest first — powers the /blog listing page. */
 export function getAllBlogPosts(): BlogPostMeta[] {
   return getAllBlogSlugs()
-    .map((slug) => readPostFile(slug).meta)
+    .map((slug) => readPostFile(BLOG_DIR, slug).meta)
     .sort((a, b) => b.date.localeCompare(a.date));
 }
 
 /** Full post (metadata + raw MDX body) for a single slug, or null if it doesn't exist. */
 export function getBlogPost(slug: string): BlogPost | null {
   if (!getAllBlogSlugs().includes(slug)) return null;
-  const { meta, content } = readPostFile(slug);
+  const { meta, content } = readPostFile(BLOG_DIR, slug);
+  return { ...meta, content };
+}
+
+/** Spanish-content equivalents of the three functions above — same shape,
+ * own directory/slug namespace (content/blog-es). */
+export function getAllBlogSlugsEs(): string[] {
+  return allSlugsIn(BLOG_ES_DIR);
+}
+
+export function getAllBlogPostsEs(): BlogPostMeta[] {
+  return getAllBlogSlugsEs()
+    .map((slug) => readPostFile(BLOG_ES_DIR, slug).meta)
+    .sort((a, b) => b.date.localeCompare(a.date));
+}
+
+export function getBlogPostEs(slug: string): BlogPost | null {
+  if (!getAllBlogSlugsEs().includes(slug)) return null;
+  const { meta, content } = readPostFile(BLOG_ES_DIR, slug);
   return { ...meta, content };
 }

@@ -160,22 +160,28 @@ export interface ArticleSchemaInput {
   // AI answer engines use to associate a page with specific named entities,
   // beyond whatever they infer from prose alone.
   mentions?: string[];
+  // 2026-08-25 (ES content expansion) — defaults to "/blog" so every
+  // existing English call site is unchanged; the new /es/blog/[slug] page
+  // passes "/es/blog" so its schema URLs point at the real Spanish page,
+  // not a fabricated English one.
+  basePath?: string;
 }
 
 export function articleSchema(post: ArticleSchemaInput) {
+  const base = post.basePath ?? "/blog";
   return {
     "@context": "https://schema.org",
     "@type": "BlogPosting",
     headline: post.title,
     description: post.description,
-    url: `${SITE_URL}/blog/${post.slug}`,
+    url: `${SITE_URL}${base}/${post.slug}`,
     datePublished: post.datePublished,
     dateModified: post.dateModified ?? post.datePublished,
     mentions: post.mentions?.map((name) => ({ "@type": "Thing", name })),
     image: post.image ? [post.image] : undefined,
     author: { "@id": `${SITE_URL}/#organization` },
     publisher: { "@id": `${SITE_URL}/#organization` },
-    mainEntityOfPage: { "@type": "WebPage", "@id": `${SITE_URL}/blog/${post.slug}` },
+    mainEntityOfPage: { "@type": "WebPage", "@id": `${SITE_URL}${base}/${post.slug}` },
   };
 }
 
@@ -225,6 +231,8 @@ export interface HowToSchemaInput {
    * rehype plugin and the caller building this list) — otherwise `url`
    * below points at an anchor that doesn't actually exist on the page. */
   steps: Array<{ id: string; name: string; text: string }>;
+  /** Same purpose as ArticleSchemaInput.basePath — defaults to "/blog". */
+  basePath?: string;
 }
 
 /**
@@ -235,7 +243,7 @@ export interface HowToSchemaInput {
  * included when the caller actually has real data for them).
  */
 export function howToSchema(input: HowToSchemaInput) {
-  const pageUrl = `${SITE_URL}/blog/${input.slug}`;
+  const pageUrl = `${SITE_URL}${input.basePath ?? "/blog"}/${input.slug}`;
   return {
     "@context": "https://schema.org",
     "@type": "HowTo",
