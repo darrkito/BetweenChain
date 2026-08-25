@@ -5,7 +5,7 @@
     "name": "blockchains-click",
     "title": "Blockchains.Click",
     "version": "1.0.0",
-    "description": "Cross-chain crypto swap and multichain NFT marketplace aggregator. Chain lists, token prices and safety data, cross-chain swap price previews (Solana, EVM, Bitcoin), and NFT collection data across Solana, EVM, and Sui/Aptos/Movement.",
+    "description": "Cross-chain crypto swap and multichain NFT marketplace aggregator. Chain lists, token prices and safety data, cross-chain swap price previews (Solana, EVM, Bitcoin), NFT collection data across Solana, EVM, and Sui/Aptos/Movement, and real blog content.",
     "websiteUrl": "https://blockchains.click"
   },
   "protocolVersion": "2025-06-18",
@@ -73,6 +73,14 @@
     {
       "name": "get_platform_stats",
       "description": "Get real, aggregate platform stats: total completed transactions and total USD volume."
+    },
+    {
+      "name": "get_blog_posts",
+      "description": "List real blog posts — security write-ups, how-to swap guides, product deep-dives, NFT ecosystem coverage — optionally filtered by category or chain."
+    },
+    {
+      "name": "get_blog_post_detail",
+      "description": "Get the full content of one blog post by slug."
     }
   ],
   "prompts": [],

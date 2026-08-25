@@ -1,7 +1,7 @@
 {
   "protocolVersion": "0.3.0",
   "name": "Blockchains.Click assistant",
-  "description": "Answers questions about Blockchains.Click's cross-chain swap and NFT marketplace: supported chains, platform fees, how to swap, and NFT marketplace coverage. Rule-based (no LLM) — answers are drawn from the site's own real, live data and a fixed set of known question types, not generated speculation.",
+  "description": "Answers questions about Blockchains.Click's cross-chain swap and NFT marketplace: supported chains, platform fees, how to swap, NFT marketplace coverage, and the real blog (security write-ups, how-to guides, product deep-dives). Rule-based (no LLM) — answers are drawn from the site's own real, live data and a fixed set of known question types, not generated speculation.",
   "url": "https://blockchains.click/api/a2a",
   "preferredTransport": "JSONRPC",
   "supportedInterfaces": [
@@ -60,6 +60,15 @@
       "description": "Which NFT marketplaces/chains Blockchains.Click aggregates listings from.",
       "tags": ["nft", "marketplace"],
       "examples": ["Do you support NFTs?", "Which NFT marketplaces do you use?"],
+      "inputModes": ["text/plain"],
+      "outputModes": ["text/plain"]
+    },
+    {
+      "id": "blog-content",
+      "name": "Real blog content",
+      "description": "Point to real blog posts — security write-ups, how-to swap guides, and product feature deep-dives.",
+      "tags": ["blog", "guides", "security"],
+      "examples": ["Do you have any guides?", "What do you write about?"],
       "inputModes": ["text/plain"],
       "outputModes": ["text/plain"]
     }

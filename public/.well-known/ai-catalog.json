@@ -10,26 +10,28 @@
     {
       "identifier": "urn:air:blockchains.click:server:mcp",
       "displayName": "Blockchains.Click MCP server",
-      "description": "Model Context Protocol server exposing chain lists, token prices and safety data, swap price previews, and NFT collection data.",
+      "description": "Model Context Protocol server exposing chain lists, token prices and safety data, swap price previews, NFT collection data, and real blog content.",
       "type": "application/mcp-server-card+json",
       "url": "https://blockchains.click/.well-known/mcp/server-card.json",
       "representativeQueries": [
         "what chains does blockchains.click support",
         "get the price of a Solana token",
         "preview a cross-chain swap quote",
-        "check if a token is safe on Solana"
+        "check if a token is safe on Solana",
+        "does blockchains.click have any guides or write-ups"
       ]
     },
     {
       "identifier": "urn:air:blockchains.click:agent:a2a",
       "displayName": "Blockchains.Click assistant (A2A)",
-      "description": "Agent-to-Agent endpoint answering questions about supported chains, fees, how to swap, and NFT marketplace coverage from the site's own real data.",
+      "description": "Agent-to-Agent endpoint answering questions about supported chains, fees, how to swap, NFT marketplace coverage, and blog content from the site's own real data.",
       "type": "application/json",
       "url": "https://blockchains.click/.well-known/agent-card.json",
       "representativeQueries": [
         "what are blockchains.click's fees",
         "how do I swap tokens on blockchains.click",
-        "which NFT marketplaces does blockchains.click support"
+        "which NFT marketplaces does blockchains.click support",
+        "do you have any security guides"
       ]
     },
     {

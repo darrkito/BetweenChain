@@ -26,6 +26,49 @@
 - The destination address for a swap is bound at quote time and cannot be changed afterward, on either the client or server, closing address-swap/MITM risk on that step.
 - Every on-chain purchase is independently re-verified against the real transaction result before being marked complete — not just trusted from a client-reported hash.
 
+## Blog: Security
+
+- [The $116M Coldcard Hack — And the Wallet Habits That Actually Matter](https://blockchains.click/blog/coldcard-hack-wallet-security-lessons)
+- [Swap Security 101: Why Your Destination Address Can't Be Changed Mid-Swap](https://blockchains.click/blog/swap-security-101)
+
+## Blog: How-To Guides
+
+- [How Cross-Chain Token Swaps Actually Work](https://blockchains.click/blog/how-cross-chain-swaps-work)
+- [How to Swap Bitcoin (BTC) Directly Into SOL or ETH](https://blockchains.click/blog/how-to-swap-bitcoin-cross-chain)
+- [How to Swap SOL or ETH Directly Into SUI](https://blockchains.click/blog/how-to-swap-sol-eth-to-sui)
+- [How to Swap SOL to ETH on Blockchains.Click](https://blockchains.click/blog/how-to-swap-sol-to-eth)
+- [Blockchains.Click vs. Jumper vs. deBridge: Comparing Cross-Chain Swap Fees](https://blockchains.click/blog/blockchains-click-vs-jumper-vs-debridge)
+- [Never Get Stranded With No Gas: Automatic Destination Gas Top-Up](https://blockchains.click/blog/gas-top-up-cross-chain-swaps)
+- [No More Guessing: Real Bridge Status Instead of a Generic Spinner](https://blockchains.click/blog/stall-transparency-real-bridge-status)
+- [That $0.40 of BONK You Forgot About Adds Up — Here's How to Get It Back](https://blockchains.click/blog/unlock-crypto-dust-across-chains)
+
+## Blog: Product Feature Deep-Dives
+
+- [Buy Any NFT With Any Wallet: Why We Killed the Bridge-Then-Buy Flow](https://blockchains.click/blog/cross-chain-nft-buying-democratized)
+- [Points & Referrals, Explained](https://blockchains.click/blog/points-and-referrals-explained)
+- [Burner Shield: Check a Contract Before You Sign](https://blockchains.click/blog/burner-shield-contract-risk-check)
+- [ClickPay: Get Paid in Exactly What You Want, From Whatever the Payer Holds](https://blockchains.click/blog/clickpay-cross-chain-payment-links)
+- [Evac Engine: A Panic Button for Your Wallet](https://blockchains.click/blog/evac-engine-emergency-evacuation)
+- [GhostSwap: Deliver a Swap to a Fresh, Unlinked Wallet](https://blockchains.click/blog/ghostswap-privacy-shielded-delivery)
+- [MEV Shield: Route Solana Swaps Away From Sandwich Bots](https://blockchains.click/blog/mev-shield-jito-private-routing)
+- [OmniDust Vacuum: Sweep Every Dust Token With One Signature](https://blockchains.click/blog/omnidust-vacuum-one-signature-sweep)
+- [Portfolio Baskets: Split One Token Across a Curated Multi-Chain Basket](https://blockchains.click/blog/portfolio-baskets-explained)
+- [Portfolio Rebalancer: Set Target Allocations, Swap Into Place](https://blockchains.click/blog/portfolio-rebalancer-set-target-allocations)
+- [Route Auditor: See Real Price Impact and ETA Before You Sign](https://blockchains.click/blog/route-auditor-transparent-swap-quotes)
+- [Sentinel Shield: Watch Your Aave Health Factor Before You Get Liquidated](https://blockchains.click/blog/sentinel-shield-aave-health-monitor)
+- [Trigger Orders: Solana Limit Orders and DCA That Fill While You're Offline](https://blockchains.click/blog/trigger-orders-limit-orders-dca)
+
+## Blog: NFTs
+
+- [Solana vs. Ethereum NFTs: What's Actually Different](https://blockchains.click/blog/solana-vs-ethereum-nfts)
+- [Inside HEEBOO: How an NFT Became a Prime Video Show (and a Multi-Chain Empire)](https://blockchains.click/blog/heeboo-claynosaurz-ecosystem)
+- [Popkins on Sui: Claynosaurz's Cross-Chain Expansion, Explained](https://blockchains.click/blog/popkins-sui-claynosaurz-expansion)
+
+## Blog: Games
+
+- [Crash Dummy: The Claynosaurz Fan Game Built by the Community](https://blockchains.click/blog/crash-dummy-claynosaurz-fan-game)
+- [Doggy Racing Chart: Ride $DOGGY's Real Price Chart on a Dirt Bike](https://blockchains.click/blog/doggy-racing-chart-doggy-token)
+
 ## Not Supported
 
 - No support for TON, or chains outside the Solana/EVM/Bitcoin/Sui set listed above.

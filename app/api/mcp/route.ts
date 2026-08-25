@@ -13,6 +13,7 @@ import { NFT_VENDOR_CLIENTS, VENDOR_FOR_FAMILY, isTradeportChain, TRADEPORT_CHAI
 import { applyNftImageOverride } from "@/lib/nft/imageOverrides";
 import type { NftVendor, NftChainFamily } from "@/lib/nft/types";
 import { getPlatformStats } from "@/lib/stats";
+import { getAllBlogPosts, getBlogPost } from "@/lib/content/blog";
 import { GET as quotePreviewGet } from "@/app/api/quote/preview/route";
 import { GET as btcQuotePreviewGet } from "@/app/api/quote/btc/preview/route";
 
@@ -108,6 +109,13 @@ interface GetNftCollectionArgs {
 interface BrowseNftCollectionsArgs {
   chainFamily: "solana" | "evm" | "move";
   chain?: string;
+}
+interface GetBlogPostsArgs {
+  category?: string;
+  chain?: string;
+}
+interface GetBlogPostDetailArgs {
+  slug: string;
 }
 
 function buildServer(originalReq: Request | undefined) {
@@ -345,6 +353,54 @@ function buildServer(originalReq: Request | undefined) {
         return ok(await getPlatformStats());
       } catch (err) {
         return toolError("get_platform_stats", err);
+      }
+    },
+  );
+
+  server.registerTool(
+    "get_blog_posts",
+    {
+      description: "List Blockchains.Click's real blog posts — security write-ups, how-to swap guides, product deep-dives, NFT ecosystem coverage. Use this to find real content, not just product data.",
+      inputSchema: fromJsonSchema<GetBlogPostsArgs>({
+        type: "object",
+        properties: {
+          category: { type: "string", description: "Optional filter, e.g. Guides, Security, Product, NFTs, Games" },
+          chain: { type: "string", description: "Optional filter by a SWAP_CHAINS slug this post covers, e.g. solana, sui" },
+        },
+        additionalProperties: false,
+      }),
+    },
+    async ({ category, chain }) => {
+      try {
+        const posts = getAllBlogPosts()
+          .filter((p) => !category || p.category.toLowerCase() === category.toLowerCase())
+          .filter((p) => !chain || (p.chains ?? []).map((c) => c.toLowerCase()).includes(chain.toLowerCase()))
+          .map((p) => ({ slug: p.slug, title: p.title, description: p.description, category: p.category, date: p.date, url: `https://blockchains.click/blog/${p.slug}` }));
+        return ok({ posts });
+      } catch (err) {
+        return toolError("get_blog_posts", err);
+      }
+    },
+  );
+
+  server.registerTool(
+    "get_blog_post_detail",
+    {
+      description: "Get the full content of one Blockchains.Click blog post by slug.",
+      inputSchema: fromJsonSchema<GetBlogPostDetailArgs>({
+        type: "object",
+        properties: { slug: { type: "string", description: "Blog post slug, from get_blog_posts" } },
+        required: ["slug"],
+        additionalProperties: false,
+      }),
+    },
+    async ({ slug }) => {
+      try {
+        const post = getBlogPost(slug);
+        if (!post) return toolError("get_blog_post_detail", new Error(`Unknown blog post slug: ${slug}`));
+        return ok({ slug: post.slug, title: post.title, description: post.description, category: post.category, content: post.content, faq: post.faq, date: post.date });
+      } catch (err) {
+        return toolError("get_blog_post_detail", err);
       }
     },
   );

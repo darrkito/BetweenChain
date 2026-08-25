@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getAllBlogPosts } from "@/lib/content/blog";
 import { getRelayChains } from "@/lib/chains/relayChains";
 import { SWAP_CHAINS, BTC_CHAIN_ID, SUI_CHAIN_INFO } from "@/lib/chains/swapChains";
 import { RELAY_FEE_BPS, JUPITER_FEE_BPS, RELAY_FEE_RECIPIENT, JUPITER_FEE_ACCOUNT } from "@/lib/fees";
@@ -70,13 +71,20 @@ function nftAnswer(): string {
 }
 
 function fallbackAnswer(): string {
-  return "I can answer questions about supported chains, fees, how to swap, and the NFT marketplace. For anything else, see https://blockchains.click/faq, the full site guide at https://blockchains.click/llms.txt, or query structured data directly via the MCP server at https://blockchains.click/api/mcp.";
+  return "I can answer questions about supported chains, fees, how to swap, the NFT marketplace, and the blog. For anything else, see https://blockchains.click/faq, the full site guide at https://blockchains.click/llms.txt, or query structured data directly via the MCP server at https://blockchains.click/api/mcp.";
+}
+
+function blogAnswer(): string {
+  const posts = getAllBlogPosts().slice(0, 6);
+  const list = posts.map((p) => p.title).join(" | ");
+  return `Blockchains.Click has real blog content — security write-ups, how-to swap guides, and product deep-dives: ${list}. Full list via the get_blog_posts MCP tool (https://blockchains.click/api/mcp) or https://blockchains.click/blog.`;
 }
 
 async function answerFor(text: string): Promise<string> {
   const lower = text.toLowerCase();
   if (/\bnfts?\b/.test(lower)) return nftAnswer();
   if (/\b(fee|fees|cost|charge|charges)\b/.test(lower)) return feesAnswer();
+  if (/\bblog|guide|article|write-?up|read\b/.test(lower)) return blogAnswer();
   if (/\b(chain|chains|network|networks|support|supported)\b/.test(lower)) return chainsAnswer();
   if (/\b(how|start|swap|use|begin)\b/.test(lower)) return howToSwapAnswer();
   return fallbackAnswer();
