@@ -14,7 +14,7 @@ import { useState } from "react";
 // to the announcement content can reset dismissal if ever needed.
 const STORAGE_KEY = "sbc_announcement_dismissed_v1";
 
-const FACTS = ["0.25% flat fee per leg", "8 chains supported", "Zero manual bridging", "Destination address locked at quote time"];
+const FACTS = ["8 chains supported", "Zero manual bridging", "Destination address locked at quote time"];
 
 function readDismissed(): boolean {
   if (typeof window === "undefined") return false;
