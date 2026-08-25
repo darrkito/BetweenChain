@@ -2,12 +2,11 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { NftImage } from "@/app/components/NftImage";
+import { NftCollectionBanner } from "@/app/components/NftCollectionBanner";
 import { TRADEPORT_FEE_SAFETY_MARGIN } from "@/lib/nft/tradeportFee";
 import { magicEdenBuyerTotal } from "@/lib/nft/magicedenFee";
 import { roundUpTo3Decimals } from "@/lib/client/amount";
-import { proxiedImageUrl } from "@/lib/client/imageProxy";
 import { usePrefersReducedMotion } from "@/lib/client/usePrefersReducedMotion";
 import type { NftCollection } from "@/lib/nft/types";
 
@@ -245,20 +244,14 @@ export function NftCollectionsGrid({ collections }: { collections: NftCollection
                 <div className={`relative w-full overflow-hidden bg-accent-soft ${featured ? "h-28 sm:h-32" : "h-16"}`}>
                   {c.bannerImageUrl ? (
                     // Routed through /api/img (2026-08-04) — see lib/client/imageProxy.ts
-                    <Image
-                      src={proxiedImageUrl(c.bannerImageUrl)}
-                      alt=""
-                      aria-hidden="true"
-                      fill
+                    <NftCollectionBanner
+                      src={c.bannerImageUrl}
                       sizes={featured ? "(max-width: 640px) 100vw, 50vw" : "(max-width: 640px) 50vw, 25vw"}
                       className="object-cover transition-transform duration-300 group-hover:scale-105"
                     />
                   ) : c.imageUrl ? (
-                    <Image
-                      src={proxiedImageUrl(c.imageUrl)}
-                      alt=""
-                      aria-hidden="true"
-                      fill
+                    <NftCollectionBanner
+                      src={c.imageUrl}
                       sizes={featured ? "(max-width: 640px) 100vw, 50vw" : "(max-width: 640px) 50vw, 25vw"}
                       className="scale-125 object-cover blur-lg"
                     />

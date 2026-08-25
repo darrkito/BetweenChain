@@ -1,6 +1,5 @@
-import Image from "next/image";
 import { NftImage } from "@/app/components/NftImage";
-import { proxiedImageUrl } from "@/lib/client/imageProxy";
+import { NftCollectionBanner } from "@/app/components/NftCollectionBanner";
 import type { NftCollection } from "@/lib/nft/types";
 
 /**
@@ -20,12 +19,11 @@ export function NftCollectionHero({ collection }: { collection: NftCollection })
     <div className="flex flex-col">
       <div className="relative h-32 w-full overflow-hidden rounded-2xl border border-hairline bg-surface sm:h-48">
         {bannerSrc ? (
-          // Routed through /api/img (2026-08-04) — see lib/client/imageProxy.ts
-          <Image
-            src={proxiedImageUrl(bannerSrc)}
-            alt=""
-            aria-hidden="true"
-            fill
+          // Routed through /api/img (2026-08-04) — see lib/client/imageProxy.ts.
+          // NftCollectionBanner (2026-08-25) adds real error handling this raw
+          // next/image previously lacked — see that component's own doc.
+          <NftCollectionBanner
+            src={bannerSrc}
             sizes="(max-width: 640px) 100vw, 768px"
             className={`object-cover ${collection.bannerImageUrl ? "" : "scale-125 blur-2xl"}`}
           />
