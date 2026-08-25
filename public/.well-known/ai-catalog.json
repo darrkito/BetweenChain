@@ -1,0 +1,81 @@
+{
+  "specVersion": "1.0",
+  "host": {
+    "identifier": "did:web:blockchains.click",
+    "displayName": "Blockchains.Click",
+    "description": "Cross-chain crypto swap aggregator and multichain NFT marketplace. Solana, EVM, and Bitcoin/Sui swap routing (Jupiter, Relay, ChangeNOW); NFT collection data across Solana, EVM, and Sui/Aptos/Movement (Magic Eden, OpenSea, Tradeport).",
+    "url": "https://blockchains.click"
+  },
+  "entries": [
+    {
+      "identifier": "urn:air:blockchains.click:server:mcp",
+      "displayName": "Blockchains.Click MCP server",
+      "description": "Model Context Protocol server exposing chain lists, token prices and safety data, swap price previews, and NFT collection data.",
+      "type": "application/mcp-server-card+json",
+      "url": "https://blockchains.click/.well-known/mcp/server-card.json",
+      "representativeQueries": [
+        "what chains does blockchains.click support",
+        "get the price of a Solana token",
+        "preview a cross-chain swap quote",
+        "check if a token is safe on Solana"
+      ]
+    },
+    {
+      "identifier": "urn:air:blockchains.click:agent:a2a",
+      "displayName": "Blockchains.Click assistant (A2A)",
+      "description": "Agent-to-Agent endpoint answering questions about supported chains, fees, how to swap, and NFT marketplace coverage from the site's own real data.",
+      "type": "application/json",
+      "url": "https://blockchains.click/.well-known/agent-card.json",
+      "representativeQueries": [
+        "what are blockchains.click's fees",
+        "how do I swap tokens on blockchains.click",
+        "which NFT marketplaces does blockchains.click support"
+      ]
+    },
+    {
+      "identifier": "urn:air:blockchains.click:api:public",
+      "displayName": "Blockchains.Click public REST API",
+      "description": "Read-only JSON API for chains, tokens, swap quote previews, and NFT data.",
+      "type": "application/linkset+json",
+      "url": "https://blockchains.click/.well-known/api-catalog",
+      "representativeQueries": [
+        "list the chains blockchains.click supports for swaps",
+        "get a swap quote preview via REST",
+        "browse NFT collections via REST"
+      ]
+    },
+    {
+      "identifier": "urn:air:blockchains.click:corpus:llms",
+      "displayName": "Site guide for language models",
+      "description": "llms.txt index of the site, with Markdown-for-Agents content negotiation available on every page.",
+      "type": "text/markdown",
+      "url": "https://blockchains.click/llms.txt",
+      "representativeQueries": [
+        "what does blockchains.click do",
+        "read the blockchains.click FAQ as markdown"
+      ]
+    },
+    {
+      "identifier": "urn:air:blockchains.click:skills:index",
+      "displayName": "Blockchains.Click agent skills",
+      "description": "Installable skills for checking a token's price/safety across chains and getting a cross-chain swap quote preview.",
+      "type": "application/json",
+      "url": "https://blockchains.click/.well-known/agent-skills/index.json",
+      "representativeQueries": [
+        "help me check if a token is safe",
+        "walk me through getting a swap quote"
+      ]
+    },
+    {
+      "identifier": "urn:air:blockchains.click:doc:auth",
+      "displayName": "Agent authentication policy",
+      "description": "States that every agent surface here is public and read-only, and what is expected of agents instead of credentials.",
+      "type": "text/markdown",
+      "url": "https://blockchains.click/auth.md",
+      "representativeQueries": [
+        "does blockchains.click need an API key",
+        "how do I authenticate with the blockchains.click API"
+      ]
+    }
+  ]
+}

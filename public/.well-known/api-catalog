@@ -49,6 +49,15 @@
       ]
     },
     {
+      "anchor": "https://blockchains.click/api/a2a",
+      "service-desc": [
+        { "href": "https://blockchains.click/.well-known/agent-card.json", "type": "application/json" }
+      ],
+      "service-doc": [
+        { "href": "https://a2a-protocol.org/", "type": "text/html" }
+      ]
+    },
+    {
       "anchor": "https://blockchains.click/api",
       "service-doc": [
         { "href": "https://blockchains.click/sentinel-shield", "type": "text/html" },

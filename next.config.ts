@@ -187,6 +187,10 @@ const nextConfig: NextConfig = {
       { source: "/.well-known/mcp/server-card.json", headers: [{ key: "Access-Control-Allow-Origin", value: "*" }] },
       { source: "/.well-known/agent-skills/:path*", headers: [{ key: "Access-Control-Allow-Origin", value: "*" }] },
       { source: "/auth.md", headers: [{ key: "Access-Control-Allow-Origin", value: "*" }] },
+      // A2A + ARD (2026-08-25) — same reasoning as the block above.
+      { source: "/api/a2a", headers: [{ key: "Access-Control-Allow-Origin", value: "*" }] },
+      { source: "/.well-known/agent-card.json", headers: [{ key: "Access-Control-Allow-Origin", value: "*" }] },
+      { source: "/.well-known/ai-catalog.json", headers: [{ key: "Access-Control-Allow-Origin", value: "*" }] },
     ];
   },
 };

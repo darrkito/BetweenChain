@@ -7,6 +7,7 @@ import { SuiWalletProvider } from "@/lib/client/SuiWalletProvider";
 import { BtcWalletProvider } from "@/lib/client/BtcWalletProvider";
 import { AuthProvider } from "@/lib/client/AuthProvider";
 import { ConnectWalletModalProvider } from "@/lib/client/ConnectWalletModalProvider";
+import { WebMcpTools } from "@/app/components/WebMcpTools";
 // styles.css deliberately NOT imported here (2026-08-18 perf pass) — it
 // carries a render-blocking `@import url(fonts.googleapis.com/...DM+Sans)`
 // that used to load on EVERY page, even ones with zero WalletMultiButton
@@ -52,7 +53,10 @@ export function Providers({ children }: { children: React.ReactNode }) {
             <SuiWalletProvider>
               <BtcWalletProvider>
                 <AuthProvider>
-                  <ConnectWalletModalProvider>{children}</ConnectWalletModalProvider>
+                  <ConnectWalletModalProvider>
+                    <WebMcpTools />
+                    {children}
+                  </ConnectWalletModalProvider>
                 </AuthProvider>
               </BtcWalletProvider>
             </SuiWalletProvider>

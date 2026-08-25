@@ -1,0 +1,68 @@
+{
+  "protocolVersion": "0.3.0",
+  "name": "Blockchains.Click assistant",
+  "description": "Answers questions about Blockchains.Click's cross-chain swap and NFT marketplace: supported chains, platform fees, how to swap, and NFT marketplace coverage. Rule-based (no LLM) — answers are drawn from the site's own real, live data and a fixed set of known question types, not generated speculation.",
+  "url": "https://blockchains.click/api/a2a",
+  "preferredTransport": "JSONRPC",
+  "supportedInterfaces": [
+    { "url": "https://blockchains.click/api/a2a", "transport": "JSONRPC" }
+  ],
+  "additionalInterfaces": [
+    { "url": "https://blockchains.click/api/a2a", "transport": "JSONRPC" }
+  ],
+  "version": "1.0.0",
+  "documentationUrl": "https://blockchains.click/llms.txt",
+  "iconUrl": "https://blockchains.click/icon.svg",
+  "provider": {
+    "organization": "Blockchains.Click",
+    "url": "https://blockchains.click"
+  },
+  "capabilities": {
+    "streaming": false,
+    "pushNotifications": false,
+    "stateTransitionHistory": false
+  },
+  "securitySchemes": {},
+  "security": [],
+  "defaultInputModes": ["text/plain"],
+  "defaultOutputModes": ["text/plain"],
+  "skills": [
+    {
+      "id": "supported-chains",
+      "name": "Supported chains",
+      "description": "Which blockchains Blockchains.Click supports for cross-chain swaps.",
+      "tags": ["chains", "swap", "networks"],
+      "examples": ["Which chains do you support?", "Can I swap from Base?"],
+      "inputModes": ["text/plain"],
+      "outputModes": ["text/plain"]
+    },
+    {
+      "id": "platform-fees",
+      "name": "Platform fees",
+      "description": "The real, currently-configured platform fee rate, or whether none is charged.",
+      "tags": ["fees", "cost", "pricing"],
+      "examples": ["What are your fees?", "How much does a swap cost?"],
+      "inputModes": ["text/plain"],
+      "outputModes": ["text/plain"]
+    },
+    {
+      "id": "how-to-swap",
+      "name": "How to swap",
+      "description": "The step-by-step flow for performing a swap on the site. Execution always requires a real wallet signature — never offered to an agent directly.",
+      "tags": ["swap", "howto", "onboarding"],
+      "examples": ["How do I swap tokens?", "How do I get started?"],
+      "inputModes": ["text/plain"],
+      "outputModes": ["text/plain"]
+    },
+    {
+      "id": "nft-marketplace",
+      "name": "NFT marketplace coverage",
+      "description": "Which NFT marketplaces/chains Blockchains.Click aggregates listings from.",
+      "tags": ["nft", "marketplace"],
+      "examples": ["Do you support NFTs?", "Which NFT marketplaces do you use?"],
+      "inputModes": ["text/plain"],
+      "outputModes": ["text/plain"]
+    }
+  ],
+  "supportsAuthenticatedExtendedCard": false
+}
