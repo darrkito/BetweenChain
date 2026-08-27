@@ -85,6 +85,12 @@ A Spanish-language subset of the blog is available at `/es/blog/{slug}`, real tr
 - [Phantom vs. MetaMask para Swaps Cross-Chain: Qué Wallet(s) Necesitas Realmente](https://blockchains.click/es/blog/mejor-wallet-swap-cross-chain-phantom-metamask)
 - [Revocar Aprobaciones de Tokens: El Paso de Limpieza Que Casi Ninguna Wallet Te Recuerda](https://blockchains.click/es/blog/revocar-aprobaciones-tokens-seguridad-crypto)
 
+## Agent Access
+
+- MCP server: https://blockchains.click/api/mcp (server card at https://blockchains.click/.well-known/mcp/server-card.json) — tools: get_chains, get_tokens, get_token_price, get_token_safety, get_swap_quote_preview, get_btc_sui_quote_preview, get_nft_collection, browse_nft_collections, get_platform_stats, get_blog_posts, get_blog_post_detail, search_faq
+- A2A agent: https://blockchains.click/api/a2a (agent card at https://blockchains.click/.well-known/agent-card.json) — JSON-RPC `message/send`, ask it directly about chains, fees, or a specific swap pair
+- RFC 9727 API catalog: https://blockchains.click/.well-known/api-catalog
+
 ## Not Supported
 
 - No support for TON, or chains outside the Solana/EVM/Bitcoin/Sui set listed above.
