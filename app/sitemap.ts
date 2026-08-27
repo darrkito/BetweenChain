@@ -86,6 +86,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     // Privacy Policy or Terms page at all before this.
     { url: `${SITE_URL}/privacy`, lastModified: "2026-08-19", changeFrequency: "yearly", priority: 0.3 },
     { url: `${SITE_URL}/terms`, lastModified: "2026-08-19", changeFrequency: "yearly", priority: 0.3 },
+    { url: `${SITE_URL}/security`, lastModified: "2026-08-27", changeFrequency: "yearly", priority: 0.4 },
   ];
   const blogEntries: MetadataRoute.Sitemap = getAllBlogPosts().map((post) => {
     const esSlug = EN_TO_ES_BLOG_SLUG[post.slug];
