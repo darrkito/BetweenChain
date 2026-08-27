@@ -4533,3 +4533,122 @@ All of the above verified via `tsc`/`lint`/`test`/`build` (+ a local `next start
 smoke-test for the swap-pair/blog pages before shipping) after every change, and
 re-verified live against production (`blockchains.click`) via direct `curl`/GSC-API/
 Bing-API checks after each deploy — not just "the build succeeded."
+
+## 2026-08-25/26 — Spanish blog expansion (content-only scope) + AI-citation gap closing + MCP `lang` param
+
+User asked to "expand" the site into Spanish after a cleaned Spanish-language keyword
+dump turned out to be real demand for features that already exist here (dust sweeper,
+trigger orders, referrals, cross-chain NFT buying, cross-chain swaps) but had zero
+Spanish content. **Scoped via AskUserQuestion before building anything**: content/SEO
+only — the swap/wallet-connect/NFT-buy transactional UI stays English-only; this is not
+a full product localization.
+
+**New i18n infrastructure** (real translated slugs, not an `/es`-prefix on English
+words — same lesson already learned twice on Luvory/Dizayn):
+- `lib/content/blog.ts`: `readPostFile`/`getAllBlogSlugs` generalized to take a
+  directory param; new `getAllBlogSlugsEs`/`getAllBlogPostsEs`/`getBlogPostEs` read
+  `content/blog-es/` (same file shape, own slug namespace, own filenames).
+- `lib/content/blogEsMap.ts`: `ES_TO_EN_BLOG_SLUG`/`EN_TO_ES_BLOG_SLUG` — only posts
+  that actually have a translation get an entry.
+- `app/es/blog/page.tsx` + `app/es/blog/[slug]/page.tsx` (+ its own
+  `opengraph-image.tsx`, `twitter-image.tsx`, `markdown/route.ts`): mirrors of the
+  English blog routes, Spanish UI strings/date locale. **Real bug caught before
+  shipping**: the ES post page's `coverImageUrl` referenced `${postUrl}/opengraph-image`
+  — without a dedicated `app/es/blog/[slug]/opengraph-image.tsx` this would have 404'd
+  for every single ES post, since the English route's `getBlogPost()` lookup can't
+  resolve a Spanish-only slug. Added the ES-specific image routes before shipping, not
+  after finding it live.
+- `lib/seo/jsonld.tsx`: `articleSchema`/`howToSchema` gained an optional `basePath`
+  (defaults to `/blog`) so ES pages' JSON-LD points at real `/es/blog/` URLs.
+- `app/sitemap.ts`: ES entries with hreflang alternates paired to their English source
+  in both directions. **Also fixed a real pre-existing gap**: the English blog page's
+  `generateMetadata` never declared a `languages` hreflang alternate at all, even before
+  ES content existed.
+- `middleware.ts`: the existing Markdown-for-Agents content negotiation
+  (`Accept: text/markdown`) extended to `/es/blog/:slug`.
+- Both languages' post pages link to each other ("Leer en Español" / "Read in
+  English") when a translation exists.
+
+**Content shipped**: 5 translations of existing high-value posts (dust sweeper, trigger
+orders, referrals, cross-chain NFT buying, how-swaps-work) + 3 new bilingual post pairs
+closing real gaps (`blockchains-click-vs-uniswap`, a Phantom-vs-MetaMask wallet
+comparison, and a revoke-token-approvals security guide — the last one explicitly
+scoped as educational since this platform doesn't execute revocations itself, only
+Burner Shield's pre-sign check is a real feature to point to).
+
+**FAQ-only additions** (exact-phrase, both languages where translated) closing the two
+"Not covered" items from a follow-up AI-citation coverage report, without new posts:
+liquidation risk monitoring → `sentinel-shield-aave-health-monitor`; EVM-to-EVM swap
+(no Solana leg) → `how-cross-chain-swaps-work`; honeypot detection / rugcheck safety
+data → `burner-shield-contract-risk-check`; multi-chain NFT marketplace →
+`cross-chain-nft-buying-democratized`.
+
+**MCP**: `get_blog_posts`/`get_blog_post_detail` (`app/api/mcp/route.ts`) gained an
+optional `lang` param (`"es"`) reading the Spanish directory — live-verified via a
+real `tools/call` round-trip returning all 8 ES posts. **A2A intentionally NOT
+extended to Spanish this pass** — `app/api/a2a/route.ts` has no language-detection
+layer at all (unlike Luvory/Dizayn's A2A responders); adding real Spanish detection
+there is a bigger feature than this batch's scope, flagged not silently skipped.
+
+**Filtering discipline, two large pasted keyword dumps**: the first was ~95% a Korean
+actor named Seo matched as a keyword-tool substring plus US-market English SEO-industry
+terms (irrelevant to this Spanish-demand finding); the second was ~99% generic
+"NFT"-as-a-word noise (hydroponics systems literally called "NFT", pharma tablet
+codes, K-pop idols, celebrity collectibles) with only a handful of real signals buried
+in it (the two coverage-report gaps above, "revoke token approvals", "multi-chain nft
+marketplace"). Neither dump was rubber-stamped for content — extracted the real signal
+and discarded the rest, same discipline already established for Dizayn's SEO/GEO work.
+
+Full indexing pipeline re-run same session (`~/.gsc-indexer/run-daily.sh` sequence:
+`refresh-priority-urls.mjs` → `gsc-batch-index.mjs` → `submit-urls-bing.mjs` →
+`submit-urls-indexnow.mjs`), plus a manual second pass once 2 URLs were confirmed
+deployed after the first automated run's timing missed them — GSC `Requested
+indexing`, Bing submission, and IndexNow (HTTP 200) confirmed for every new URL before
+considering the session done.
+
+Verified throughout: `tsc` clean, full production `build`, full `vitest` suite
+(202/202 passing both times), lint (0 errors), live 200s on every new URL in both
+languages, live grep confirming every new FAQ answer actually renders (not just exists
+in frontmatter), and the real MCP `tools/call` test above — before each of the two
+pushes (`bf4b25b`, `2e5e9cb`).
+
+## 2026-08-27b — Keyword cannibalization audit (3-site pass: Luvory, Dizayn, Blockchains.click)
+
+Full title/H1 dedup check: extracted every static-page title, all 24 swap-pair page
+titles (templated per chain-pair, e.g. "Swap Solana to Ethereum" — inherently distinct
+per pair), and all 34 blog post titles, `sort | uniq -c` for exact duplicates. **Zero
+collisions found.** Cross-checked the recurring pattern seen on this site of a blog
+post explaining a feature (e.g. "Portfolio Rebalancer: Set Target Allocations, Swap
+Into Place") sharing a name with that feature's own tool page (`/rebalance`, titled
+"Portfolio Rebalancer — Rebalance Your Wallet") — repeats across ~8 features
+(Trigger Orders, Evac Engine, Sentinel Shield, Burner Shield, Dust Sweeper, etc.).
+Confirmed this is intentional, healthy architecture (explainer content vs. the tool
+itself, titled distinctly each time), not cannibalization — no fix needed.
+
+Full method + the two real cases this same audit found and fixed on Luvory (GSC data
+showing position 10-29 across pages splitting the same query) documented in
+`~/seo-ai-search-playbook.md` §5 and `~/geo-ai-citation-playbook.md` §9 (new section:
+cannibalization is an AI-citation problem too, not just a ranking one — AI Overviews/
+ChatGPT/Gemini pick one URL per query to cite and skip you entirely if your own pages
+are competing).
+
+## 2026-08-27c — Search-visibility pass: GSC impression-sorted query audit
+
+Pulled Rendimiento queries sorted by impressions (not clicks) with position data —
+overall volume is still small (18 distinct queries with any impressions in the 3-month
+window). Two real patterns:
+
+- **NFT-collection-name long-tail queries already rank well** (e.g. "bulltoshi nft"
+  pos 5.5, "popkins nft" pos 7.5, "gremlin cartel" pos 6) — confirms the per-collection
+  page architecture works when there's real distinct content per page.
+- **Core commercial terms barely register**: "cross chain swap crypto" pos 95 (1
+  impression), "cross chain nfts" pos 89 (1 impression). This is a young-domain
+  authority/backlink ceiling, same conclusion as Dizayn's audit the same session — not
+  an on-page bug, don't re-diagnose it as one later. Title/H1 already checked clean in
+  the cannibalization pass above.
+
+Added two exact-match FAQ entries anyway (`lib/content/faq.ts`, feeds both the
+homepage FAQ preview and `/faq` — single source, no cannibalization risk) using the
+literal weak-query phrasing: "How does a cross-chain crypto swap work?" and "Can I buy
+an NFT across chains, paying with a token from a different chain?" — real, low-cost
+lever, won't move position 90+ terms to page 1 by itself.

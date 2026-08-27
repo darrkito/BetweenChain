@@ -202,6 +202,19 @@ npx supabase db reset           # drop + recreate local DB, reapply all migratio
   response (wrong field names, silently-wrong defaults, mislabeled errors). Live-verify
   the actual data/behavior, not just that the call succeeded.
 
+## Spanish blog content (2026-08-25, content/SEO scope only)
+
+`/es/blog/*` mirrors `/blog/*` with real translated slugs (not an `/es`-prefixed
+English slug), a separate `content/blog-es/` directory read by `getAllBlogPostsEs`/
+`getBlogPostEs` (`lib/content/blog.ts`), and `lib/content/blogEsMap.ts` pairing each
+translated slug to its English source for hreflang + the "Leer en Español"/"Read in
+English" toggle. **Only the blog is bilingual — the swap/wallet-connect/NFT-buy app UI
+is English-only**, a deliberate scope decision, not an oversight; don't assume a
+Spanish string exists anywhere outside `content/blog-es/` and the `app/es/blog/*`
+routes. `app/api/mcp/route.ts`'s `get_blog_posts`/`get_blog_post_detail` accept an
+optional `lang: "es"`; `app/api/a2a/route.ts` does not (no language-detection layer
+exists there at all). Full detail in `STATE.md`'s 2026-08-25/26 entry.
+
 ## Conventions
 
 - All Supabase **writes** go through `supabaseAdmin()` (service-role key) inside API
