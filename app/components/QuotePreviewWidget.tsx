@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { SOLANA_CHAIN_ID_CLIENT, normalizeSolanaSourceMint } from "@/lib/client/constants";
 import { toAtomicAmount } from "@/lib/client/amount";
-import { TokenSelectModal, type SelectedToken } from "@/app/components/TokenSelectModal";
+import type { SelectedToken } from "@/app/components/TokenSelectModal";
 import { TokenIcon } from "@/app/components/TokenIcon";
 import { isBuyTokenAllowed, isSellTokenAllowedForBtcPair } from "@/lib/chains/tokenAllowlist";
 import { RoutePathVisualizer } from "@/app/components/RoutePathVisualizer";
@@ -12,6 +13,21 @@ import { fetchNativeToken } from "@/lib/client/nativeToken";
 import { slugForSwapChainId, labelForSwapChainId, BTC_CHAIN_ID, SUI_CHAIN_ID, btcFlowCurrency } from "@/lib/chains/swapChains";
 
 const DEBOUNCE_MS = 500;
+
+// Loaded on demand, not at module scope (2026-08-27, PSI: ~296KB unused JS on
+// the homepage). This widget is deliberately "try before you connect a
+// wallet" — see the comment below — but TokenSelectModal itself always calls
+// useWallet() internally (shared with the real /swap page, which does need
+// it), so a static import here pulled the whole @solana/wallet-adapter-react
+// + @solana/web3.js + sats-connect stack into the homepage bundle on first
+// paint, even though nothing on this page ever connects a wallet. Deferring
+// the import AND not mounting the component until the user actually opens a
+// picker (see `everOpenedPicker` below) means that code only loads on real
+// intent to pick a token, not just from having this widget on the page.
+const TokenSelectModal = dynamic(
+  () => import("@/app/components/TokenSelectModal").then((m) => m.TokenSelectModal),
+  { ssr: false },
+);
 
 /**
  * `/swap` when either side isn't picked yet, `/swap?sell=<slug>&buy=<slug>`
@@ -63,6 +79,10 @@ export function QuotePreviewWidget({
   const [buyToken, setBuyToken] = useState<SelectedToken | null>(null);
   const [sellPickerOpen, setSellPickerOpen] = useState(false);
   const [buyPickerOpen, setBuyPickerOpen] = useState(false);
+  // Gates actually mounting TokenSelectModal at all — see the dynamic()
+  // comment above. Once true it stays true (closing a picker shouldn't
+  // re-trigger the lazy-load on next open).
+  const [everOpenedPicker, setEverOpenedPicker] = useState(false);
   const [result, setResult] = useState<{
     destAmountFormatted: string | null;
     destAmountUsd: string | null;
@@ -184,7 +204,10 @@ export function QuotePreviewWidget({
             className="num w-20 bg-transparent text-right text-sm font-semibold text-ink outline-none"
           />
           <button
-            onClick={() => setSellPickerOpen(true)}
+            onClick={() => {
+              setEverOpenedPicker(true);
+              setSellPickerOpen(true);
+            }}
             className="flex items-center gap-1.5 rounded-full border border-hairline bg-surface px-2 py-1 transition-colors hover:border-accent/40"
           >
             {sellToken ? (
@@ -204,7 +227,10 @@ export function QuotePreviewWidget({
       </div>
 
       <button
-        onClick={() => setBuyPickerOpen(true)}
+        onClick={() => {
+          setEverOpenedPicker(true);
+          setBuyPickerOpen(true);
+        }}
         className="flex items-center justify-between rounded-xl bg-surface-hover px-3 py-2.5 text-left transition-colors hover:bg-accent-soft"
       >
         <span className="text-xs font-medium text-ink-faint">Buy</span>
@@ -253,20 +279,24 @@ export function QuotePreviewWidget({
         Swap now →
       </Link>
 
-      <TokenSelectModal
-        open={sellPickerOpen}
-        onClose={() => setSellPickerOpen(false)}
-        mode="multi-chain"
-        onSelect={setSellToken}
-        filterTokens={(t) => isSellTokenAllowedForBtcPair(buyToken?.chainId, t)}
-      />
-      <TokenSelectModal
-        open={buyPickerOpen}
-        onClose={() => setBuyPickerOpen(false)}
-        mode="multi-chain"
-        filterTokens={(t) => isBuyTokenAllowed(sellToken?.chainId, t)}
-        onSelect={setBuyToken}
-      />
+      {everOpenedPicker && (
+        <>
+          <TokenSelectModal
+            open={sellPickerOpen}
+            onClose={() => setSellPickerOpen(false)}
+            mode="multi-chain"
+            onSelect={setSellToken}
+            filterTokens={(t) => isSellTokenAllowedForBtcPair(buyToken?.chainId, t)}
+          />
+          <TokenSelectModal
+            open={buyPickerOpen}
+            onClose={() => setBuyPickerOpen(false)}
+            mode="multi-chain"
+            filterTokens={(t) => isBuyTokenAllowed(sellToken?.chainId, t)}
+            onSelect={setBuyToken}
+          />
+        </>
+      )}
     </div>
   );
 }
