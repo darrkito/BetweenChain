@@ -81,6 +81,10 @@
     {
       "name": "get_blog_post_detail",
       "description": "Get the full content of one blog post by slug."
+    },
+    {
+      "name": "search_faq",
+      "description": "Search the general site FAQ (fees, wallets, supported chains) plus every blog post's own Q&A content."
     }
   ],
   "prompts": [],

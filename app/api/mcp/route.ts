@@ -14,6 +14,7 @@ import { applyNftImageOverride } from "@/lib/nft/imageOverrides";
 import type { NftVendor, NftChainFamily } from "@/lib/nft/types";
 import { getPlatformStats } from "@/lib/stats";
 import { getAllBlogPosts, getBlogPost, getAllBlogPostsEs, getBlogPostEs } from "@/lib/content/blog";
+import { FAQ_ITEMS } from "@/lib/content/faq";
 import { GET as quotePreviewGet } from "@/app/api/quote/preview/route";
 import { GET as btcQuotePreviewGet } from "@/app/api/quote/btc/preview/route";
 
@@ -117,6 +118,10 @@ interface GetBlogPostsArgs {
 }
 interface GetBlogPostDetailArgs {
   slug: string;
+  lang?: string;
+}
+interface SearchFaqArgs {
+  query?: string;
   lang?: string;
 }
 
@@ -409,6 +414,43 @@ function buildServer(originalReq: Request | undefined) {
         return ok({ slug: post.slug, title: post.title, description: post.description, category: post.category, content: post.content, faq: post.faq, date: post.date });
       } catch (err) {
         return toolError("get_blog_post_detail", err);
+      }
+    },
+  );
+
+  // 2026-08-25 gap found — this tool didn't exist at all: get_blog_post_detail
+  // already correctly returns a post's own faq[], but the site's general FAQ
+  // page (app/faq/page.tsx, FAQ_ITEMS) had no MCP tool exposing it, and no
+  // way to search across every post's FAQ content at once either. FAQ_ITEMS
+  // itself is English-only (same scope as the app's swap/wallet UI); the
+  // Spanish blog subset's own faq[] entries are searched too when lang="es".
+  server.registerTool(
+    "search_faq",
+    {
+      description: "Search Blockchains.Click's FAQ — the general site FAQ (fees, wallets, supported chains) plus every blog post's own Q&A content.",
+      inputSchema: fromJsonSchema<SearchFaqArgs>({
+        type: "object",
+        properties: {
+          query: { type: "string", description: "Search keywords" },
+          lang: { type: "string", description: "\"en\" (default, includes the general FAQ) or \"es\" (blog-post FAQ only — the general FAQ has no Spanish version)" },
+        },
+        required: ["query"],
+        additionalProperties: false,
+      }),
+    },
+    async ({ query, lang }: SearchFaqArgs) => {
+      try {
+        const q = String(query ?? "").toLowerCase().trim();
+        if (!q) return toolError("search_faq", new Error("Missing required argument: query"));
+        const isEs = lang === "es";
+        const blogFaq = (isEs ? getAllBlogPostsEs() : getAllBlogPosts()).flatMap((p) => p.faq ?? []);
+        const allFaq = isEs ? blogFaq : [...FAQ_ITEMS, ...blogFaq];
+        const results = allFaq.filter(
+          (f) => f.question.toLowerCase().includes(q) || f.answer.toLowerCase().includes(q),
+        );
+        return ok({ query: q, results });
+      } catch (err) {
+        return toolError("search_faq", err);
       }
     },
   );
