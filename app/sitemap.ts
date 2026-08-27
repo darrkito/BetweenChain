@@ -82,6 +82,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${SITE_URL}/evac`, changeFrequency: "monthly", priority: 0.6 },
     { url: `${SITE_URL}/sentinel-shield`, changeFrequency: "monthly", priority: 0.6 },
     { url: `${SITE_URL}/burner-shield`, changeFrequency: "monthly", priority: 0.6 },
+    // Real gap found 2026-08-27: /rebalance (Portfolio Rebalancer) is a real,
+    // linked, indexable page with its own metadata/canonical — never added
+    // to the sitemap when it shipped, same class of miss as /radar above.
+    { url: `${SITE_URL}/rebalance`, lastModified: "2026-08-27", changeFrequency: "monthly", priority: 0.6 },
     // Added 2026-08-19 (SEO checklist audit) -- real gap, this app had no
     // Privacy Policy or Terms page at all before this.
     { url: `${SITE_URL}/privacy`, lastModified: "2026-08-19", changeFrequency: "yearly", priority: 0.3 },
