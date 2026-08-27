@@ -5,6 +5,7 @@
 // mechanism to Next.js's native Metadata API/Server Components, which cover
 // the same ground natively. No SEO framework needed here either.
 import type { BreadcrumbItem } from "@/app/components/Breadcrumb";
+import { SITE_X_URL } from "@/app/components/SocialXLink";
 
 const SITE_URL = "https://blockchains.click";
 const SITE_NAME = "Blockchains.Click";
@@ -34,6 +35,7 @@ export function organizationSchema() {
     name: SITE_NAME,
     url: SITE_URL,
     logo: `${SITE_URL}/icon-512.png`,
+    sameAs: [SITE_X_URL],
   };
 }
 
