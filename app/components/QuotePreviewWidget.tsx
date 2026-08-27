@@ -6,7 +6,7 @@ import { SOLANA_CHAIN_ID_CLIENT, normalizeSolanaSourceMint } from "@/lib/client/
 import { toAtomicAmount } from "@/lib/client/amount";
 import { TokenSelectModal, type SelectedToken } from "@/app/components/TokenSelectModal";
 import { TokenIcon } from "@/app/components/TokenIcon";
-import { isBuyTokenAllowed, isSellTokenAllowedForBtcPair } from "@/app/components/SwapPanel";
+import { isBuyTokenAllowed, isSellTokenAllowedForBtcPair } from "@/lib/chains/tokenAllowlist";
 import { RoutePathVisualizer } from "@/app/components/RoutePathVisualizer";
 import { fetchNativeToken } from "@/lib/client/nativeToken";
 import { slugForSwapChainId, labelForSwapChainId, BTC_CHAIN_ID, SUI_CHAIN_ID, btcFlowCurrency } from "@/lib/chains/swapChains";

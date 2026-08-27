@@ -11,6 +11,7 @@ import { RoutePathVisualizer } from "@/app/components/RoutePathVisualizer";
 import { BTC_CHAIN_ID, SUI_CHAIN_ID, btcFlowCurrency } from "@/lib/chains/swapChains";
 import { generateFreshSolanaWallet, generateFreshEvmWallet, type FreshWallet } from "@/lib/client/generateFreshWallet";
 import { CHANGENOW_ETH_NETWORK_BY_CHAIN_ID } from "@/lib/chains/changenowEvmNetworks";
+import { isBuyTokenAllowed, isSellTokenAllowedForBtcPair } from "@/lib/chains/tokenAllowlist";
 
 const SOLANA_CHAIN_ID = 792703809;
 const ETHEREUM_CHAIN_ID = 1;
@@ -82,54 +83,13 @@ function TokenPill({ token, onClick }: { token: SelectedToken | null; onClick: (
 // live for BTC<->SOL and BTC<->ETH — never an arbitrary SPL/ERC20 or a
 // non-Ethereum EVM chain. Both directions of that constraint live here: a
 // BTC buy target is only reachable from a native-SOL or native-Ethereum-ETH
-// sell side, and (symmetrically) once BTC is the sell side, only native SOL
-// or native Ethereum ETH are valid buy targets.
-// Sui (2026-08-18): same ChangeNOW execution engine, same conservative
-// constraint — only paired with native SOL/ETH, not with BTC (that combo
-// is unverified; ChangeNOW likely supports it, but this app hasn't tested
-// it live, same discipline as every other untested pair in this file).
-function isNativeSolOrEth(t: { chainId: number; isNative: boolean }): boolean {
-  return (t.chainId === SOLANA_CHAIN_ID || t.chainId === ETHEREUM_CHAIN_ID) && t.isNative;
-}
-
-export function isBuyTokenAllowed(sellChainId: number | undefined, t: { chainId: number; isNative: boolean }): boolean {
-  if (t.chainId === BTC_CHAIN_ID || t.chainId === SUI_CHAIN_ID) {
-    if (sellChainId === SOLANA_CHAIN_ID || sellChainId === ETHEREUM_CHAIN_ID) return true;
-    // Real gap found live 2026-08-18 (user report, "arbitrum to SUI?"):
-    // ChangeNOW supports ETH's native L2 representations landing on Sui
-    // (confirmed live, see lib/chains/changenowEvmNetworks.ts) — scoped to
-    // a Sui buy target only, per instruction; BTC keeps its original
-    // mainnet-ETH-only scope (untested for L2s, no reason yet to widen).
-    return t.chainId === SUI_CHAIN_ID && sellChainId != null && sellChainId in CHANGENOW_ETH_NETWORK_BY_CHAIN_ID;
-  }
-  if (sellChainId === BTC_CHAIN_ID || sellChainId === SUI_CHAIN_ID) {
-    return isNativeSolOrEth(t);
-  }
-  if (t.chainId === SOLANA_CHAIN_ID && !t.isNative) {
-    return sellChainId === SOLANA_CHAIN_ID;
-  }
-  return true;
-}
-
-// Symmetric counterpart to isBuyTokenAllowed above, for the OTHER pick
-// order: Buy already fixed to BTC/Sui, now choosing Sell. Real gap found
-// live 2026-08-18 (user report): there was no such filter at all — the
-// Sell modal had zero chain restriction, so e.g. BNB Chain or Polygon
-// (neither of which is ETH, a completely different ChangeNOW currency this
-// app doesn't support) could be picked as Sell for a BTC/Sui buy target,
-// silently mis-quoted as if it were ETH. isBuyTokenAllowed's own
-// isNativeSolOrEth check only ever ran in the other pick order and never
-// caught this.
-export function isSellTokenAllowedForBtcPair(buyChainId: number | undefined, t: { chainId: number; isNative: boolean }): boolean {
-  if (buyChainId !== BTC_CHAIN_ID && buyChainId !== SUI_CHAIN_ID) return true; // not a ChangeNOW pair at all — unrestricted
-  if (t.chainId === buyChainId) return false; // can't sell what you're buying (BTC/Sui chains each have exactly one token)
-  if (t.chainId === BTC_CHAIN_ID || t.chainId === SUI_CHAIN_ID) return true;
-  if (t.chainId === SOLANA_CHAIN_ID) return t.isNative; // ChangeNOW only ever handles native SOL, never an SPL token
-  if (!t.isNative) return false; // ChangeNOW only ever handles each EVM chain's native ETH, never an ERC20
-  if (t.chainId === ETHEREUM_CHAIN_ID) return true;
-  // See isBuyTokenAllowed's comment just above — same Sui-only scoping.
-  return buyChainId === SUI_CHAIN_ID && t.chainId in CHANGENOW_ETH_NETWORK_BY_CHAIN_ID;
-}
+// isBuyTokenAllowed / isSellTokenAllowedForBtcPair moved to
+// lib/chains/tokenAllowlist.ts (2026-08-27) — pure logic, zero React/wallet
+// dependencies, but was pulling QuotePreviewWidget's homepage bundle into
+// this whole 699-line module (PSI flagged ~50-80% unused JS on the
+// homepage). Imported above; re-exported here so any other existing import
+// site for these two names from this file keeps working unchanged.
+export { isBuyTokenAllowed, isSellTokenAllowedForBtcPair };
 
 export function SwapPanel({
   sellToken,
