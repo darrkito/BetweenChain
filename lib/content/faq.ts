@@ -17,6 +17,16 @@ export const FAQ_ITEMS: FaqItem[] = [
       "A cross-chain swap and NFT marketplace — swap tokens between Solana and EVM chains, and browse/buy NFTs across Solana, Ethereum and other EVM chains, and Sui, all from one place.",
   },
   {
+    question: "How does a cross-chain crypto swap work?",
+    answer:
+      "You pick a source token on one chain and a destination token on another (e.g. SOL on Solana to ETH on Ethereum), get a live quote, and execute it in one flow — Jupiter handles the Solana-side leg and Relay handles cross-chain delivery, both non-custodial, direct wallet-signed transactions. No manual bridging step, no wrapped tokens.",
+  },
+  {
+    question: "Can I buy an NFT across chains, paying with a token from a different chain?",
+    answer:
+      "Yes — that's the core feature. Browse NFT collections on Solana, EVM chains (Ethereum, Base, ApeChain and more), or Sui, and pay with whatever token you already hold on a different chain than the NFT itself, without a separate manual bridge-then-buy step.",
+  },
+  {
     question: "Do I need a wallet to try it?",
     answer:
       "No — you can preview a swap quote right here on this page without connecting anything. You'll need a Solana wallet (and an EVM wallet too, if you're swapping into or out of an EVM chain) to actually execute a swap.",
