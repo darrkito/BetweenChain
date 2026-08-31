@@ -10,16 +10,28 @@ import { cached } from "@/lib/cache";
 // completion definition lib/points.ts already uses to credit points.
 async function computePlatformStats() {
   const db = supabaseAdmin();
-  const [swaps, nfts] = await Promise.all([
+  const [swaps, nfts, triggerOrders, dustSweeps] = await Promise.all([
     db.from("swap_transactions").select("usd_volume", { count: "exact" }).eq("status", "complete"),
     db.from("nft_purchases").select("usd_volume", { count: "exact" }).eq("status", "complete"),
+    // Trigger orders (limit/DCA, app/orders) and dust-sweeper deliveries are
+    // real completed on-chain swaps too (see
+    // app/api/cron/deliver-orders/route.ts) but land in their own tables
+    // under `delivery_status`, not `swap_transactions` — the count here was
+    // silently excluding both, undercounting the home page's "completed
+    // transactions" number. Count-only (head: true, no rows fetched):
+    // neither table captures a usd_volume at fill time (only raw atomic
+    // token amounts), so totalUsdVolume intentionally stays swap+NFT only
+    // until that's captured — see stats.ts git history / PR discussion for
+    // that follow-up.
+    db.from("trigger_orders").select("*", { count: "exact", head: true }).eq("delivery_status", "delivered"),
+    db.from("dust_sweep_authorizations").select("*", { count: "exact", head: true }).eq("delivery_status", "delivered"),
   ]);
 
   const swapVolume = (swaps.data ?? []).reduce((sum, r) => sum + (r.usd_volume ?? 0), 0);
   const nftVolume = (nfts.data ?? []).reduce((sum, r) => sum + (r.usd_volume ?? 0), 0);
 
   return {
-    totalTransactions: (swaps.count ?? 0) + (nfts.count ?? 0),
+    totalTransactions: (swaps.count ?? 0) + (nfts.count ?? 0) + (triggerOrders.count ?? 0) + (dustSweeps.count ?? 0),
     totalUsdVolume: Math.round(swapVolume + nftVolume),
   };
 }

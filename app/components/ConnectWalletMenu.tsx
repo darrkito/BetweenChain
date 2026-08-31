@@ -25,6 +25,18 @@ function shorten(address: string): string {
 // "Connecting…" forever, which is exactly the bug this was built to fix.
 const SOLANA_CONNECT_TIMEOUT_MS = 12_000;
 
+// Phantom's Solana Wallet Standard registration is async and frequently
+// lands measurably later than its EVM (`window.ethereum`) injection —
+// especially right after a fresh browser/extension start, when the
+// extension's background worker has to spin up before it dispatches
+// `wallet-standard:register-wallet`. Without this grace period, opening the
+// connect modal right after page load would catch `solana.wallets` still
+// empty and show the terminal "no wallet detected" message even though
+// Phantom is installed and about to register — matching the real user
+// report of Solana connect "randomly" failing while EVM never does (EVM's
+// injection has no equivalent async registration step here).
+const SOLANA_DETECT_GRACE_MS = 1_500;
+
 /**
  * Unified "Connect Wallet" entry point — a centered popup, grouped by chain
  * family: Solana lists whatever real Wallet Standard wallets are actually
@@ -68,6 +80,7 @@ export function ConnectWalletMenu() {
   const [mounted, setMounted] = useState(false);
 
   const solana = useWallet();
+  const [solanaDetecting, setSolanaDetecting] = useState(true);
   const evm = useEvmWallet();
   const auth = useAuth();
   const sui = useSuiWallet();
@@ -76,6 +89,19 @@ export function ConnectWalletMenu() {
   useEffect(() => {
     Promise.resolve().then(() => setMounted(true));
   }, []);
+
+  // Re-arm the grace period every time the modal opens (this is the "header
+  // button" entry point — the one users report failing "randomly"; the
+  // swap-page button shares the same modal via ConnectWalletModalProvider
+  // and gets the same fix). If wallets are already registered by the time
+  // this runs, the timer is irrelevant — the ternary below picks the
+  // populated-list branch on its own re-render regardless of `solanaDetecting`.
+  useEffect(() => {
+    if (!open || solana.wallets.length > 0) return;
+    setSolanaDetecting(true);
+    const timer = setTimeout(() => setSolanaDetecting(false), SOLANA_DETECT_GRACE_MS);
+    return () => clearTimeout(timer);
+  }, [open, solana.wallets.length]);
 
   // Counts each real connect click, rather than a ref flag gated on
   // `solana.wallet` changing reference — real bug found live 2026-08-07:
@@ -187,6 +213,14 @@ export function ConnectWalletMenu() {
               ))}
               {solanaError && <p className="px-2 pt-1 text-[11px] leading-relaxed text-danger">{solanaError}</p>}
             </div>
+          ) : solanaDetecting ? (
+            // Solana Wallet Standard registration is async (see
+            // SOLANA_DETECT_GRACE_MS above) — show a neutral loading state
+            // instead of the terminal "not detected" message for the first
+            // stretch after opening, so a Phantom/Solflare that's still
+            // mid-registration has time to show up instead of being
+            // misreported as absent.
+            <EmptyNote text="Detecting Solana wallets…" />
           ) : (
             // Real gap this covers (not a new wallet-connection mechanism —
             // just honest copy, WalletConnect/deep-linking is intentionally
