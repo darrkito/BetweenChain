@@ -15,7 +15,7 @@ const SITE_URL = "https://blockchains.click";
 // leads with "Cross-Chain Token Swaps & NFT Marketplace") to avoid
 // title-phrase overlap between sibling pages (playbook §5).
 export const metadata: Metadata = {
-  title: "Cross-Chain Swap & NFT FAQ — Fees, Security, Supported Chains",
+  title: "Cross-Chain Swap & NFT FAQ: Fees & Security",
   description:
     "Answers to common questions about swapping tokens and buying NFTs across chains on Blockchains.Click — fees, security, points, and supported chains.",
   alternates: { canonical: "/faq" },

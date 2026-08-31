@@ -40,6 +40,11 @@ export interface FaqData {
 export interface BlogPostMeta {
   slug: string;
   title: string;
+  // Shorter variant for the <title> tag / OG title when `title` (used as
+  // the on-page H1) would push the rendered "<title> | Blockchains.Click"
+  // past ~70 characters and risk truncation in search results (Bing SEO
+  // audit, 2026-08-31). Falls back to `title` when unset.
+  metaTitle?: string;
   description: string;
   date: string; // ISO 8601 (YYYY-MM-DD)
   category: string;
@@ -86,6 +91,7 @@ function readPostFile(dir: string, slug: string): { meta: BlogPostMeta; content:
     meta: {
       slug,
       title: String(data.title),
+      metaTitle: data.metaTitle ? String(data.metaTitle) : undefined,
       description: String(data.description),
       date: String(data.date),
       category: String(data.category),

@@ -17,7 +17,7 @@ import { SwapPageClient } from "./SwapPageClient";
 // canonical correct); title/description matching real search phrasing is
 // the actual lever available here.
 export const metadata: Metadata = {
-  title: "Swap Tokens Across Chains — Solana, Ethereum & More",
+  title: "Swap Tokens Across Chains — Solana & Ethereum",
   description:
     "Swap meme coins and tokens across Solana, Ethereum, and more — one click, no bridging headaches. Connect your wallet and go.",
   alternates: { canonical: "/swap" },

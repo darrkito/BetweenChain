@@ -5,7 +5,7 @@ import { RadarClient } from "./RadarClient";
 // app/swap/page.tsx (RadarClient is a client component and can't export
 // generateMetadata directly).
 export const metadata: Metadata = {
-  title: "Meme Radar — Trending Solana Tokens With Safety Checks",
+  title: "Meme Radar — Trending Solana Tokens",
   description:
     "Trending Solana tokens with real RugCheck safety data — quick-buy with a review step, no blind signing.",
   alternates: { canonical: "/radar" },

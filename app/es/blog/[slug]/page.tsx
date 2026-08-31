@@ -33,14 +33,15 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const post = getBlogPostEs(slug);
   if (!post) return { title: "Publicación no encontrada", robots: { index: false } };
   const enSlug = ES_TO_EN_BLOG_SLUG[slug];
+  const seoTitle = post.metaTitle ?? post.title;
   return {
-    title: post.title,
+    title: seoTitle,
     description: post.description,
     alternates: {
       canonical: `/es/blog/${post.slug}`,
       languages: enSlug ? { "en-US": `/blog/${enSlug}`, "es-419": `/es/blog/${post.slug}` } : undefined,
     },
-    openGraph: { type: "article", title: post.title, description: post.description, publishedTime: post.date },
+    openGraph: { type: "article", title: seoTitle, description: post.description, publishedTime: post.date },
   };
 }
 

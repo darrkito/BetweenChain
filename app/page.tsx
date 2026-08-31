@@ -40,7 +40,7 @@ import { MORE_TOOLS } from "@/lib/content/moreTools";
 // entirely, since (unlike those competitors) it's a genuinely real,
 // differentiated capability here, not filler.
 export const metadata: Metadata = {
-  title: "Cross-Chain Token Swaps — Solana, Ethereum & 40+ Chains | Blockchains.Click",
+  title: "Cross-Chain Token Swaps — Solana & 40+ Chains | Blockchains.Click",
   description:
     "Swap tokens across Solana, Ethereum, Bitcoin, Sui and more in one click. Also buy NFTs cross-chain, paying with a token from a different chain than the NFT itself.",
   alternates: { canonical: "/" },
