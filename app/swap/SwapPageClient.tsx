@@ -21,7 +21,6 @@ import { isPlausibleEvmAddress, isPlausibleBtcAddress, isPlausibleSuiAddress } f
 import { resolveChangeNowFromNetwork } from "@/lib/chains/changenowEvmNetworks";
 import { AppHeader } from "@/app/components/AppHeader";
 import { TrendingBar } from "@/app/components/TrendingBar";
-import { Reveal } from "@/app/components/Reveal";
 import { SwapPanel, isBuyTokenAllowed } from "@/app/components/SwapPanel";
 import { SlippageControl } from "@/app/components/SlippageControl";
 import { TrustBar } from "@/app/components/TrustBar";
@@ -977,7 +976,16 @@ export function SwapPageClient() {
           to use instead of adding a new width constraint. Single column
           (side-card stacks below) under `lg:`, unchanged from before. */}
       <div className="grid w-full gap-6 lg:grid-cols-[1fr_320px] lg:items-start">
-      <Reveal className="mx-auto flex w-full max-w-lg flex-col gap-4">
+      {/* Plain div, not <Reveal> (2026-09-01, PSI audit) — this is the page's
+          primary above-the-fold content (H1, subtext, the swap widget
+          itself), visible immediately on load, not something a visitor
+          scrolls to. Lighthouse's LCP breakdown identified the subtext <p>
+          right below as the LCP element with 4585ms of "element render
+          delay" -- almost entirely the IntersectionObserver+opacity fade-in
+          this wrapper added to content that was never actually below the
+          fold. Reveal is still the right tool for genuinely scrolled-to
+          content (see the MORE_TOOLS section below, unchanged). */}
+      <div className="mx-auto flex w-full max-w-lg flex-col gap-4">
         {/* 2026-08-06 (frontend audit, Impeccable detector: "flat-type-hierarchy")
             — same gap as /nft: no page-level heading at all, straight into
             the widget, so text sizes clustered with nothing bigger to anchor
@@ -1111,7 +1119,7 @@ export function SwapPageClient() {
           How does a cross-chain swap actually work?
           <span aria-hidden="true">→</span>
         </Link>
-      </Reveal>
+      </div>
 
       <div className="mx-auto w-full max-w-lg lg:sticky lg:top-6 lg:mx-0">
         <PointsSummaryCard refreshKey={isDone ? swapId : null} />

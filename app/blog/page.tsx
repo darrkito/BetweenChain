@@ -58,8 +58,8 @@ export default function BlogIndexPage() {
             this was already a single-column text list, not a grid. See
             PLAN.md's "de-AI-ify" entry. */}
         <div className="flex flex-col divide-y divide-hairline border-y border-hairline">
-          {posts.map((post, i) => (
-            <Reveal key={post.slug} delay={i * 0.05}>
+          {posts.map((post, i) => {
+            const card = (
               <Link
                 href={`/blog/${post.slug}`}
                 className="group flex flex-col gap-2 px-1 py-5 transition-colors duration-100 hover:bg-surface-hover"
@@ -73,8 +73,20 @@ export default function BlogIndexPage() {
                 <h2 className="font-display text-xl font-normal text-ink">{post.title}</h2>
                 <p className="text-sm text-ink-muted">{post.description}</p>
               </Link>
-            </Reveal>
-          ))}
+            );
+            // First card only, not <Reveal> (2026-09-01, PSI audit) — it's
+            // above the fold on mobile, and Lighthouse's LCP breakdown
+            // identified this exact card's excerpt <p> as the LCP element
+            // with 2707ms of "element render delay", almost entirely the
+            // scroll-triggered fade-in. Cards below the fold keep Reveal;
+            // there's real UX value in the staggered reveal for a long
+            // list, just not for the one card that's already visible.
+            return i === 0 ? <div key={post.slug}>{card}</div> : (
+              <Reveal key={post.slug} delay={i * 0.05}>
+                {card}
+              </Reveal>
+            );
+          })}
         </div>
       </div>
     </main>

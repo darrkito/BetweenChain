@@ -38,8 +38,8 @@ export default function BlogIndexPageEs() {
         </div>
 
         <div className="flex flex-col divide-y divide-hairline border-y border-hairline">
-          {posts.map((post, i) => (
-            <Reveal key={post.slug} delay={i * 0.05}>
+          {posts.map((post, i) => {
+            const card = (
               <Link
                 href={`/es/blog/${post.slug}`}
                 className="group flex flex-col gap-2 px-1 py-5 transition-colors duration-100 hover:bg-surface-hover"
@@ -53,8 +53,16 @@ export default function BlogIndexPageEs() {
                 <h2 className="font-display text-xl font-normal text-ink">{post.title}</h2>
                 <p className="text-sm text-ink-muted">{post.description}</p>
               </Link>
-            </Reveal>
-          ))}
+            );
+            // Same fix as app/blog/page.tsx (2026-09-01, PSI audit) — first
+            // card skips the Reveal fade-in, it's the LCP element above the
+            // fold.
+            return i === 0 ? <div key={post.slug}>{card}</div> : (
+              <Reveal key={post.slug} delay={i * 0.05}>
+                {card}
+              </Reveal>
+            );
+          })}
         </div>
       </div>
     </main>
