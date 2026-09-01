@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { SwapPageClient } from "./SwapPageClient";
+import { SwapPageFallback } from "./SwapPageFallback";
 
 // 2026-08-05 (landing-page overhaul, Phase 2) — this route used to BE `/`
 // (the whole app was the swap tool, no separate landing page existed). The
@@ -26,11 +27,20 @@ export const metadata: Metadata = {
 export default function SwapPage() {
   // Suspense boundary (2026-08-07) — SwapPageClient now reads useSearchParams()
   // (for the ?sell=&buy= pair-page prefill) which requires one, or Next.js
-  // deopts this whole static page into fully dynamic rendering. No fallback
-  // UI needed — the client component itself already handles its own loading
-  // states for every async piece it has.
+  // deopts this whole static page into fully dynamic rendering.
+  //
+  // Real `fallback` added 2026-09-01 (GSC audit) — without one, this was
+  // the ONE page-level Suspense boundary that ends up as the nearest
+  // ancestor for AppHeader's wallet-only dynamic(ssr:false) children, so
+  // their bailout swallowed this entire page's content (H1, subtext, swap
+  // widget, even AppHeader) instead of staying isolated to just those small
+  // widgets the way it does on every other page. See SwapPageFallback.tsx
+  // for the full mechanism writeup. This fallback is real static content
+  // (not a spinner) so non-JS crawlers get something meaningful instead of
+  // an empty shell; real users see it for a flash before hydration swaps in
+  // the live SwapPageClient.
   return (
-    <Suspense>
+    <Suspense fallback={<SwapPageFallback />}>
       <SwapPageClient />
     </Suspense>
   );

@@ -1,6 +1,6 @@
 import { TRADEPORT_FEE_SAFETY_MARGIN } from "@/lib/nft/tradeportFee";
 import { magicEdenBuyerTotal } from "@/lib/nft/magicedenFee";
-import { roundUpTo3Decimals } from "@/lib/client/amount";
+import { roundUpTo3Decimals, formatCryptoAmount } from "@/lib/client/amount";
 import type { NftCollection } from "@/lib/nft/types";
 
 function Stat({
@@ -141,7 +141,7 @@ export function NftCollectionStats({
         ? roundUpTo3Decimals(Number(floorPrice) * (1 + TRADEPORT_FEE_SAFETY_MARGIN))
         : collection.vendor === "magiceden"
           ? roundUpTo3Decimals(magicEdenBuyerTotal(Number(floorPrice), magicEdenRoyaltyBps))
-          : Number(floorPrice).toFixed(3);
+          : formatCryptoAmount(Number(floorPrice));
 
   // listedCountInfo.volume (Magic Eden, 7d) takes priority when present,
   // same override pattern as floorPrice above — collection.volume24hr is
@@ -154,8 +154,8 @@ export function NftCollectionStats({
   const floorConvertedDisplay = (() => {
     if (floorPriceDisplay == null || !solUsdPrice || !ethUsdPrice) return null;
     const floorNum = Number(floorPriceDisplay);
-    if (floorPriceCurrency === "SOL") return `≈${((floorNum * solUsdPrice) / ethUsdPrice).toFixed(3)} ETH`;
-    if (floorPriceCurrency === "ETH") return `≈${((floorNum * ethUsdPrice) / solUsdPrice).toFixed(3)} SOL`;
+    if (floorPriceCurrency === "SOL") return `≈${formatCryptoAmount((floorNum * solUsdPrice) / ethUsdPrice)} ETH`;
+    if (floorPriceCurrency === "ETH") return `≈${formatCryptoAmount((floorNum * ethUsdPrice) / solUsdPrice)} SOL`;
     return null;
   })();
 

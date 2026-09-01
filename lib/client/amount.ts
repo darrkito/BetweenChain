@@ -49,3 +49,22 @@ export function formatUsdCompact(value: number): string {
   if (value >= 1_000) return `$${(value / 1_000).toFixed(1)}K`;
   return `$${value.toFixed(value < 1 ? 6 : 2)}`;
 }
+
+// Display-only floor-price formatter, same "don't round a real nonzero value
+// to zero" fix as formatUsdCompact above, applied to ETH/SOL amounts. Found
+// live 2026-09-01: a plain `.toFixed(3)` on a mega-supply collection's real
+// 0.0000947 ETH floor displayed as "0.000 ETH" -- reads as a dead/worthless
+// collection when the real value is just very small. Uses 3 decimals for
+// anything that doesn't round away to zero, otherwise widens until the
+// first significant digit shows (capped at 8, ETH/SOL's usual precision
+// ceiling) so a genuine near-zero floor still reads as a real number.
+export function formatCryptoAmount(value: number): string {
+  if (value === 0) return "0.000";
+  const threeDp = value.toFixed(3);
+  if (Number(threeDp) !== 0) return threeDp;
+  for (let decimals = 4; decimals <= 8; decimals++) {
+    const candidate = value.toFixed(decimals);
+    if (Number(candidate) !== 0) return candidate;
+  }
+  return value.toFixed(8);
+}
