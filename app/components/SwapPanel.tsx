@@ -21,11 +21,21 @@ function shortenAddress(address: string): string {
 }
 
 function TokenPill({ token, onClick }: { token: SelectedToken | null; onClick: () => void }) {
+  // min-h-11 on both branches (2026-09-01, PSI/CLS audit) -- Lighthouse's
+  // cls-culprits-insight identified this exact button as the dominant
+  // layout-shift source on /swap: the Sell side starts with no token
+  // (shorter pill, py-2/no icon) then resolves to native SOL a few hundred
+  // ms after mount (see the default-fill effect in SwapPageClient.tsx),
+  // and the token-selected variant is taller (icon + 2 text lines). That
+  // height jump pushed the "Buy" card below it down, registering as CLS
+  // even though the Buy card's own content never changed. Reserving the
+  // same min-height in both states removes the jump regardless of which
+  // one renders first.
   if (!token) {
     return (
       <button
         onClick={onClick}
-        className="flex shrink-0 items-center gap-1 rounded-full bg-accent px-4 py-2 text-sm font-semibold text-accent-ink transition-all hover:brightness-110 active:scale-[0.96]"
+        className="flex min-h-11 shrink-0 items-center gap-1 rounded-full bg-accent px-4 py-2 text-sm font-semibold text-accent-ink transition-all hover:brightness-110 active:scale-[0.96]"
       >
         Select token <span aria-hidden="true">›</span>
       </button>
@@ -34,7 +44,7 @@ function TokenPill({ token, onClick }: { token: SelectedToken | null; onClick: (
   return (
     <button
       onClick={onClick}
-      className="flex shrink-0 items-center gap-2 rounded-full border border-hairline bg-surface-hover px-3 py-1.5 transition-all hover:border-accent/40 active:scale-[0.96]"
+      className="flex min-h-11 shrink-0 items-center gap-2 rounded-full border border-hairline bg-surface-hover px-3 py-1.5 transition-all hover:border-accent/40 active:scale-[0.96]"
     >
       <TokenIcon logoURI={token.logoURI} symbol={token.symbol} chainIconUrl={token.chainIconUrl} size={32} />
       <span className="text-left">
