@@ -15,8 +15,9 @@
   },
   "dependencies": {
     "@modelcontextprotocol/server": "^2.0.0",
-    "@mysten/dapp-kit": "^1.1.9",
+    "@mysten/slush-wallet": "^1.1.9",
     "@mysten/sui": "^2.22.1",
+    "@mysten/wallet-standard": "^0.21.9",
     "@solana/spl-token": "^0.4.15",
     "@solana/wallet-adapter-base": "^0.9.27",
     "@solana/wallet-adapter-phantom": "^0.9.29",
