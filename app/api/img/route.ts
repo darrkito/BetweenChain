@@ -53,7 +53,13 @@ export const maxDuration = 15;
  */
 
 const ALLOWED_PROTOCOLS = new Set(["http:", "https:"]);
-const MAX_BYTES = 15 * 1024 * 1024; // generous for NFT art, still bounded
+// Raised from 15MB (2026-09-02, functional audit) -- a real, legitimate NFT
+// collection PFP (wassieverse_pfp_1734111750884.png, 15,763,484 bytes) missed
+// the old cap by <1MB and failed to load through this proxy. 20MB keeps the
+// same abuse/cost-mitigation intent (this is still a bounded, security-
+// relevant cap on an open image-proxy endpoint, see the route doc comment)
+// while giving real oversized art some headroom.
+const MAX_BYTES = 20 * 1024 * 1024;
 const FETCH_TIMEOUT_MS = 8_000;
 const MAX_REDIRECTS = 3;
 const MIN_RESIZE_WIDTH = 8;
