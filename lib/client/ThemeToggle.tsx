@@ -57,7 +57,7 @@ export function ThemeToggle() {
       onClick={cycle}
       title={`${label} — click to change`}
       aria-label={label}
-      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-hairline bg-surface text-ink-muted transition-colors hover:bg-surface-hover hover:text-ink"
+      className="flex size-11 shrink-0 items-center justify-center rounded-full border border-hairline bg-surface text-ink-muted transition-colors hover:bg-surface-hover hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
     >
       {pref === "light" ? (
         <SunIcon />

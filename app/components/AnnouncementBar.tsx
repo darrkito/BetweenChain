@@ -55,7 +55,7 @@ export function AnnouncementBar() {
       <button
         onClick={dismiss}
         aria-label="Dismiss announcement"
-        className="shrink-0 text-ink-faint transition-colors hover:text-ink"
+        className="flex size-11 shrink-0 items-center justify-center text-ink-faint transition-colors hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
       >
         ✕
       </button>
