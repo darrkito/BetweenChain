@@ -288,7 +288,7 @@ export function ConnectWalletMenu() {
     <>
       <button
         onClick={() => setOpen(true)}
-        className="num shrink-0 rounded-full bg-accent px-3 py-2 text-sm font-semibold text-accent-ink shadow-sm transition-all hover:brightness-110 sm:px-4"
+        className="num flex min-h-11 shrink-0 items-center justify-center rounded-full bg-accent px-3 py-2 text-sm font-semibold text-accent-ink shadow-sm transition-all hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent sm:px-4"
       >
         {/* Shortened below `sm` — "Wallets connected" alone was wide enough
             to crowd the header on a narrow phone alongside the nav links. */}
