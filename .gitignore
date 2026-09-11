@@ -51,3 +51,5 @@ next-env.d.ts
 # ${OPENSEA_API_KEY} substitution needs — .mcp.json itself is committed since
 # it only ever references the var name, never the literal secret).
 .claude/settings.local.json
+
+graphify-out/
