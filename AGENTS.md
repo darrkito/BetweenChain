@@ -242,3 +242,30 @@ exists there at all). Full detail in `STATE.md`'s 2026-08-25/26 entry.
   Dashboard, Meme Radar). This is a deliberate "core product vs. extra tools"
   differentiator now, not accidental drift — keep it that way; don't add or remove
   emoji from either group without updating this note.
+
+## taste-skill audit (2026-09-11)
+
+Ran the fuller `taste-skill` anti-slop checklist against this site, same pass done on
+Yume/Dizayn/Luvory the same session. **No conflicts found — this project already
+independently arrived at what the other three were being pushed toward:**
+
+- **Typography**: already resolved back on 2026-08-06 (see the top of this file) —
+  Calistoga (display serif) + IBM Plex Sans (body) + JetBrains Mono (data), explicitly
+  chosen after an Impeccable audit flagged Geist/Inter/Roboto/Fraunces/Plus Jakarta
+  Sans/Space Grotesk by name as overused. Nothing to change.
+- **Gradients (Section 4.2/9.A)**: every gradient in the codebase is deliberate, not
+  decorative — `.skeleton`'s shimmer (standard loading-state convention), `.step-beam`'s
+  cross-chain "in-flight" progress sweep (documented reasoning, respects
+  `prefers-reduced-motion`), image-legibility scrims on NFT cards/hero, and
+  `SwapPanel.tsx`'s sell/buy gradient built from the **two real chains' actual brand
+  colors** (e.g. Solana teal → Ethereum indigo — real data, not arbitrary decoration).
+  None match the banned generic purple/blue-on-white pattern. Nothing to change.
+- **Emoji-as-icon (Section 3.D/9.E discourages by default)**: already covered by the
+  2026-08-11 decision above — deliberate, documented, and explicitly not to be touched
+  piecemeal. Confirmed this taste-skill pass shouldn't override that decision.
+- **Em-dash ban (Section 9.G) applies to new copy only.** 452 em-dashes exist across
+  already-published `content/blog/*.mdx` + `content/blog-es/*.mdx` — correctly
+  punctuated existing content, not an AI-writing tic to purge retroactively (taste-skill's
+  own Section 11.C: preserve copy voice unless a rewrite is separately requested).
+  **Going forward: no em-dashes in any new copy** (new blog posts, UI strings, page
+  copy).
