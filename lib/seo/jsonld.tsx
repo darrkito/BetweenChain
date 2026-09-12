@@ -33,8 +33,18 @@ export function organizationSchema() {
     "@type": "Organization",
     "@id": `${SITE_URL}/#organization`,
     name: SITE_NAME,
+    description: "Non-custodial cross-chain token swap and NFT marketplace covering Solana, EVM chains, and Sui.",
     url: SITE_URL,
     logo: `${SITE_URL}/icon-512.png`,
+    // No email/telephone — genuinely none exists for this project (same
+    // no-fabrication stance as app/privacy/page.tsx's own comment). `url`
+    // is a valid ContactPoint property per schema.org for exactly this
+    // case: a real, reachable support channel that isn't email/phone.
+    contactPoint: {
+      "@type": "ContactPoint",
+      contactType: "customer support",
+      url: SITE_X_URL,
+    },
     sameAs: [SITE_X_URL],
   };
 }

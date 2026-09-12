@@ -36,6 +36,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ slu
       // Same real Content-Signal stance as robots.txt (app/robots.ts) —
       // keep both in sync if that policy ever changes.
       "Cache-Control": "public, max-age=3600",
+      Vary: "Accept",
     },
   });
 }

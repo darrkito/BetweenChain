@@ -23,6 +23,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ slu
     headers: {
       "Content-Type": "text/markdown; charset=utf-8",
       "Cache-Control": "public, max-age=3600",
+      Vary: "Accept",
     },
   });
 }

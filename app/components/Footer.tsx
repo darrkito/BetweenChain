@@ -21,6 +21,8 @@ const LINKS: Array<{ href: string; label: string }> = [
   { href: "/dashboard", label: "Rewards" },
   { href: "/faq", label: "FAQ" },
   { href: "/blog", label: "Blog" },
+  { href: "/about", label: "About" },
+  { href: "/contact", label: "Contact" },
 ];
 
 export function Footer() {

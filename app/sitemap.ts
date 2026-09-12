@@ -91,6 +91,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${SITE_URL}/privacy`, lastModified: "2026-08-19", changeFrequency: "yearly", priority: 0.3 },
     { url: `${SITE_URL}/terms`, lastModified: "2026-08-19", changeFrequency: "yearly", priority: 0.3 },
     { url: `${SITE_URL}/security`, lastModified: "2026-08-27", changeFrequency: "yearly", priority: 0.4 },
+    { url: `${SITE_URL}/about`, lastModified: "2026-09-12", changeFrequency: "yearly", priority: 0.4 },
+    { url: `${SITE_URL}/contact`, lastModified: "2026-09-12", changeFrequency: "yearly", priority: 0.4 },
   ];
   const blogEntries: MetadataRoute.Sitemap = getAllBlogPosts().map((post) => {
     const esSlug = EN_TO_ES_BLOG_SLUG[post.slug];
