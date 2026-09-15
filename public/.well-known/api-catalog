@@ -59,7 +59,11 @@
     },
     {
       "anchor": "https://blockchains.click/api",
+      "service-desc": [
+        { "href": "https://blockchains.click/openapi.json", "type": "application/vnd.oai.openapi+json" }
+      ],
       "service-doc": [
+        { "href": "https://blockchains.click/auth.md", "type": "text/markdown" },
         { "href": "https://blockchains.click/sentinel-shield", "type": "text/html" },
         { "href": "https://blockchains.click/burner-shield", "type": "text/html" }
       ],

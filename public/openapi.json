@@ -1,0 +1,204 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Blockchains.Click Public API",
+    "version": "1.0.0",
+    "description": "Read-only, unauthenticated market-data API for cross-chain token swaps and NFT marketplace data. No API key or OAuth — see externalDocs. Every operation here is also exposed as an MCP tool at /api/mcp with the same parameters; see /.well-known/mcp/server-card.json. Swap/NFT-purchase EXECUTION always requires a wallet signature through the website UI and is never exposed here.",
+    "contact": { "url": "https://x.com/blocksdotclick" }
+  },
+  "externalDocs": { "description": "Agent authentication & usage notes", "url": "https://blockchains.click/auth.md" },
+  "servers": [{ "url": "https://blockchains.click" }],
+  "paths": {
+    "/api/tokens/chains": {
+      "get": {
+        "operationId": "getChains",
+        "summary": "List supported chains",
+        "description": "List the blockchains this app supports for cross-chain swaps (chain id, name, native currency).",
+        "responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "type": "object", "properties": { "chains": { "type": "array", "items": { "type": "object" } } } } } } } }
+      }
+    },
+    "/api/tokens/list": {
+      "get": {
+        "operationId": "getTokenList",
+        "summary": "List tokens on a chain",
+        "description": "List tokens available to swap on a given chain, optionally filtered by a search term.",
+        "parameters": [
+          { "name": "chainId", "in": "query", "required": true, "schema": { "type": "integer" }, "description": "Chain id, from getChains" },
+          { "name": "term", "in": "query", "required": false, "schema": { "type": "string" }, "description": "Filter by token name/symbol" }
+        ],
+        "responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "type": "object", "properties": { "tokens": { "type": "array", "items": { "type": "object" } } } } } } }, "400": { "description": "Missing chainId" } }
+      }
+    },
+    "/api/tokens/price": {
+      "get": {
+        "operationId": "getNativePrice",
+        "summary": "Get native SOL/SUI USD price",
+        "parameters": [
+          { "name": "symbol", "in": "query", "required": false, "schema": { "type": "string", "enum": ["sol", "sui"] }, "description": "Defaults to sol when omitted" }
+        ],
+        "responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "type": "object", "properties": { "solUsdPrice": { "type": "number" }, "suiUsdPrice": { "type": "number" } } } } } } }
+      }
+    },
+    "/api/tokens/evm-price": {
+      "get": {
+        "operationId": "getEvmTokenPrice",
+        "summary": "Get an EVM token's USD price",
+        "parameters": [
+          { "name": "chainId", "in": "query", "required": true, "schema": { "type": "integer" } },
+          { "name": "address", "in": "query", "required": true, "schema": { "type": "string" }, "description": "ERC-20 contract address, or the chain's native sentinel address" }
+        ],
+        "responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "type": "object", "properties": { "price": { "type": ["number", "null"] } } } } } }, "400": { "description": "Invalid request" } }
+      }
+    },
+    "/api/tokens/stats": {
+      "get": {
+        "operationId": "getTokenStats",
+        "summary": "Get Jupiter market stats for a Solana mint",
+        "parameters": [{ "name": "mint", "in": "query", "required": true, "schema": { "type": "string" }, "description": "Solana token mint address" }],
+        "responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "type": "object", "properties": { "stats": { "type": "object" } } } } } }, "400": { "description": "Missing mint" } }
+      }
+    },
+    "/api/tokens/trending": {
+      "get": {
+        "operationId": "getTrendingTokens",
+        "summary": "Get trending tokens for a chain",
+        "parameters": [{ "name": "chainId", "in": "query", "required": true, "schema": { "type": "integer" } }],
+        "responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "type": "object", "properties": { "tokens": { "type": "array", "items": { "type": "object" } } } } } } }, "400": { "description": "Missing chainId" } }
+      }
+    },
+    "/api/tokens/mint-prices": {
+      "get": {
+        "operationId": "getMintPrices",
+        "summary": "Get USD prices for multiple Solana mints",
+        "parameters": [{ "name": "mints", "in": "query", "required": true, "schema": { "type": "string" }, "description": "Comma-separated Solana mint addresses" }],
+        "responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "type": "object", "properties": { "prices": { "type": "object", "additionalProperties": { "type": "number" } } } } } } }, "400": { "description": "Missing mints" } }
+      }
+    },
+    "/api/tokens/safety": {
+      "get": {
+        "operationId": "getTokenSafety",
+        "summary": "Get RugCheck safety data for a Solana mint",
+        "description": "`safety` is null (never fabricated) when RugCheck has no report for the mint.",
+        "parameters": [{ "name": "mint", "in": "query", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "type": "object", "properties": { "safety": { "type": ["object", "null"] } } } } } }, "400": { "description": "Missing mint" } }
+      }
+    },
+    "/api/quote/preview": {
+      "get": {
+        "operationId": "getSwapQuotePreview",
+        "summary": "Preview a Solana/EVM swap (Jupiter/Relay)",
+        "description": "PRICE PREVIEW ONLY: creates nothing and cannot execute a trade. Executing a swap requires a connected wallet signature at https://blockchains.click.",
+        "parameters": [
+          { "name": "sourceChainId", "in": "query", "required": false, "schema": { "type": "integer" }, "description": "Defaults to Solana" },
+          { "name": "sourceMint", "in": "query", "required": true, "schema": { "type": "string" }, "description": "Origin token mint (Solana) or contract address (EVM)" },
+          { "name": "sourceAmount", "in": "query", "required": true, "schema": { "type": "string", "pattern": "^\\d+$" }, "description": "Origin amount in the token's smallest atomic unit" },
+          { "name": "destChainId", "in": "query", "required": true, "schema": { "type": "integer" } },
+          { "name": "destToken", "in": "query", "required": true, "schema": { "type": "string" }, "description": "Destination token mint/address, or \"SOL\" for native Solana" },
+          { "name": "destDecimals", "in": "query", "required": false, "schema": { "type": "integer", "minimum": 0, "maximum": 18 }, "description": "Only needed for a non-native Solana destination token" },
+          { "name": "autoRefuel", "in": "query", "required": false, "schema": { "type": "boolean" }, "description": "Include a small amount of destination-chain gas in the quote" }
+        ],
+        "responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "type": "object" } } } }, "400": { "description": "Invalid request" } }
+      }
+    },
+    "/api/quote/btc/preview": {
+      "get": {
+        "operationId": "getBtcSuiQuotePreview",
+        "summary": "Preview a BTC/Sui swap (ChangeNOW)",
+        "description": "Covers BTC<->SOL, BTC<->ETH, BTC<->SUI, or any pair involving SUI from a non-Solana chain. PRICE PREVIEW ONLY.",
+        "parameters": [
+          { "name": "sourceCurrency", "in": "query", "required": true, "schema": { "type": "string", "enum": ["btc", "sol", "eth", "sui"] } },
+          { "name": "sourceAmount", "in": "query", "required": true, "schema": { "type": "string", "pattern": "^\\d*\\.?\\d+$" }, "description": "Human-readable decimal amount, e.g. \"0.05\"" },
+          { "name": "destCurrency", "in": "query", "required": true, "schema": { "type": "string", "enum": ["btc", "sol", "eth", "sui"] } },
+          { "name": "sourceChainId", "in": "query", "required": false, "schema": { "type": "string", "pattern": "^\\d+$" }, "description": "EVM chain id the source is coming from, if not mainnet Ethereum" }
+        ],
+        "responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "type": "object" } } } }, "400": { "description": "Invalid request" } }
+      }
+    },
+    "/api/nft/collection": {
+      "get": {
+        "operationId": "getNftCollection",
+        "summary": "Get one NFT collection's detail",
+        "parameters": [
+          { "name": "vendor", "in": "query", "required": true, "schema": { "type": "string", "enum": ["magiceden", "opensea", "tradeport"] } },
+          { "name": "slug", "in": "query", "required": true, "schema": { "type": "string" } },
+          { "name": "chain", "in": "query", "required": false, "schema": { "type": "string" }, "description": "Tradeport chain (e.g. \"sui\", \"aptos\") — only for vendor tradeport" }
+        ],
+        "responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "type": "object", "properties": { "collection": { "type": "object" } } } } } }, "404": { "description": "Collection not found" } }
+      }
+    },
+    "/api/nft/collections": {
+      "get": {
+        "operationId": "browseNftCollections",
+        "summary": "Browse NFT collections on a chain family",
+        "parameters": [
+          { "name": "chainFamily", "in": "query", "required": true, "schema": { "type": "string", "enum": ["solana", "evm", "move"] } },
+          { "name": "chain", "in": "query", "required": false, "schema": { "type": "string" }, "description": "Required for chainFamily \"move\" — a Tradeport chain, e.g. \"sui\". Also accepts an OpenSea chain slug for evm." }
+        ],
+        "responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "type": "object", "properties": { "collections": { "type": "array", "items": { "type": "object" } } } } } } } }
+      }
+    },
+    "/api/nft/listings": {
+      "get": {
+        "operationId": "getNftListings",
+        "summary": "Get listings for an NFT collection",
+        "parameters": [
+          { "name": "vendor", "in": "query", "required": true, "schema": { "type": "string", "enum": ["magiceden", "opensea", "tradeport"] } },
+          { "name": "slug", "in": "query", "required": true, "schema": { "type": "string" } },
+          { "name": "view", "in": "query", "required": false, "schema": { "type": "string", "enum": ["listed", "all"], "default": "listed" } },
+          { "name": "cursor", "in": "query", "required": false, "schema": { "type": "string" }, "description": "Pagination cursor from a previous response" },
+          { "name": "chain", "in": "query", "required": false, "schema": { "type": "string" }, "description": "Tradeport chain — only for vendor tradeport" }
+        ],
+        "responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "type": "object", "properties": { "listings": { "type": "array", "items": { "type": "object" } }, "nextCursor": { "type": ["string", "null"] } } } } } } }
+      }
+    },
+    "/api/nft/listed-count": {
+      "get": {
+        "operationId": "getNftListedCount",
+        "summary": "Get the count of currently listed NFTs in a collection",
+        "parameters": [
+          { "name": "vendor", "in": "query", "required": true, "schema": { "type": "string", "enum": ["magiceden", "opensea", "tradeport"] } },
+          { "name": "slug", "in": "query", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "type": "object" } } } }, "400": { "description": "Unsupported for this vendor" } }
+      }
+    },
+    "/api/nft/total-supply": {
+      "get": {
+        "operationId": "getNftTotalSupply",
+        "summary": "Get the total supply of an NFT collection",
+        "parameters": [
+          { "name": "vendor", "in": "query", "required": true, "schema": { "type": "string", "enum": ["magiceden", "opensea", "tradeport"] } },
+          { "name": "slug", "in": "query", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "type": "object", "properties": { "totalSupply": { "type": ["integer", "null"] } } } } } }, "400": { "description": "Already included in getNftCollection for this vendor" } }
+      }
+    },
+    "/api/stats": {
+      "get": {
+        "operationId": "getPlatformStats",
+        "summary": "Get real, aggregate platform stats",
+        "description": "Total completed transactions and total USD volume.",
+        "responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "type": "object" } } } } }
+      }
+    },
+    "/api/sentinel-shield/health": {
+      "get": {
+        "operationId": "getSentinelShieldHealth",
+        "summary": "Get an Aave account's health-factor snapshots",
+        "parameters": [{ "name": "address", "in": "query", "required": true, "schema": { "type": "string" }, "description": "EVM wallet address" }],
+        "responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "type": "object", "properties": { "snapshots": { "type": "array", "items": { "type": "object" } } } } } } }, "400": { "description": "Invalid address" } }
+      }
+    },
+    "/api/burner-shield/check": {
+      "get": {
+        "operationId": "burnerShieldCheck",
+        "summary": "Check a contract/token's risk before signing",
+        "parameters": [
+          { "name": "address", "in": "query", "required": true, "schema": { "type": "string" } },
+          { "name": "chainId", "in": "query", "required": true, "schema": { "type": "integer" } }
+        ],
+        "responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "type": "object", "properties": { "addressSecurity": { "type": "object" }, "tokenSecurity": { "type": "object" } } } } } }, "400": { "description": "Invalid address or chain" } }
+      }
+    }
+  }
+}

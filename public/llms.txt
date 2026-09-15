@@ -93,6 +93,7 @@ A Spanish-language subset of the blog is available at `/es/blog/{slug}`, real tr
 
 - MCP server: https://blockchains.click/api/mcp (server card at https://blockchains.click/.well-known/mcp/server-card.json) — tools: get_chains, get_tokens, get_token_price, get_token_safety, get_swap_quote_preview, get_btc_sui_quote_preview, get_nft_collection, browse_nft_collections, get_platform_stats, get_blog_posts, get_blog_post_detail, search_faq
 - A2A agent: https://blockchains.click/api/a2a (agent card at https://blockchains.click/.well-known/agent-card.json) — JSON-RPC `message/send`, ask it directly about chains, fees, or a specific swap pair
+- REST API: OpenAPI 3.1 spec at https://blockchains.click/openapi.json — same read-only endpoints as the MCP tools above, no auth required (see https://blockchains.click/auth.md)
 - RFC 9727 API catalog: https://blockchains.click/.well-known/api-catalog
 
 ## Not Supported

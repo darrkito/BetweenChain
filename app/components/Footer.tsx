@@ -66,6 +66,9 @@ export function Footer() {
           <div className="flex items-center gap-3">
             {/* Added 2026-08-19 (SEO checklist audit) -- real gap, no
                 Privacy/Terms links anywhere on the site before this. */}
+            <Link href="/openapi.json" className="text-xs text-ink-faint transition-colors hover:text-accent">
+              API
+            </Link>
             <Link href="/security" className="text-xs text-ink-faint transition-colors hover:text-accent">
               Security
             </Link>
