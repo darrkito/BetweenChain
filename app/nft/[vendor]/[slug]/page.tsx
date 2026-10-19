@@ -6,6 +6,7 @@ import { CRYPTOPUNKS_SLUG } from "@/lib/nft/cryptopunksShared";
 import { getTradeportListings } from "@/lib/nft/tradeport";
 import { NFT_VENDOR_CLIENTS } from "@/lib/nft/vendorClients";
 import { applyNftImageOverride } from "@/lib/nft/imageOverrides";
+import { collectionFallbackMetadata } from "@/lib/nft/metadataFallback";
 import { getSolUsdPrice, getEthUsdPrice } from "@/lib/pricing";
 import { CollectionPageClient } from "./CollectionPageClient";
 import type { NftListing, NftVendor } from "@/lib/nft/types";
@@ -74,13 +75,16 @@ export async function generateMetadata({ params }: { params: Promise<{ vendor: s
   // very likely to hit either the now-warm cache or a since-recovered
   // upstream — closes the "Googlebot's one crawl attempt landed on the
   // unlucky millisecond" risk almost entirely for one extra round-trip.
+  // 2026-10-19: it didn't close it entirely (SEO Watchdog caught 7 Magic Eden
+  // pages noindexed in one crawl), so a failed lookup now falls back to
+  // indexable slug-based metadata instead — see lib/nft/metadataFallback.ts.
   let rawCollection = await client?.getCollection(slug).catch(() => undefined);
   if (!rawCollection) {
     await new Promise((resolve) => setTimeout(resolve, 500));
     rawCollection = await client?.getCollection(slug).catch(() => undefined);
   }
   const collection = rawCollection ? applyNftImageOverride(vendor, slug, rawCollection) : undefined;
-  if (!collection) return { title: "Collection", robots: { index: false } };
+  if (!collection) return collectionFallbackMetadata(vendor, slug);
   const title = collection.name;
   const description = collection.description?.trim()
     ? collection.description
